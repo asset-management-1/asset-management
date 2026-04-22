@@ -1,0 +1,12 @@
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/bin/Debug/net10.0/Haven.Domain.deps.json
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/bin/Debug/net10.0/Haven.Domain.dll
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/bin/Debug/net10.0/Haven.Domain.pdb
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/Haven.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/Haven.Domain.AssemblyInfoInputs.cache
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/Haven.Domain.AssemblyInfo.cs
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/Haven.Domain.csproj.CoreCompileInputs.cache
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/Haven.Domain.sourcelink.json
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/Haven.Domain.dll
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/refint/Haven.Domain.dll
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/Haven.Domain.pdb
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Businesses/Haven.Domain/obj/Debug/net10.0/ref/Haven.Domain.dll

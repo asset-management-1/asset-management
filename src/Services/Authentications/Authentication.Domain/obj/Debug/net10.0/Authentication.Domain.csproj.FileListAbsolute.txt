@@ -1,0 +1,12 @@
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/bin/Debug/net10.0/Authentication.Domain.deps.json
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/bin/Debug/net10.0/Authentication.Domain.dll
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/bin/Debug/net10.0/Authentication.Domain.pdb
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/Authentication.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/Authentication.Domain.AssemblyInfoInputs.cache
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/Authentication.Domain.AssemblyInfo.cs
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/Authentication.Domain.csproj.CoreCompileInputs.cache
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/Authentication.Domain.sourcelink.json
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/Authentication.Domain.dll
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/refint/Authentication.Domain.dll
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/Authentication.Domain.pdb
+/Users/longtb5/Documents/Coding/Assets/asset-management/src/Services/Authentications/Authentication.Domain/obj/Debug/net10.0/ref/Authentication.Domain.dll
