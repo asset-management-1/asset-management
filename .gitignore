@@ -405,3 +405,4 @@ redis.conf
 *output*
 **/*.DS_Store
 .config/dotnet-tools.json
+idea
