@@ -1,0 +1,7 @@
+﻿services:
+  haven.api:
+    image: haven.api
+    build:
+      context: .
+      dockerfile: src/Services/Businesses/Haven.Api/Dockerfile
+

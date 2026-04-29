@@ -1,0 +1,50 @@
+namespace Haven.Core.Exceptions;
+
+/// <summary>
+/// Represents an application-level API error that includes an optional
+/// custom error code for more precise error identification.
+/// </summary>
+public class ApiException : Exception
+{
+    /// <summary>
+    /// Gets the custom error code associated with this exception.
+    /// This value is typically used by the middleware to return
+    /// a meaningful error response to the client.
+    /// </summary>
+    public string ErrorCode { get; }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApiException"/> class.
+    /// </summary>
+    public ApiException() : base() { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApiException"/> class
+    /// with a descriptive error message.
+    /// </summary>
+    /// <param name="message">The error message describing the issue.</param>
+    public ApiException(string message) : base(message) { }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApiException"/> class
+    /// with a descriptive error message and a specific application error code.
+    /// </summary>
+    /// <param name="message">The error message describing the issue.</param>
+    /// <param name="errorCode">
+    /// A custom application error code used to identify this error type.
+    /// </param>
+    public ApiException(string message, string errorCode)
+        : base(message)
+    {
+        ErrorCode = errorCode;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApiException"/> class
+    /// with a formatted message string and dynamic message arguments.
+    /// </summary>
+    /// <param name="message">The message format string.</param>
+    /// <param name="args">Values to format into the message string.</param>
+    public ApiException(string message, params object[] args)
+        : base(string.Format(CultureInfo.CurrentCulture, message, args)) { }
+}
