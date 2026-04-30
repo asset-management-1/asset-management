@@ -33,15 +33,15 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haven.Domain", "src\Service
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haven.Insfrastructure", "src\Services\Businesses\Haven.Insfrastructure\Haven.Insfrastructure.csproj", "{13707A2E-641B-4504-9DC0-D78865998D0E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haven.ApiCommon", "src\Shared\Haven.ApiCommon\Haven.ApiCommon.csproj", "{962135F5-ECE0-4F58-B31D-E56E6687B752}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Be.Haven.ApiCommon", "src\Shared\Be.Haven.ApiCommon\Be.Haven.ApiCommon.csproj", "{962135F5-ECE0-4F58-B31D-E56E6687B752}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haven.Cache", "src\Shared\Haven.Cache\Haven.Cache.csproj", "{61F4C0EC-475F-40DC-AD73-BD81B717C6F1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Be.Haven.Cache", "src\Shared\Be.Haven.Cache\Be.Haven.Cache.csproj", "{61F4C0EC-475F-40DC-AD73-BD81B717C6F1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haven.Core", "src\Shared\Haven.Core\Haven.Core.csproj", "{FFC7CE87-9984-4732-B673-1604636F206C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Be.Haven.Core", "src\Shared\Be.Haven.Core\Be.Haven.Core.csproj", "{FFC7CE87-9984-4732-B673-1604636F206C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haven.EventBus", "src\Shared\Haven.EventBus\Haven.EventBus.csproj", "{F490AFA5-8B21-4A00-8615-3A9FA34A8079}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Be.Haven.EventBus", "src\Shared\Be.Haven.EventBus\Be.Haven.EventBus.csproj", "{F490AFA5-8B21-4A00-8615-3A9FA34A8079}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Haven.Shared", "src\Shared\Haven.Shared\Haven.Shared.csproj", "{2B947540-F03C-4ECC-9517-611CF1FDC206}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Be.Haven.Shared", "src\Shared\Be.Haven.Shared\Be.Haven.Shared.csproj", "{2B947540-F03C-4ECC-9517-611CF1FDC206}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

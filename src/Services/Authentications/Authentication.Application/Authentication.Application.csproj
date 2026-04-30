@@ -3,7 +3,12 @@
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
+        <Nullable>disable</Nullable>
     </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\..\Shared\Be.Haven.Cache\Be.Haven.Cache.csproj" />
+      <ProjectReference Include="..\Authentication.Domain\Authentication.Domain.csproj" />
+    </ItemGroup>
 
 </Project>
