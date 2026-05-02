@@ -1,0 +1,24 @@
+namespace Authentication.Domain.Entities;
+
+public partial class UserRole : BaseEntity
+{
+    /// <summary>
+    /// User ID in the mapping.
+    /// </summary>
+    public long UserId { get; set; }
+
+    /// <summary>
+    /// Role ID in the mapping.
+    /// </summary>
+    public long RoleId { get; set; }
+
+    /// <summary>
+    /// Navigation to mapped role.
+    /// </summary>
+    public virtual Role Role { get; set; }
+
+    /// <summary>
+    /// Navigation to mapped user.
+    /// </summary>
+    public virtual User User { get; set; }
+}

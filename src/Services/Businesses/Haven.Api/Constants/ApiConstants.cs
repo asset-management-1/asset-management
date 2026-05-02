@@ -1,6 +1,6 @@
-namespace Authentication.Api.Constants;
+namespace Haven.Api.Constants;
 
-public static class ApiConstant
+public static class ApiConstants
 {
     /// <summary>
     /// Configuration section key for third-party settings.

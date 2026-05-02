@@ -37,7 +37,7 @@ global using static Be.Haven.Shared.Constants.AppConstants.SystemVariable;
 global using static Be.Haven.Shared.Constants.CoreLogConstants;
 global using static Be.Haven.Shared.Constants.AuthConstants.SystemMessage;
 global using static Be.Haven.Shared.Constants.AuthConstants;
-global using static Be.Haven.Shared.Constants.ApiLogConstant;
+global using static Be.Haven.Shared.Constants.ApiLogConstants;
 global using static Be.Haven.Shared.Constants.ApiConstants;
 global using static Be.Haven.Shared.Constants.ApiConstants.SwaggerConstants;
 global using static Be.Haven.Shared.Constants.AppConstants;

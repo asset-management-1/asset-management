@@ -33,19 +33,19 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         var dateTimeUtcNow = DateTime.UtcNow;
-        Guid userId = Guid.Empty;
+        long? userId = null;
+
         if (_authService.IsAuthenticated)
         {
             var userIdStr = _authService.UserId();
-            if (Guid.TryParse(userIdStr, out var parsedUserId))
+
+            if (long.TryParse(userIdStr, out var parsedUserId))
             {
                 userId = parsedUserId;
             }
             else
             {
-                _logger.LogWarning(
-                    LOG_UNABLE_PARSE_USER_ID,
-                    userIdStr);
+                _logger.LogWarning(LOG_UNABLE_PARSE_USER_ID, userIdStr);
             }
         }
 
@@ -54,20 +54,23 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.CreateBy = userId;
-                    entry.Entity.UpdateBy = userId;
+                    entry.Entity.CreatedBy = userId;
                     entry.Entity.CreatedAt = dateTimeUtcNow;
-                    entry.Entity.UpdatedAt = dateTimeUtcNow;
-                    entry.Entity.IsActive = true;
+                    entry.Entity.UpdatedBy = null;
+                    entry.Entity.UpdatedAt = null;
+                    entry.Entity.IsDeleted = false;
                     break;
+
                 case EntityState.Modified:
-                    entry.Entity.UpdateBy = userId;
+                    entry.Entity.UpdatedBy = userId;
                     entry.Entity.UpdatedAt = dateTimeUtcNow;
                     break;
+
                 case EntityState.Deleted:
-                    entry.Entity.UpdateBy = userId;
+                    entry.State = EntityState.Modified; // soft delete
+                    entry.Entity.UpdatedBy = userId;
                     entry.Entity.UpdatedAt = dateTimeUtcNow;
-                    entry.Entity.IsActive = false;
+                    entry.Entity.IsDeleted = true;
                     break;
             }
         }

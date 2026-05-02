@@ -1,39 +1,44 @@
-﻿using Be.Haven.Core.Interfaces.Softs.IIsActive;
-
-namespace Be.Haven.Core.Models;
+﻿namespace Be.Haven.Core.Models;
 
 /// <summary>
-/// Represents the base class for all entities in the domain model.
+/// Base entity for all domain models.
 /// </summary>
-public abstract class BaseEntity : IIsActive
+public abstract class BaseEntity : IIsDeleted
 {
     /// <summary>
-    /// Gets or sets the unique identifier for the plate request.
+    /// Internal primary key used for database relations and joins.
     /// </summary>
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public long Id { get; set; }
 
     /// <summary>
-    /// Identifier of the user who created the record.
+    /// Public identifier used for API exposure to avoid predictable IDs.
     /// </summary>
-    public Guid CreateBy { get; set; }
+    public Guid PublicId { get; set; }
 
     /// <summary>
-    /// Date and time when the record was created.
+    /// UTC date when the record was created.
     /// </summary>
     public DateTime CreatedAt { get; set; }
 
     /// <summary>
-    /// Identifier of the user who last updated the record.
+    /// User ID who created the record.
+    /// Null for system-generated records.
     /// </summary>
-    public Guid? UpdateBy { get; set; }
+    public long? CreatedBy { get; set; }
 
     /// <summary>
-    /// Date and time when the record was last updated.
+    /// UTC date when the record was last updated.
     /// </summary>
     public DateTime? UpdatedAt { get; set; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether the entity is marked as active or not.
+    /// User ID who last updated the record.
+    /// Null if the record has never been updated or was updated by system.
     /// </summary>
-    public bool IsActive { get; set; } = true;
+    public long? UpdatedBy { get; set; }
+
+    /// <summary>
+    /// Soft delete flag.
+    /// </summary>
+    public bool IsDeleted { get; set; }
 }

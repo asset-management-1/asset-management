@@ -11,5 +11,6 @@ public static class ServiceRegistration
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddDbConnectionInitialization();
     }
 }

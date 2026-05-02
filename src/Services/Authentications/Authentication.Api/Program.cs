@@ -21,7 +21,7 @@ builder.Services.AddConfiguredOpenTelemetry(configuration);
 builder.Services.AddConfiguredOptions(configuration);
 
 // Security / Auth
-// builder.Services.AddAuthServices();
+builder.Services.AddAuthServices(configuration);
 
 // Caching / GCP
 builder.Services.AddDistributedCache(configuration);

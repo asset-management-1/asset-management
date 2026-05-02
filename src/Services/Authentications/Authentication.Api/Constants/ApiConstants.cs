@@ -1,11 +1,16 @@
-namespace Haven.Api.Constants;
+namespace Authentication.Api.Constants;
 
-public static class ApiConstant
+public static class ApiConstants
 {
     /// <summary>
     /// Configuration section key for third-party settings.
     /// </summary>
     public const string THIRD_PARTY_SETTING = "ThirdPartySettings";
+
+    /// <summary>
+    /// Configuration section key that contains authentication/JWT settings.
+    /// </summary>
+    public const string AUTH_SETTINGS = "GcpSettings:AuthSettings";
 
     /// <summary>
     /// A constant string representing the configuration key used for managing

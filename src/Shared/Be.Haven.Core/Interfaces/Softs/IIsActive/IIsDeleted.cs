@@ -3,10 +3,10 @@
 /// <summary>
 /// Defines a contract for entities that support active/inactive status.
 /// </summary>
-public interface IIsActive
+public interface IIsDeleted
 {
     /// <summary>
-    /// Gets or sets a value indicating whether the entity is active.
+    /// Gets or sets a value indicating whether the entity is marked as deleted.
     /// </summary>
-    bool IsActive { get; set; }
+    bool IsDeleted { get; set; }
 }

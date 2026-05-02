@@ -1,8 +1,11 @@
-﻿// Global using directives
+// Global using directives
 
 global using System.Text.Json.Serialization;
+global using Asp.Versioning;
 global using Authentication.Api.Extensions;
 global using Authentication.Application.Extensions;
+global using Authentication.Application.Options;
+global using Authentication.Application.Queries;
 global using Authentication.Infrastructure.Extensions;
 global using Be.Haven.ApiCommon.Extensions;
 global using Be.Haven.ApiCommon.Middlewares;
@@ -17,8 +20,15 @@ global using Microsoft.AspNetCore.Authorization;
 global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.AspNetCore.Mvc.ApplicationModels;
 global using Microsoft.AspNetCore.Server.Kestrel.Core;
+global using static Authentication.Api.Constants.ControllerRouteConstants;
+global using static Authentication.Api.Constants.ApiConstants;
 global using static Be.Haven.Shared.Constants.AppConstants.SystemVariable;
 global using static Be.Haven.Shared.Constants.AuthConstants;
 global using static Be.Haven.Shared.Constants.CoreLogConstants;
 global using static Be.Haven.Shared.Constants.ApiConstants;
 global using static Be.Haven.Shared.Constants.AuthConstants.SystemMessage;
+global using Microsoft.AspNetCore.Authentication.JwtBearer;
+global using Microsoft.IdentityModel.Tokens;
+global using System.Text;
+
+

@@ -5,6 +5,6 @@ namespace Haven.Api.Constants;
 /// These constants represent user-facing messages that describe why a request
 /// was rejected due to missing or invalid data.
 /// </summary>
-public static class ApiErrorConstant
+public static class ApiErrorConstants
 {
 }

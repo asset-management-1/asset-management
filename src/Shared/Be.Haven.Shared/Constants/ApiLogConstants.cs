@@ -1,6 +1,6 @@
 namespace Be.Haven.Shared.Constants;
 
-public static class ApiLogConstant
+public static class ApiLogConstants
 {
     /// <summary>
     /// Log templates related to API versioning and related errors.
