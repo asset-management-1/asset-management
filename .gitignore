@@ -406,3 +406,5 @@ redis.conf
 **/*.DS_Store
 .config/dotnet-tools.json
 idea
+*.md
+.aiignore
