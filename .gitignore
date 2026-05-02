@@ -408,3 +408,4 @@ redis.conf
 idea
 *.md
 .aiignore
+appsettings.*.json
