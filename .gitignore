@@ -408,4 +408,9 @@ redis.conf
 idea
 *.md
 .aiignore
+
+# Ignore all environment configs
 appsettings.*.json
+
+# Keep base config
+!appsettings.json
