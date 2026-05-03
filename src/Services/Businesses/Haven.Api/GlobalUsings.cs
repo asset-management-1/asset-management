@@ -2,12 +2,13 @@
 
 global using System.Text.Json.Serialization;
 global using Be.Haven.ApiCommon.Extensions;
+global using Be.Haven.ApiCommon.Factories;
+global using Be.Haven.ApiCommon.Filters;
 global using Be.Haven.ApiCommon.Middlewares;
 global using Be.Haven.ApiCommon.Routing;
 global using Be.Haven.Cache.Extensions;
 global using Be.Haven.Core.Extensions.DI;
 global using Be.Haven.Core.Factories;
-global using Be.Haven.Core.Filters;
 global using Be.Haven.Shared.Dtos.Options;
 global using Haven.Api.Extensions;
 global using Haven.Application.Extensions;

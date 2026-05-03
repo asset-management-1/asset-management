@@ -1,13 +1,3 @@
-using Be.Haven.Core.Factories;
-using Be.Haven.Core.Formatters;
-using Be.Haven.Core.Handlers;
-using Be.Haven.Core.Interceptors;
-using Be.Haven.Core.Jobs;
-using Be.Haven.Core.Providers;
-using Be.Haven.Core.Repositories;
-using Be.Haven.Core.Services;
-using Be.Haven.Core.Services.Gcp;
-
 namespace Be.Haven.Core.Extensions.DI;
 
 public static class ServiceRegistration
@@ -38,29 +28,7 @@ public static class ServiceRegistration
     {
         services.AddScoped<IUnitOfWork, UnitOfWork<TContext>>();
     }
-
-    /// <summary>
-    /// Registers health checks with a default "self" check and allows custom configuration
-    /// for additional health checks per service.
-    /// </summary>
-    /// <param name="services">The IServiceCollection to add health checks to.</param>
-    /// <param name="configure">
-    ///     An optional delegate that allows adding custom health checks 
-    ///     (e.g., Redis, SQL, external API) for the specific service.
-    /// </param>
-    public static void AddConfiguredHealthChecks(this IServiceCollection services,
-        Action<IHealthChecksBuilder> configure = null)
-    {
-        // Create the builder instance for health checks
-        var builder = services.AddHealthChecks();
-
-        // Always add a basic "self" check to verify the API is alive
-        builder.AddCheck(SELF, () => HealthCheckResult.Healthy());
-
-        // Apply any custom health checks provided via delegate
-        configure?.Invoke(builder);
-    }
-
+    
     /// <summary>
     /// Adds an authenticated HttpClient without JWT to the service collection.
     /// </summary>
@@ -189,32 +157,7 @@ public static class ServiceRegistration
 
         services.AddTransient<TService, TImplementation>();
     }
-
-    /// <summary>
-    /// Configures and adds API versioning services to the service collection.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    public static void AddApiVersioningInfrastructure(this IServiceCollection services)
-    {
-        services.AddApiVersioning(config =>
-        {
-            // Specify the default API Version as 1.0
-            config.DefaultApiVersion = new ApiVersion(1, 0);
-            // If the client hasn't specified the API version in the request, use the default API version number 
-            config.AssumeDefaultVersionWhenUnspecified = true;
-            // Advertise the API versions supported for the particular endpoint
-            config.ReportApiVersions = true;
-            // Reads the API version from the URL segment (e.g., /api/v1.0/...), requires {version:apiVersion} in route templates
-            config.ApiVersionReader = new UrlSegmentApiVersionReader();
-            // If the client doesn't specify a version, selects the highest implemented API version
-            config.ApiVersionSelector = new CurrentImplementationApiVersionSelector(config);
-        }).AddApiExplorer(options =>
-        {
-            options.GroupNameFormat = "'v'VVV";        // v1, v2...
-            options.SubstituteApiVersionInUrl = true;  // thay {version} trong url
-        });
-    }
-
+    
     /// <summary>
     /// Registers Google Pub/Sub publisher-related services into the service collection.
     /// </summary>
@@ -255,56 +198,6 @@ public static class ServiceRegistration
 
             // Return the configured job to be run as a hosted background service
             return job;
-        });
-    }
-
-    /// <summary>
-    /// Configures Serilog programmatically (instead of reading from appsettings),
-    /// applying the same settings defined in the Serilog section of the configuration file.
-    /// </summary>
-    /// <param name="services">The DI container.</param>
-    /// <param name="configuration">Application configuration.</param>
-    public static void AddConfiguredLogging(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        // Load GCP / OpenTelemetry settings if needed
-        var opts = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
-        var logging = opts.LoggingSettings;
-        
-        // =====================================================================
-        // Build Serilog pipeline programmatically (equivalent to appsettings.json)
-        // =====================================================================
-        var loggerConfig = new LoggerConfiguration()
-                           .MinimumLevel.Information()
-                           .MinimumLevel.Override(LOGGER_MICROSOFT_ENTITY_FRAMEWORK_DATABASE_COMMAND, LogEventLevel.Warning)
-                           .MinimumLevel.Override(LOGGER_MICROSOFT_ENTITY_FRAMEWORK, LogEventLevel.Warning)
-                           .MinimumLevel.Override(LOGGER_MICROSOFT_ASPNETCORE, LogEventLevel.Information)
-                           .MinimumLevel.Override(LOGGER_MICROSOFT_ASPNETCORE_HOSTING, LogEventLevel.Warning)
-                           .MinimumLevel.Override(LOGGER_MICROSOFT_ASPNETCORE_SERVER_KESTREL, LogEventLevel.Warning)
-                           .Enrich.FromLogContext()
-                           .Enrich.WithOpenTelemetryTraceId()
-                           .Enrich.WithOpenTelemetrySpanId();
-
-        if (logging.EnableConsole)
-        {
-            loggerConfig = loggerConfig.WriteTo.Console(
-                formatter: new MultiLineExceptionTextFormatter(logging.DefaultOutputTemplate),
-                standardErrorFromLevel: LogEventLevel.Error);
-        }
-
-        // Build logger
-        var logger = loggerConfig.CreateLogger();
-        Log.Logger = logger;
-        services.AddSingleton(_ => new DiagnosticContext(Log.Logger));
-        
-        // --------------------------------------------------------------
-        // Replace default .NET logging with Serilog
-        // --------------------------------------------------------------
-        services.AddLogging(lb =>
-        {
-            lb.ClearProviders(); // Remove default providers (Console, Debug, etc.)
-            lb.AddSerilog(logger, dispose: true); // Register Serilog as the logging pipeline
         });
     }
 
@@ -465,34 +358,6 @@ public static class ServiceRegistration
 
         // Return the IServiceCollection to allow chaining of other registrations.
         return services;
-    }
-
-    /// <summary>
-    /// Configures and adds OpenTelemetry services such as tracing, metrics, and logging
-    /// to the service collection based on provided configuration settings.
-    /// </summary>
-    /// <param name="services">The service collection to which OpenTelemetry services will be added.</param>
-    /// <param name="configuration">The application configuration that provides OpenTelemetry settings.</param>
-    public static void AddConfiguredOpenTelemetry(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        var options = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
-        var otel = options.OpenTelemetrySettings;
-
-        if (!otel.TracingSettings.Enabled) return;
-        var env = Environment.GetEnvironmentVariable(ASPNETCORE_ENVIRONMENT);
-        var resource = ResourceBuilder.CreateEmpty()
-                                      .AddEnvironmentVariableDetector()
-                                      .AddAttributes(new Dictionary<string, object>
-                                      {
-                                          [OTL_SERVICE_ENVIRONMENT]   = env,
-                                          [OTL_INSTANCE_ENVIRONMENT]   = Environment.MachineName,
-                                          [OTL_DEPLOYMENT_ENVIRONMENT] = env
-                                      });
-        
-        var otelBuilder = services.AddOpenTelemetry();
-        OpenTelemetryHelper.Configure(otelBuilder, resource, otel);
     }
 
     /// <summary>

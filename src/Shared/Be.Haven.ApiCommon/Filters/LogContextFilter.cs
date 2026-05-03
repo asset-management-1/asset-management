@@ -1,4 +1,4 @@
-namespace Be.Haven.Core.Filters;
+namespace Be.Haven.ApiCommon.Filters;
 
 public sealed class LogContextFilter : IAsyncActionFilter, IAsyncResultFilter, IOrderedFilter
 {

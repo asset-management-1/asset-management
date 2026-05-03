@@ -13,7 +13,6 @@ global using Be.Haven.ApiCommon.Routing;
 global using Be.Haven.Cache.Extensions;
 global using Be.Haven.Core.Extensions.DI;
 global using Be.Haven.Core.Factories;
-global using Be.Haven.Core.Filters;
 global using Be.Haven.Shared.Dtos.Options;
 global using MediatR;
 global using Microsoft.AspNetCore.Authorization;
@@ -30,5 +29,13 @@ global using static Be.Haven.Shared.Constants.AuthConstants.SystemMessage;
 global using Microsoft.AspNetCore.Authentication.JwtBearer;
 global using Microsoft.IdentityModel.Tokens;
 global using System.Text;
+global using Authentication.Application.Commands.ForgotPassword;
+global using Authentication.Application.Commands.Logout;
+global using Authentication.Application.Commands.RefreshToken;
+global using Authentication.Application.Commands.Register;
+global using Authentication.Application.Commands.ThirdPartyLogin;
+global using Authentication.Application.Queries.Logins;
+global using Be.Haven.ApiCommon.Factories;
+global using Be.Haven.ApiCommon.Filters;
 
 

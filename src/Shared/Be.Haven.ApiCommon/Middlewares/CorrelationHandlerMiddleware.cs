@@ -1,4 +1,4 @@
-namespace Be.Haven.Core.Middleware;
+namespace Be.Haven.ApiCommon.Middlewares;
 
 public class CorrelationHandlerMiddleware
 {

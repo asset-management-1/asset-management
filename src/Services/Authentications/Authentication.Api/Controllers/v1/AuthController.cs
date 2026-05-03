@@ -1,10 +1,3 @@
-using Authentication.Application.Commands.ForgotPassword;
-using Authentication.Application.Commands.Logout;
-using Authentication.Application.Commands.RefreshToken;
-using Authentication.Application.Commands.Register;
-using Authentication.Application.Commands.ThirdPartyLogin;
-using Authentication.Application.Queries.Logins;
-
 namespace Authentication.Api.Controllers.v1;
 
 [ApiVersion(API_VERSION_1)]

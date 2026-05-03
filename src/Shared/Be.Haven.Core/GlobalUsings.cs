@@ -12,7 +12,6 @@ global using Be.Haven.Core.Interfaces.Repositories;
 global using Be.Haven.Core.Interfaces.Services;
 global using Be.Haven.Core.Interfaces.Services.Gcp;
 global using Be.Haven.Core.Jobs;
-global using Be.Haven.Core.Middleware;
 global using Be.Haven.Core.Models;
 global using Be.Haven.Core.Models.FileResponse;
 global using Be.Haven.Core.Repositories;

@@ -1,4 +1,4 @@
-namespace Be.Haven.Core.Factories;
+namespace Be.Haven.ApiCommon.Factories;
 
 /// <summary>
 /// Builds a unified <see cref="ResponseDto{T}"/> payload for ASP.NET Core ModelState validation errors,
