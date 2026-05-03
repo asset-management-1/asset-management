@@ -6,6 +6,6 @@ public class LogoutCommandValidator : AbstractValidator<LogoutCommand>
     {
         RuleFor(x => x)
             .Must(x => x.LogoutAllSessions || !string.IsNullOrWhiteSpace(x.RefreshToken))
-            .WithMessage("RefreshToken is required when LogoutAllSessions is false.");
+            .WithMessage(REFRESH_TOKEN_REQUIRED_WHEN_LOGOUT_SINGLE_SESSION);
     }
 }

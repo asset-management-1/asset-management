@@ -291,4 +291,35 @@ public static class CoreLogConstants
         /// </summary>
         public const string ERR_CONNECTION_NOT_INITIALIZED = "Connection string '{0}' has not been set. Ensure IConnectionStringProvider.InitializeAsync() is executed during application startup.";
     }
+    
+    /// <summary>
+    /// Contains log message constants used by email services.
+    /// </summary>
+    public static class EmailLogs
+    {
+        /// <summary>
+        /// Log message when required email configuration values are missing.
+        /// </summary>
+        public const string MissingConfiguration = "Email configuration is missing. ApiKey and FromEmail are required.";
+
+        /// <summary>
+        /// Log message when the email request does not contain valid recipients.
+        /// </summary>
+        public const string InvalidRequest = "Email request is invalid because it does not contain any valid recipient.";
+
+        /// <summary>
+        /// Log message when SendGrid accepts the email request successfully.
+        /// </summary>
+        public const string SendSuccess = "Email sent successfully via SendGrid.";
+
+        /// <summary>
+        /// Log message when SendGrid rejects or fails to process the email request.
+        /// </summary>
+        public const string SendFailed = "SendGrid email send failed with status code {StatusCode}.";
+
+        /// <summary>
+        /// Log message when an unexpected exception occurs while sending email.
+        /// </summary>
+        public const string SendException = "Error occurred while sending email.";
+    }
 }

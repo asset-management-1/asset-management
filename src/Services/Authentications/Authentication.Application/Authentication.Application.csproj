@@ -8,6 +8,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\Shared\Be.Haven.Cache\Be.Haven.Cache.csproj" />
+      <ProjectReference Include="..\..\..\Shared\Be.Haven.Core\Be.Haven.Core.csproj" />
       <ProjectReference Include="..\Authentication.Domain\Authentication.Domain.csproj" />
     </ItemGroup>
 

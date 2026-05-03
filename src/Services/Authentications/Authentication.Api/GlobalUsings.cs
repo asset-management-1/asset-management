@@ -29,12 +29,18 @@ global using static Be.Haven.Shared.Constants.AuthConstants.SystemMessage;
 global using Microsoft.AspNetCore.Authentication.JwtBearer;
 global using Microsoft.IdentityModel.Tokens;
 global using System.Text;
+global using Authentication.Application.Commands.ChangeForgotPassword;
+global using Authentication.Application.Commands.VerifyForgotPasswordOtp;
+global using Authentication.Application.Commands.VerifyRegisterEmail;
 global using Authentication.Application.Commands.ForgotPassword;
+global using Authentication.Application.Commands.ChangePassword;
+global using Authentication.Application.Commands.ExternalLink;
 global using Authentication.Application.Commands.Logout;
 global using Authentication.Application.Commands.RefreshToken;
 global using Authentication.Application.Commands.Register;
 global using Authentication.Application.Commands.ThirdPartyLogin;
 global using Authentication.Application.Queries.Logins;
+global using Authentication.Application.Queries.UserInfo;
 global using Be.Haven.ApiCommon.Factories;
 global using Be.Haven.ApiCommon.Filters;
 

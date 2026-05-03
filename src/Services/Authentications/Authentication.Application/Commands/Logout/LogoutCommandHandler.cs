@@ -19,13 +19,13 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<s
     public async Task<ResponseDto<string>> Handle(LogoutCommand request, CancellationToken cancellationToken)
     {
         var userIdRaw = _authService.UserId();
-        if (!long.TryParse(userIdRaw, out var userId))
+        if (!Guid.TryParse(userIdRaw, out var userPublicId))
         {
-            return new ResponseDto<string>(AUTH_UNAUTHORIZED, "Unauthorized request.");
+            return new ResponseDto<string>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
         }
 
         return await _authenticationService.LogoutAsync(
-            userId,
+            userPublicId,
             request.RefreshToken,
             request.LogoutAllSessions,
             cancellationToken);

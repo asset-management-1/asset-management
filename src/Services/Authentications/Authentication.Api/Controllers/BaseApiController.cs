@@ -8,7 +8,7 @@ namespace Authentication.Api.Controllers;
 /// </example>
 [ApiController]
 [Authorize]
-[Route("v{version:apiVersion}/[controller]")]
+[Route("api/v{version:apiVersion}/[controller]")]
 public abstract class BaseApiController : ControllerBase
 {
     private IMediator _mediator;

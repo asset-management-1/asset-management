@@ -74,6 +74,8 @@ global using PdfSharp.Pdf;
 global using Polly;
 global using Polly.CircuitBreaker;
 global using Polly.Retry;
+global using SendGrid;
+global using SendGrid.Helpers.Mail;
 global using Serilog;
 global using Serilog.Context;
 global using Serilog.Events;

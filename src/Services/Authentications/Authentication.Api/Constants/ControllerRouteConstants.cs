@@ -11,11 +11,19 @@ public static class ControllerRouteConstants
 
     public const string REFRESH_TOKEN = "refresh-token";
 
-    public const string THIRD_PARTY_LOGIN = "third-party-login";
+    public const string EXTERNAL_LOGIN = "external-login";
+
+    public const string EXTERNAL_LINK = "external-link";
 
     public const string FORGOT_PASSWORD = "forgot-password";
 
-    public const string USER_INFO = "me";
+    public const string VERIFY_OTP = "verify-otp";
+
+    public const string CHANGE_PASSWORD = "change-password";
+
+    public const string USER_INFO = "user-info";
 
     public const string REGISTER = "register";
+
+    public const string VERIFY_EMAIL = "verify-email";
 }

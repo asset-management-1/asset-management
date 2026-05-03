@@ -1,18 +1,31 @@
 // Global using directives
 
 global using System.Reflection;
+global using Authentication.Application.Commands.ChangeForgotPassword;
+global using Authentication.Application.Commands.ChangePassword;
+global using Authentication.Application.Commands.ExternalLink;
+global using Authentication.Application.Commands.ForgotPassword;
+global using Authentication.Application.Commands.Register;
+global using Authentication.Application.Commands.ThirdPartyLogin;
+global using Authentication.Application.Commands.VerifyForgotPasswordOtp;
+global using Authentication.Application.Commands.VerifyRegisterEmail;
+global using Authentication.Application.Dtos.Authentications;
 global using Authentication.Application.Dtos.Users;
 global using Authentication.Application.Interfaces;
+global using Authentication.Application.Interfaces.Repositories;
 global using Be.Haven.Cache.Behaviours;
 global using Be.Haven.Core.Behaviors;
 global using Be.Haven.Core.Extensions.DI;
 global using Be.Haven.Core.Extensions.Validations;
 global using Be.Haven.Core.Interfaces.Commands;
+global using Be.Haven.Core.Interfaces.Repositories;
 global using Be.Haven.Core.Interfaces.Queries;
 global using Be.Haven.Core.Interfaces.Services;
 global using Be.Haven.Shared.Dtos;
 global using FluentValidation;
 global using MediatR;
 global using Microsoft.Extensions.DependencyInjection;
+global using static Authentication.Application.Constants.ApplicationConstants;
 global using static Authentication.Application.Constants.ApplicationErrorConstants;
+global using static Authentication.Application.Constants.ApplicationLogConstants;
 global using Newtonsoft.Json;

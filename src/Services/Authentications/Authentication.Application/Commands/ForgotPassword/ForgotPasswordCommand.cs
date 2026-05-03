@@ -1,14 +1,12 @@
 namespace Authentication.Application.Commands.ForgotPassword;
 
+/// <summary>
+/// Represents a request to start the forgot-password OTP flow.
+/// </summary>
 public class ForgotPasswordCommand : ICommand<ResponseDto<string>>
 {
     /// <summary>
-    /// Username or email of account that requests password reset.
+    /// Email address of the account that requests password recovery.
     /// </summary>
-    public string UserNameOrEmail { get; set; }
-
-    /// <summary>
-    /// New password that will replace current account password.
-    /// </summary>
-    public string NewPassword { get; set; }
+    public string Email { get; set; }
 }

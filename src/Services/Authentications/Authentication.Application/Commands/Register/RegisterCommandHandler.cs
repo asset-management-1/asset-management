@@ -1,6 +1,6 @@
 namespace Authentication.Application.Commands.Register;
 
-public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseDto<LoginResponse>>
+public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseDto<string>>
 {
     private readonly IAuthenticationService _authenticationService;
 
@@ -10,9 +10,9 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
     }
 
     /// <summary>
-    /// Handles user registration and returns issued access/refresh tokens.
+    /// Handles user registration and returns OTP send result.
     /// </summary>
-    public Task<ResponseDto<LoginResponse>> Handle(RegisterCommand request, CancellationToken cancellationToken)
+    public Task<ResponseDto<string>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
         return _authenticationService.RegisterAsync(request, cancellationToken);
     }

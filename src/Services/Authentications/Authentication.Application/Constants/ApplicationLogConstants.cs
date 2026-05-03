@@ -1,6 +1,5 @@
 ﻿namespace Authentication.Application.Constants;
 
-public class ApplicationLogConstants
+public static class ApplicationLogConstants
 {
-    
 }

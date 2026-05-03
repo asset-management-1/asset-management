@@ -1,37 +1,52 @@
-﻿namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options;
 
 /// <summary>
-/// Represents configuration settings for connecting to an external email service.
+/// Represents configuration settings for sending emails.
 /// </summary>
 public class EmailOptions
 {
     /// <summary>
-    /// Gets or sets the base URL of the external email API service.
+    /// Gets or sets the SendGrid API key.
+    /// </summary>
+    public string ApiKey { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default sender email address.
+    /// </summary>
+    public string FromEmail { get; set; }
+
+    /// <summary>
+    /// Gets or sets the default sender display name.
+    /// </summary>
+    public string FromName { get; set; }
+
+    /// <summary>
+    /// Legacy field kept for backward compatibility with older configuration.
     /// </summary>
     public string BaseUrl { get; set; }
 
     /// <summary>
-    /// Gets or sets the username used to authenticate with the email API.
+    /// Legacy field kept for backward compatibility with older configuration.
     /// </summary>
     public string UserName { get; set; }
 
     /// <summary>
-    /// Gets or sets the password or API key used for authentication with the email API.
+    /// Legacy field kept for backward compatibility with older configuration.
     /// </summary>
     public string Password { get; set; }
 
     /// <summary>
-    /// Gets or sets the specific endpoint or route of the email API used to send emails.
+    /// Legacy field kept for backward compatibility with older configuration.
     /// </summary>
     public string EndPoints { get; set; }
 
     /// <summary>
-    /// Gets or sets the default sender's email address for outgoing messages.
+    /// Legacy field kept for backward compatibility with older configuration.
     /// </summary>
     public string NameFrom { get; set; }
 
     /// <summary>
-    /// Gets or sets the password associated with the default sender's email account.
+    /// Legacy field kept for backward compatibility with older configuration.
     /// </summary>
     public string PasswordFrom { get; set; }
 }

@@ -4,16 +4,12 @@ public class ThirdPartyLoginCommandValidator : AbstractValidator<ThirdPartyLogin
 {
     public ThirdPartyLoginCommandValidator()
     {
-        RuleFor(x => x.LoginProvider)
+        RuleFor(x => x.Provider)
             .Required()
             .MaxLen(50);
 
-        RuleFor(x => x.ProviderKey)
+        RuleFor(x => x.ExternalToken)
             .Required()
-            .MaxLen(255);
-
-        RuleFor(x => x.Email)
-            .EmailAddress()
-            .When(x => !string.IsNullOrWhiteSpace(x.Email));
+            .MaxLen(4000);
     }
 }

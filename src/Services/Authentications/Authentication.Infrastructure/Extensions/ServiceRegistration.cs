@@ -12,5 +12,18 @@ public static class ServiceRegistration
         IConfiguration configuration)
     {
         services.AddDbConnectionInitialization();
+        services.AddConfiguredDbContext<AuthenticationDbContext>();
+        services.AddUnitOfWork<AuthenticationDbContext>();
+        services.AddEmailService(configuration);
+        services.Configure<ExternalAuthenticationOptions>(configuration.GetSection("ExternalAuthenticationSettings"));
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
+        services.AddScoped<IMasterDataValueRepository, MasterDataValueRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IPartyRepository, PartyRepository>();
+        services.AddScoped<IUserRoleRepository, UserRoleRepository>();
+        services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
+        services.AddScoped<IAuthenticationService, AuthenticationService>();
     }
 }

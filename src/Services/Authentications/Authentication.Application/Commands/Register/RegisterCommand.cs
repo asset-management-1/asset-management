@@ -1,6 +1,6 @@
 namespace Authentication.Application.Commands.Register;
 
-public class RegisterCommand : ICommand<ResponseDto<LoginResponse>>
+public class RegisterCommand : ICommand<ResponseDto<string>>
 {
     /// <summary>
     /// Username used for account login.
@@ -8,9 +8,19 @@ public class RegisterCommand : ICommand<ResponseDto<LoginResponse>>
     public string UserName { get; set; }
 
     /// <summary>
+    /// Tenant or landlord party type.
+    /// </summary>
+    public string PartyType { get; set; }
+
+    /// <summary>
     /// Plain text password for account creation.
     /// </summary>
     public string Password { get; set; }
+
+    /// <summary>
+    /// Password confirmation.
+    /// </summary>
+    public string ConfirmPassword { get; set; }
 
     /// <summary>
     /// Optional user email.
@@ -18,7 +28,7 @@ public class RegisterCommand : ICommand<ResponseDto<LoginResponse>>
     public string Email { get; set; }
 
     /// <summary>
-    /// Optional user phone number.
+    /// User phone number.
     /// </summary>
     public string PhoneNumber { get; set; }
 

@@ -4,16 +4,8 @@ public class ForgotPasswordCommandValidator : AbstractValidator<ForgotPasswordCo
 {
     public ForgotPasswordCommandValidator()
     {
-        RuleFor(x => x.UserNameOrEmail)
-            .Required();
-
-        RuleFor(x => x.NewPassword)
+        RuleFor(x => x.Email)
             .Required()
-            .MinimumLength(8)
-            .Matches("[A-Z]")
-            .Matches("[a-z]")
-            .Matches("[0-9]")
-            .Matches("[@$!%*?&]")
-            .WithMessage(PASSWORD_COMPLEXITY_RULES);
+            .EmailAddress();
     }
 }

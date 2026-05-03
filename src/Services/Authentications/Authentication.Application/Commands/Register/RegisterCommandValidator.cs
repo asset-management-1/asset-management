@@ -8,6 +8,10 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
             .Required()
             .MaxLen(255);
 
+        RuleFor(x => x.PartyType)
+            .Required()
+            .MaxLen(50);
+
         RuleFor(x => x.Password)
             .Required()
             .MinimumLength(8)
@@ -17,9 +21,19 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
             .Matches("[@$!%*?&]")
             .WithMessage(PASSWORD_COMPLEXITY_RULES);
 
+        RuleFor(x => x.ConfirmPassword)
+            .Required()
+            .Equal(x => x.Password)
+            .WithMessage(CONFIRM_PASSWORD_MUST_MATCH_PASSWORD);
+
         RuleFor(x => x.Email)
+            .Required()
             .EmailAddress()
             .When(x => !string.IsNullOrWhiteSpace(x.Email));
+
+        RuleFor(x => x.PhoneNumber)
+            .Required()
+            .MaxLen(50);
 
         RuleFor(x => x.FullName)
             .Required()
