@@ -414,3 +414,4 @@ appsettings.*.json
 
 # Keep base config
 !appsettings.json
+.ai/mcp/mcp.json
