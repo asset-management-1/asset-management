@@ -58,6 +58,21 @@ public partial class User : BaseEntity
     public DateTime? LastLoginAt { get; set; }
 
     /// <summary>
+    /// Number of consecutive failed login attempts.
+    /// </summary>
+    public int AccessFailedCount { get; set; }
+
+    /// <summary>
+    /// Account lockout end time (UTC).
+    /// </summary>
+    public DateTime? LockoutEndAt { get; set; }
+
+    /// <summary>
+    /// Indicates whether lockout is enabled for the user.
+    /// </summary>
+    public bool LockoutEnabled { get; set; }
+
+    /// <summary>
     /// Navigation collection of external logins.
     /// </summary>
     public virtual ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();

@@ -8,6 +8,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         entity.ToTable("Users", "identity");
 
+        entity.HasIndex(e => e.LockoutEndAt, "IX_Identity_Users_Lockout").HasFilter("([LockoutEndAt] IS NOT NULL AND [IsDeleted]=(0))");
+
         entity.HasIndex(e => new { e.Email, e.StatusId }, "IX_Identity_Users_Login").HasFilter("([IsDeleted]=(0))");
 
         entity.HasIndex(e => e.PartyId, "IX_Identity_Users_PartyId").HasFilter("([IsDeleted]=(0))");
@@ -32,6 +34,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         entity.Property(e => e.FullName)
             .IsRequired()
             .HasMaxLength(255);
+        entity.Property(e => e.LockoutEnabled).HasDefaultValue(true);
         entity.Property(e => e.PasswordHash).HasMaxLength(500);
         entity.Property(e => e.PhoneNumber).HasMaxLength(50);
         entity.Property(e => e.PublicId).HasDefaultValueSql("(newsequentialid())");
