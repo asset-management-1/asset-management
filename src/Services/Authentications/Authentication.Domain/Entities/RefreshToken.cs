@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class RefreshToken : BaseEntity
+public class RefreshToken : BaseEntity
 {
     /// <summary>
     /// Associated user ID.

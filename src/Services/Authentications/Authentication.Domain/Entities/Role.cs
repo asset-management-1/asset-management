@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class Role : BaseEntity
+public class Role : BaseEntity
 {
     /// <summary>
     /// Unique role code.

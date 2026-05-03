@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class MasterDataType : BaseEntity
+public class MasterDataType : BaseEntity
 {
     /// <summary>
     /// Unique code for master data type.

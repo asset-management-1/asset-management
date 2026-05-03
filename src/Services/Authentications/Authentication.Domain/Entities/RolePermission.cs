@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class RolePermission : BaseEntity
+public class RolePermission : BaseEntity
 {
     /// <summary>
     /// Role ID in the mapping.

@@ -14,6 +14,8 @@ public partial class AuthenticationDbContext : DbContext
 
     public virtual DbSet<MasterDataValue> MasterDataValues { get; set; }
 
+    public virtual DbSet<Party> Parties { get; set; }
+
     public virtual DbSet<Permission> Permissions { get; set; }
 
     public virtual DbSet<RefreshToken> RefreshTokens { get; set; }

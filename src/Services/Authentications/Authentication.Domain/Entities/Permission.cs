@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class Permission : BaseEntity
+public class Permission : BaseEntity
 {
     /// <summary>
     /// Unique permission code.

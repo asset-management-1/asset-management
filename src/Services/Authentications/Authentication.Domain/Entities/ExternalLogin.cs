@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class ExternalLogin : BaseEntity
+public class ExternalLogin : BaseEntity
 {
     /// <summary>
     /// Associated user ID.

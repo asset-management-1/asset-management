@@ -42,9 +42,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasMaxLength(255);
 
+        entity.HasOne(d => d.Party).WithMany(p => p.Users)
+              .HasForeignKey(d => d.PartyId)
+              .HasConstraintName("FK_Identity_Users_PartyId");
+
         entity.HasOne(d => d.Status).WithMany(p => p.Users)
-            .HasForeignKey(d => d.StatusId)
-            .OnDelete(DeleteBehavior.ClientSetNull)
-            .HasConstraintName("FK_Identity_Users_StatusId");
+              .HasForeignKey(d => d.StatusId)
+              .OnDelete(DeleteBehavior.ClientSetNull)
+              .HasConstraintName("FK_Identity_Users_StatusId");
     }
 }

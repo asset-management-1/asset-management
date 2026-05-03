@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class MasterDataValue : BaseEntity
+public class MasterDataValue : BaseEntity
 {
     /// <summary>
     /// Parent master data type ID.
@@ -31,6 +31,16 @@ public partial class MasterDataValue : BaseEntity
     /// Navigation to parent master data type.
     /// </summary>
     public virtual MasterDataType MasterDataType { get; set; }
+
+    /// <summary>
+    /// Collection of parties associated with various party types.
+    /// </summary>
+    public virtual ICollection<Party> PartyPartyTypes { get; set; } = new List<Party>();
+
+    /// <summary>
+    /// Collection of party entities representing the statuses associated with the master data value.
+    /// </summary>
+    public virtual ICollection<Party> PartyStatuses { get; set; } = new List<Party>();
 
     /// <summary>
     /// Navigation collection of permissions using this status.

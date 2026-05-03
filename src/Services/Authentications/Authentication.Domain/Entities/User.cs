@@ -1,6 +1,6 @@
 namespace Authentication.Domain.Entities;
 
-public partial class User : BaseEntity
+public class User : BaseEntity
 {
     /// <summary>
     /// Linked party ID from Party service.
@@ -76,6 +76,11 @@ public partial class User : BaseEntity
     /// Navigation collection of external logins.
     /// </summary>
     public virtual ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
+
+    /// <summary>
+    /// Represents the associated party information for the user.
+    /// </summary>
+    public virtual Party Party { get; set; }
 
     /// <summary>
     /// Navigation collection of refresh tokens.
