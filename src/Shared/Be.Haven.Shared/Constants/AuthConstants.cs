@@ -151,6 +151,62 @@ public static class AuthConstants
     public const string HEADER_ACCOUNT_ID = "X-Account-Id";
 
     /// <summary>
+    /// Standard and application-specific claim keys used across authentication flows.
+    /// </summary>
+    public static class TokenClaimTypes
+    {
+        /// <summary>
+        /// OpenID Connect subject claim.
+        /// </summary>
+        public const string SUBJECT = "sub";
+
+        /// <summary>
+        /// OpenID Connect name claim.
+        /// </summary>
+        public const string NAME = "name";
+
+        /// <summary>
+        /// OpenID Connect email claim.
+        /// </summary>
+        public const string EMAIL = "email";
+
+        /// <summary>
+        /// OpenID Connect given-name claim.
+        /// </summary>
+        public const string GIVEN_NAME = "given_name";
+
+        /// <summary>
+        /// OpenID Connect email-verified claim.
+        /// </summary>
+        public const string EMAIL_VERIFIED = "email_verified";
+
+        /// <summary>
+        /// Application claim used to carry account identifier.
+        /// </summary>
+        public const string ACCOUNT_ID = "account_id";
+
+        /// <summary>
+        /// Standard single-role claim key.
+        /// </summary>
+        public const string ROLE = "role";
+
+        /// <summary>
+        /// Standard multi-role claim key.
+        /// </summary>
+        public const string ROLES = "roles";
+
+        /// <summary>
+        /// OAuth/OIDC scope claim key.
+        /// </summary>
+        public const string SCOPE = "scope";
+
+        /// <summary>
+        /// Application permission claim key.
+        /// </summary>
+        public const string PERMISSION = "permission";
+    }
+
+    /// <summary>
     /// Centralized user-facing/system log messages for common auth failures.
     /// </summary>
     public static class SystemMessage

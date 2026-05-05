@@ -266,23 +266,50 @@ public static class ServiceRegistration
         services.AddDbContext<TContext>((sp, options) =>
         {
             var csProvider = sp.GetRequiredService<IConnectionStringProvider>();
-            var connectionString = csProvider.GetConnectionString(connectionName);
+            var gcpOptions = sp.GetRequiredService<IOptions<GcpOptions>>().Value;
+            var databaseSettings = gcpOptions.DatabaseSettings ?? new DatabaseOptions();
+            var resolvedConnectionName = string.IsNullOrWhiteSpace(databaseSettings.ConnectionName)
+                ? connectionName
+                : databaseSettings.ConnectionName;
+            var resolvedProvider = databaseSettings.Provider;
+            var connectionString = csProvider.GetConnectionString(resolvedConnectionName);
 
-            options.UseSqlServer(
-                connectionString,
-                sqlOptions => sqlOptions
-                              .UseNetTopologySuite()
-                              .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
-                              .CommandTimeout(SQL_COMMAND_TIMEOUT_SECONDS)
-                              .EnableRetryOnFailure(
-                                  SQL_RETRY_COUNT,
-                                  TimeSpan.FromSeconds(SQL_RETRY_DELAY_SECONDS),
-                                  null));
+            // Use the configured provider once here so every DbContext follows the same runtime database.
+            switch (resolvedProvider)
+            {
+                case SqlProvider.PostgreSQL:
+                    options.UseNpgsql(
+                        connectionString,
+                        postgresOptions => postgresOptions
+                            .UseNetTopologySuite()
+                            .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
+                            .CommandTimeout(SQL_COMMAND_TIMEOUT_SECONDS)
+                            .EnableRetryOnFailure(
+                                SQL_RETRY_COUNT,
+                                TimeSpan.FromSeconds(SQL_RETRY_DELAY_SECONDS),
+                                null));
+                    break;
+                case SqlProvider.SQL_Server:
+                    options.UseSqlServer(
+                        connectionString,
+                        sqlOptions => sqlOptions
+                            .UseNetTopologySuite()
+                            .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)
+                            .CommandTimeout(SQL_COMMAND_TIMEOUT_SECONDS)
+                            .EnableRetryOnFailure(
+                                SQL_RETRY_COUNT,
+                                TimeSpan.FromSeconds(SQL_RETRY_DELAY_SECONDS),
+                                null));
+                    break;
+                default:
+                    throw new NotSupportedException(
+                        string.Format(ERROR_UNSUPPORTED_DATABASE_PROVIDER, resolvedProvider));
+            }
             
             options.AddInterceptors(new DbConnectionRefreshInterceptor(
                 csProvider,
                 sp.GetRequiredService<ILogger<DbConnectionRefreshInterceptor>>(),
-                connectionName));
+                resolvedConnectionName));
             
             if (Environment.GetEnvironmentVariable(ASPNETCORE_ENVIRONMENT) == ENVIRONMENT_DEVELOPMENT)
             {

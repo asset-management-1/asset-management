@@ -106,7 +106,7 @@ public class AuthService : IAuthService
     /// <returns>User id string, or <c>null</c> if not present.</returns>
     public string UserId()
     {
-        return Get(ClaimTypes.NameIdentifier) ?? Get("sub");
+        return Get(ClaimTypes.NameIdentifier) ?? Get(TokenClaimTypes.SUBJECT);
     }
 
     /// <summary>
@@ -117,7 +117,7 @@ public class AuthService : IAuthService
     /// <returns>A string representing the account identifier, or <c>null</c> if not found.</returns>
     public string AccountId()
     {
-        return Get(HEADER_ACCOUNT_ID) ?? Get("account_id");
+        return Get(HEADER_ACCOUNT_ID) ?? Get(TokenClaimTypes.ACCOUNT_ID);
     }
 
     /// <summary>
@@ -126,7 +126,7 @@ public class AuthService : IAuthService
     /// <returns> Username, or <c>null</c> if not present.</returns>
     public string UserName()
     {
-        return Get(ClaimTypes.Name) ?? Get("name");
+        return Get(ClaimTypes.Name) ?? Get(TokenClaimTypes.NAME);
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public class AuthService : IAuthService
     /// <returns>Email address, or <c>null</c> if not present.</returns>
     public string Email()
     {
-        return Get(ClaimTypes.Email) ?? Get("email");
+        return Get(ClaimTypes.Email) ?? Get(TokenClaimTypes.EMAIL);
     }
 
     /// <summary>
@@ -145,7 +145,7 @@ public class AuthService : IAuthService
     public IReadOnlyList<string> Roles()
     {
         var roles = (Principal?.Claims ?? [])
-                    .Where(c => c.Type is "role" or "roles" or "na_role" or ClaimTypes.Role)
+                    .Where(c => c.Type is TokenClaimTypes.ROLE or TokenClaimTypes.ROLES or NA_ROLE or ClaimTypes.Role)
                     .SelectMany(c => c.Value.Split(
                         [',', ';', ' '],
                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
@@ -171,7 +171,7 @@ public class AuthService : IAuthService
     public IReadOnlyList<string> Scopes()
     {
         var scopes = (Principal?.Claims ?? [])
-                     .Where(c => c.Type == "scope")
+                     .Where(c => c.Type == TokenClaimTypes.SCOPE)
                      .SelectMany(c => c.Value.Split(' ',
                          StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                      .Distinct(StringComparer.Ordinal)

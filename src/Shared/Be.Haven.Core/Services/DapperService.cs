@@ -9,11 +9,18 @@ namespace Be.Haven.Core.Services;
 public sealed class DapperService : IDapperService
 {
     private readonly IDbConnectionFactory _factory;
+    private readonly GcpOptions _gcpOptions;
 
     /// <summary>
     /// Represents a service that provides data access functionality using Dapper.
     /// </summary>
-    public DapperService(IDbConnectionFactory factory) => _factory = factory;
+    public DapperService(
+        IDbConnectionFactory factory,
+        IOptions<GcpOptions> gcpOptions)
+    {
+        _factory = factory;
+        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
+    }
 
     /// <summary>
     /// Executes a query asynchronously and maps the result to a sequence of objects.
@@ -200,7 +207,7 @@ public sealed class DapperService : IDapperService
     /// <returns>A task representing the asynchronous operation. The task result contains an open database connection.</returns>
     private Task<DbConnection> OpenAsync(DapperCommandOptions options) =>
         _factory.GetOpenConnectionAsync(
-            options.Provider,
+            options.Provider ?? _gcpOptions.DatabaseSettings.Provider,
             string.IsNullOrWhiteSpace(options.ConnectionString) ? string.Empty : options.ConnectionString,
             options.CancellationToken);
 }

@@ -6,6 +6,7 @@ namespace Be.Haven.Core.Services;
 public class DbConnectionHostService : IHostedService
 {
     private readonly IConnectionStringProvider _provider;
+    private readonly GcpOptions _gcpOptions;
     private readonly ILogger<DbConnectionHostService> _logger;
 
     /// <summary>
@@ -13,9 +14,11 @@ public class DbConnectionHostService : IHostedService
     /// </summary>
     public DbConnectionHostService(
         IConnectionStringProvider provider,
+        IOptions<GcpOptions> gcpOptions,
         ILogger<DbConnectionHostService> logger)
     {
         _provider = provider;
+        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
         _logger = logger;
     }
 
@@ -29,32 +32,35 @@ public class DbConnectionHostService : IHostedService
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(DB_CONNECTION_INIT_TIMEOUT_SECONDS));
+        var connectionName = string.IsNullOrWhiteSpace(_gcpOptions.DatabaseSettings.ConnectionName)
+            ? DEFAULT_CONNECTION
+            : _gcpOptions.DatabaseSettings.ConnectionName;
 
         _logger.LogInformation(
             DatabaseConnectionConstants.LOG_DB_CONN_HOST_STARTING,
-            DEFAULT_CONNECTION);
+            connectionName);
 
         try
         {
-            await _provider.RefreshAsync(DEFAULT_CONNECTION, cts.Token);
+            await _provider.RefreshAsync(connectionName, cts.Token);
 
             // Validate sync path used by AddDbContext
-            _ = _provider.GetConnectionString(DEFAULT_CONNECTION);
+            _ = _provider.GetConnectionString(connectionName);
 
             _logger.LogInformation(
                 DatabaseConnectionConstants.LOG_DB_CONN_HOST_COMPLETED,
-                DEFAULT_CONNECTION);
+                connectionName);
         }
         catch (Exception ex)
         {
             _logger.LogError(
                 ex,
                 DatabaseConnectionConstants.LOG_DB_CONN_HOST_FAILED,
-                DEFAULT_CONNECTION);
+                connectionName);
 
             // Fail-fast: wrap with a clear, actionable message, keep original exception as InnerException.
             throw new InvalidOperationException(
-                string.Format(DatabaseConnectionConstants.ERR_DB_CONN_HOST_FAILED, DEFAULT_CONNECTION),
+                string.Format(DatabaseConnectionConstants.ERR_DB_CONN_HOST_FAILED, connectionName),
                 ex);
         }
     }

@@ -8,6 +8,16 @@ namespace Be.Haven.Shared.Dtos.Options;
 public class DatabaseOptions
 {
     /// <summary>
+    /// Indicates which SQL provider should be used by EF Core and Dapper.
+    /// </summary>
+    public SqlProvider Provider { get; set; } = SqlProvider.PostgreSQL;
+
+    /// <summary>
+    /// The configured connection-string name to resolve from the ConnectionStrings section.
+    /// </summary>
+    public string ConnectionName { get; set; } = DEFAULT_CONNECTION;
+
+    /// <summary>
     /// Indicates whether to use GCP Secret Manager for the database connection string.
     /// </summary>
     public bool IsUseGcp { get; set; }

@@ -35,6 +35,9 @@ public class DbConnectionFactory : IDbConnectionFactory
         CancellationToken ct = default)
     {
         var gcpOptions = _cfg.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
+        var connectionName = string.IsNullOrWhiteSpace(gcpOptions.DatabaseSettings.ConnectionName)
+            ? DEFAULT_CONNECTION
+            : gcpOptions.DatabaseSettings.ConnectionName;
 
         // 1) Resolve connection string from GCP Secret Manager
         if (gcpOptions.DatabaseSettings.IsUseGcp)
@@ -52,7 +55,7 @@ public class DbConnectionFactory : IDbConnectionFactory
         }
         else if (string.IsNullOrWhiteSpace(connectionString))
         {
-            connectionString = _cfg.GetConnectionString(DEFAULT_CONNECTION);
+            connectionString = _cfg.GetConnectionString(connectionName);
         }
 
         return await CreateAndOpenAsync(provider, connectionString, ct);

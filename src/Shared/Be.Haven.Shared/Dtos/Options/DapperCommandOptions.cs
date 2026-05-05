@@ -14,7 +14,7 @@ public class DapperCommandOptions
     /// Specifies the type of database provider (e.g., SQL Server, MySQL, PostgreSQL)
     /// to ensure compatibility with the configured database connection.
     /// </summary>
-    public SqlProvider Provider { get; init; } = SqlProvider.SQL_Server;
+    public SqlProvider? Provider { get; init; }
 
     /// <summary>
     /// Gets or initializes the database connection string to be used for establishing a connection.

@@ -35,14 +35,14 @@ public class EmailService : IEmailService
             // Validate required SendGrid configuration before creating and sending the email message.
             if (string.IsNullOrWhiteSpace(_emailOptions.ApiKey) || string.IsNullOrWhiteSpace(_emailOptions.FromEmail))
             {
-                _logger.LogError(EmailLogs.MissingConfiguration);
+                _logger.LogError(EmailLogs.MISSING_CONFIGURATION);
                 return false;
             }
 
             // Validate that the request contains at least one valid recipient.
             if (request?.RequestData?.To?.Any(x => !string.IsNullOrWhiteSpace(x.Email)) != true)
             {
-                _logger.LogWarning(EmailLogs.InvalidRequest);
+                _logger.LogWarning(EmailLogs.INVALID_REQUEST);
                 return false;
             }
 
@@ -95,16 +95,16 @@ public class EmailService : IEmailService
 
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation(EmailLogs.SendSuccess);
+                _logger.LogInformation(EmailLogs.SEND_SUCCESS);
                 return true;
             }
 
-            _logger.LogWarning(EmailLogs.SendFailed, response.StatusCode);
+            _logger.LogWarning(EmailLogs.SEND_FAILED, response.StatusCode);
             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, EmailLogs.SendException);
+            _logger.LogError(ex, EmailLogs.SEND_EXCEPTION);
             return false;
         }
     }

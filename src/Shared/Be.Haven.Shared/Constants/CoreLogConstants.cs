@@ -300,26 +300,26 @@ public static class CoreLogConstants
         /// <summary>
         /// Log message when required email configuration values are missing.
         /// </summary>
-        public const string MissingConfiguration = "Email configuration is missing. ApiKey and FromEmail are required.";
+        public const string MISSING_CONFIGURATION = "Email configuration is missing. ApiKey and FromEmail are required.";
 
         /// <summary>
         /// Log message when the email request does not contain valid recipients.
         /// </summary>
-        public const string InvalidRequest = "Email request is invalid because it does not contain any valid recipient.";
+        public const string INVALID_REQUEST = "Email request is invalid because it does not contain any valid recipient.";
 
         /// <summary>
         /// Log message when SendGrid accepts the email request successfully.
         /// </summary>
-        public const string SendSuccess = "Email sent successfully via SendGrid.";
+        public const string SEND_SUCCESS = "Email sent successfully via SendGrid.";
 
         /// <summary>
         /// Log message when SendGrid rejects or fails to process the email request.
         /// </summary>
-        public const string SendFailed = "SendGrid email send failed with status code {StatusCode}.";
+        public const string SEND_FAILED = "SendGrid email send failed with status code {StatusCode}.";
 
         /// <summary>
         /// Log message when an unexpected exception occurs while sending email.
         /// </summary>
-        public const string SendException = "Error occurred while sending email.";
+        public const string SEND_EXCEPTION = "Error occurred while sending email.";
     }
 }

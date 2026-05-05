@@ -407,6 +407,10 @@ redis.conf
 .config/dotnet-tools.json
 idea
 *.md
+
+# Local AI assistant/tooling config
+.ai/
+.aiassistant/
 .aiignore
 
 # Ignore all environment configs
@@ -414,4 +418,3 @@ appsettings.*.json
 
 # Keep base config
 !appsettings.json
-.ai/mcp/mcp.json
