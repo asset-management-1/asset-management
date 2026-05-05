@@ -2,8 +2,8 @@ namespace Be.Haven.Core.Factories;
 
 public class DbConnectionFactory : IDbConnectionFactory
 {
-    private readonly IConfiguration _cfg;
-    private readonly IGcpSecretService _gcpSecretService;
+    private readonly IConnectionStringProvider _connectionStringProvider;
+    private readonly GcpOptions _gcpOptions;
     private readonly ILogger<DbConnectionFactory> _logger;
 
     /// <summary>
@@ -12,12 +12,12 @@ public class DbConnectionFactory : IDbConnectionFactory
     /// Google Cloud Platform (GCP) features such as secret management to securely handle database credentials.
     /// </summary>
     public DbConnectionFactory(
-        IConfiguration cfg,
-        IGcpSecretService gcpSecretService,
+        IConnectionStringProvider connectionStringProvider,
+        IOptions<GcpOptions> gcpOptions,
         ILogger<DbConnectionFactory> logger)
     {
-        _cfg = cfg;
-        _gcpSecretService = gcpSecretService;
+        _connectionStringProvider = connectionStringProvider;
+        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
         _logger = logger;
     }
 
@@ -34,28 +34,15 @@ public class DbConnectionFactory : IDbConnectionFactory
         string connectionString,
         CancellationToken ct = default)
     {
-        var gcpOptions = _cfg.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
-        var connectionName = string.IsNullOrWhiteSpace(gcpOptions.DatabaseSettings.ConnectionName)
-            ? DEFAULT_CONNECTION
-            : gcpOptions.DatabaseSettings.ConnectionName;
-
-        // 1) Resolve connection string from GCP Secret Manager
-        if (gcpOptions.DatabaseSettings.IsUseGcp)
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            _logger.LogInformation(
-                LOG_USING_GCP_SECRET,
-                gcpOptions.DatabaseSettings.SecretId,
-                gcpOptions.DatabaseSettings.SecretVersion);
+            var connectionName = string.IsNullOrWhiteSpace(_gcpOptions.DatabaseSettings.ConnectionName)
+                ? DEFAULT_CONNECTION
+                : _gcpOptions.DatabaseSettings.ConnectionName;
 
-            connectionString = await _gcpSecretService.GetByIdAsync(
-                                                          gcpOptions.DatabaseSettings.SecretId,
-                                                          gcpOptions.DatabaseSettings.SecretVersion,
-                                                          false,
-                                                          ct);
-        }
-        else if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            connectionString = _cfg.GetConnectionString(connectionName);
+            // Refresh once on demand so callers that open connections before the hosted initializer still get the current source.
+            await _connectionStringProvider.RefreshAsync(connectionName, ct);
+            connectionString = _connectionStringProvider.GetConnectionString(connectionName);
         }
 
         return await CreateAndOpenAsync(provider, connectionString, ct);

@@ -6,6 +6,12 @@ namespace Be.Haven.Shared.Dtos.Options;
 public class SecretManagerOptions
 {
     /// <summary>
+    /// Indicates whether generic secret values should be resolved from GCP Secret Manager.
+    /// When <c>false</c>, secret access falls back to local configuration or environment values.
+    /// </summary>
+    public bool IsUseSecret { get; set; } = false;
+
+    /// <summary>
     /// The default version to use when retrieving secrets (e.g., "latest").
     /// </summary>
     public string DefaultSecretVersion { get; set; } = "latest";

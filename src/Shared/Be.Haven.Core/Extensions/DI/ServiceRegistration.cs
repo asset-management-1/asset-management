@@ -344,6 +344,7 @@ public static class ServiceRegistration
             var client = sp.GetRequiredService<SecretManagerServiceClient>();
             var logger = sp.GetRequiredService<ILogger<GcpSecretService>>();
             var cache = sp.GetRequiredService<ICachingService>();
+            var gcpOptions = sp.GetRequiredService<IOptions<GcpOptions>>();
 
             // Construct the resource prefix for accessing secrets
             // Format: projects/{projectId}/locations/{location}/secrets
@@ -352,7 +353,13 @@ public static class ServiceRegistration
                 opts.ProjectNumber,
                 opts.SecretManagerSettings.Location);
 
-            return new GcpSecretService(client, logger, cache, resourcePrefix, opts.SecretManagerSettings.DefaultSecretVersion);
+            return new GcpSecretService(
+                client,
+                logger,
+                cache,
+                gcpOptions,
+                resourcePrefix,
+                opts.SecretManagerSettings.DefaultSecretVersion);
         });
     }
 

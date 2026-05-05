@@ -5,6 +5,7 @@ public sealed class GcpSecretService : IGcpSecretService
     private readonly SecretManagerServiceClient _client;
     private readonly ILogger<GcpSecretService> _logger;
     private readonly ICachingService _cachingService;
+    private readonly GcpOptions _gcpOptions;
 
     // Resource name prefix, e.g. "projects/my-project/secrets"
     private readonly string _resourcePrefix;
@@ -20,16 +21,17 @@ public sealed class GcpSecretService : IGcpSecretService
         SecretManagerServiceClient client,
         ILogger<GcpSecretService> logger,
         ICachingService cachingService,
+        IOptions<GcpOptions> gcpOptions,
         string resourcePrefix,
         string defaultVersion)
     {
         _client = client;
         _logger = logger;
         _cachingService = cachingService;
+        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
         _resourcePrefix = resourcePrefix;
         _defaultVersion = defaultVersion;
     }
-
 
     /// <summary>
     /// Retrieves a secret value as UTF-8 text.
@@ -60,37 +62,13 @@ public sealed class GcpSecretService : IGcpSecretService
             throw new ArgumentException(SECRET_ID_REQUIRED);
         }
 
-        string value;
-        if (isCached)
+        // When secret-manager usage is disabled, callers are expected to pass the final plain value in secretId.
+        if (!_gcpOptions.SecretManagerSettings.IsUseSecret)
         {
-            var ver = ResolveVersion(version);
-            var cacheKey = BuildCacheKey(secretId, ver); // "{secretId}/versions/{ver}"
-        
-            // 1) Cache-first (unless disabled)
-            var cached = await _cachingService.GetAsync<string>(cacheKey, ct);
-            if (!string.IsNullOrWhiteSpace(cached))
-            {
-                _logger.LogDebug(LOG_CACHE_VALUE_RETRIEVED, cacheKey);
-                return cached;
-            }
-
-            _logger.LogDebug(LOG_CACHE_VALUE_NOT_FOUND, cacheKey);
-
-            // 2) Fetch bytes from GCP (no cache here)
-            var bytes = await GetBytesAsync(secretId, version, ct);
-            value = UTF8.GetString(bytes);
-
-            // 3) Store cache (absolute 4h)
-            await _cachingService.SetAbsoluteAsync(cacheKey, value, TimeSpan.FromHours(4), ct);
+            return secretId;
         }
-        else
-        {
-            // 1) Fetch bytes from GCP (no cache here)
-            var bytes = await GetBytesAsync(secretId, version, ct);
-            value = UTF8.GetString(bytes);
-        }
-        
-        return value;
+
+        return await GetSecretValueFromManagerAsync(secretId, version, isCached, ct);
     }
 
     /// <summary>
@@ -132,6 +110,11 @@ public sealed class GcpSecretService : IGcpSecretService
             throw new ArgumentException(SECRET_ID_REQUIRED);
         }
 
+        if (!_gcpOptions.SecretManagerSettings.IsUseSecret)
+        {
+            return UTF8.GetBytes(secretId);
+        }
+
         var ver = ResolveVersion(version);
         var name = $"{_resourcePrefix}/{secretId}/{VERSIONS_SEGMENT}/{ver}";
 
@@ -154,6 +137,11 @@ public sealed class GcpSecretService : IGcpSecretService
     {
         if (string.IsNullOrWhiteSpace(secretId))
             return false;
+
+        if (!_gcpOptions.SecretManagerSettings.IsUseSecret)
+        {
+            return true;
+        }
 
         var secretName = $"{_resourcePrefix}/{secretId}";
         try
@@ -183,6 +171,11 @@ public sealed class GcpSecretService : IGcpSecretService
         if (string.IsNullOrWhiteSpace(secretId))
             return false;
 
+        if (!_gcpOptions.SecretManagerSettings.IsUseSecret)
+        {
+            return true;
+        }
+
         var ver = ResolveVersion(version);
         var versionName = $"{_resourcePrefix}/{secretId}/{VERSIONS_SEGMENT}/{ver}";
         try
@@ -211,7 +204,7 @@ public sealed class GcpSecretService : IGcpSecretService
         [EnumeratorCancellation]
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(secretId))
+        if (string.IsNullOrWhiteSpace(secretId) || !_gcpOptions.SecretManagerSettings.IsUseSecret)
             yield break;
 
         var parent = $"{_resourcePrefix}/{secretId}";
@@ -224,6 +217,53 @@ public sealed class GcpSecretService : IGcpSecretService
         var pager = _client.ListSecretVersionsAsync(request);
         await foreach (var ver in pager.WithCancellation(ct))
             yield return ver;
+    }
+
+    /// <summary>
+    /// Reads a secret value from Secret Manager, optionally through the local cache.
+    /// </summary>
+    /// <param name="secretId">The identifier of the secret to retrieve from Secret Manager.</param>
+    /// <param name="version">The secret version to resolve.</param>
+    /// <param name="isCached">Determines whether the cache should be used for this read operation.</param>
+    /// <param name="ct">The cancellation token for the asynchronous operation.</param>
+    /// <returns>The resolved secret value as UTF-8 text.</returns>
+    private async Task<string> GetSecretValueFromManagerAsync(
+        string secretId,
+        string version,
+        bool isCached,
+        CancellationToken ct)
+    {
+        string value;
+        if (isCached)
+        {
+            var ver = ResolveVersion(version);
+            var cacheKey = BuildCacheKey(secretId, ver); // "{secretId}/versions/{ver}"
+        
+            // 1) Cache-first (unless disabled)
+            var cached = await _cachingService.GetAsync<string>(cacheKey, ct);
+            if (!string.IsNullOrWhiteSpace(cached))
+            {
+                _logger.LogDebug(LOG_CACHE_VALUE_RETRIEVED, cacheKey);
+                return cached;
+            }
+
+            _logger.LogDebug(LOG_CACHE_VALUE_NOT_FOUND, cacheKey);
+
+            // 2) Fetch bytes from GCP (no cache here)
+            var bytes = await GetBytesAsync(secretId, version, ct);
+            value = UTF8.GetString(bytes);
+
+            // 3) Store cache (absolute 4h)
+            await _cachingService.SetAbsoluteAsync(cacheKey, value, TimeSpan.FromHours(4), ct);
+        }
+        else
+        {
+            // 1) Fetch bytes from GCP (no cache here)
+            var bytes = await GetBytesAsync(secretId, version, ct);
+            value = UTF8.GetString(bytes);
+        }
+        
+        return value;
     }
 
     /// <summary>

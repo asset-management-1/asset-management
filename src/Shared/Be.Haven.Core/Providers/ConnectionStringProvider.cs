@@ -102,13 +102,18 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
                    .GetSection(GCP_SETTINGS)
                    .Get<GcpOptions>() ?? new GcpOptions();
 
-        if (opts.DatabaseSettings.IsUseGcp)
+        var configuredConnectionName = string.IsNullOrWhiteSpace(opts.DatabaseSettings.ConnectionName)
+            ? DEFAULT_CONNECTION
+            : opts.DatabaseSettings.ConnectionName;
+
+        if (opts.DatabaseSettings.IsUseGcp
+            && string.Equals(connectionName, configuredConnectionName, StringComparison.OrdinalIgnoreCase))
         {
             var cs = await _gcpSecretService.GetByIdAsync(
-                                                opts.DatabaseSettings.SecretId,
-                                                opts.DatabaseSettings.SecretVersion,
-                                                false,
-                                                ct);
+                opts.DatabaseSettings.SecretId,
+                opts.DatabaseSettings.SecretVersion,
+                false,
+                ct);
 
             if (string.IsNullOrWhiteSpace(cs))
                 throw new InvalidOperationException(
