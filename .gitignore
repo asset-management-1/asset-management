@@ -412,6 +412,17 @@ idea
 .ai/
 .aiassistant/
 .aiignore
+.agent-reach/
+.agents/
+.claude/
+.codex/
+.mcp/
+mcporter/
+mcporter-config/
+agent-reach-output/
+agent-reach-cache/
+research-output/
+research-cache/
 
 # Ignore all environment configs
 appsettings.*.json
