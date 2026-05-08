@@ -7,6 +7,10 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
+    </ItemGroup>
+
+    <ItemGroup>
       <ProjectReference Include="..\..\..\Shared\Be.Haven.Cache\Be.Haven.Cache.csproj" />
       <ProjectReference Include="..\Haven.Domain\Haven.Domain.csproj" />
     </ItemGroup>

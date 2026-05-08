@@ -29,18 +29,18 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
     public string GetEpoch() => DateTime.UtcNow.ToString("yyyyMMdd");
 
     /// <summary>
-    /// Retrieves the current cache version for a given epoch.
+    /// Retrieves the current cache version for a given cache group, scope, and epoch.
     /// Returns <see cref="DEFAULT_VERSION"/> (1) if:
     /// - key is missing,
     /// - stored value is invalid,
     /// - or cache read fails.
     /// </summary>
-    public async Task<long> GetAsync(string epoch)
+    public async Task<long> GetAsync(string cacheGroup, string cacheScope, string epoch)
     {
-        if (string.IsNullOrWhiteSpace(epoch))
+        if (string.IsNullOrWhiteSpace(cacheGroup) || string.IsNullOrWhiteSpace(epoch))
             return DEFAULT_VERSION;
 
-        var key = GetVersionKey(epoch);
+        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
 
         try
         {
@@ -66,15 +66,15 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
     }
 
     /// <summary>
-    /// Bumps (increments) the cache version for a given epoch.
+    /// Bumps (increments) the cache version for a given cache group, scope, and epoch.
     /// </summary>
     /// <returns>The new version if write succeeds; otherwise <see cref="DEFAULT_VERSION"/>.</returns>
-    public async Task<long> InvalidateAsync(string epoch)
+    public async Task<long> InvalidateAsync(string cacheGroup, string cacheScope, string epoch)
     {
-        if (string.IsNullOrWhiteSpace(epoch))
+        if (string.IsNullOrWhiteSpace(cacheGroup) || string.IsNullOrWhiteSpace(epoch))
             return DEFAULT_VERSION;
 
-        var key = GetVersionKey(epoch);
+        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
 
         for (var attempt = 1; attempt <= MAX_WRITE_CACHED_RETRIES; attempt++)
         {
@@ -112,7 +112,14 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
     }
 
     /// <summary>
-    /// Builds the cache key for a given epoch.
+    /// Builds the cache key for a given cache group, scope, and epoch.
     /// </summary>
-    private static string GetVersionKey(string epoch) => $"{VERSION_KEY_PREFIX}{epoch}";
+    private static string GetVersionKey(string cacheGroup, string cacheScope, string epoch)
+    {
+        var normalizedScope = string.IsNullOrWhiteSpace(cacheScope)
+            ? string.Empty
+            : string.Format(CACHE_SCOPE_SEGMENT_FORMAT, cacheScope);
+
+        return $"{VERSION_KEY_PREFIX}{cacheGroup}{normalizedScope}:{epoch}";
+    }
 }

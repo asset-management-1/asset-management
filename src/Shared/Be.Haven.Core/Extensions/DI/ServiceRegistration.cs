@@ -442,6 +442,22 @@ public static class ServiceRegistration
     }
 
     /// <summary>
+    /// Registers the Cloudflare R2 object storage service and its configuration.
+    /// </summary>
+    /// <param name="serviceCollection">The service collection to which R2 upload services are added.</param>
+    /// <param name="configuration">The application configuration used to bind <see cref="R2StorageOptions"/>.</param>
+    /// <returns>The modified service collection for chaining.</returns>
+    public static IServiceCollection AddR2ObjectStorageService(
+        this IServiceCollection serviceCollection,
+        IConfiguration configuration)
+    {
+        serviceCollection.Configure<R2StorageOptions>(configuration.GetSection(R2_STORAGE_SETTINGS));
+        serviceCollection.AddHttpClient<IR2ObjectStorageService, R2ObjectStorageService>();
+
+        return serviceCollection;
+    }
+
+    /// <summary>
     /// Registers Quartz and schedules jobs dynamically by scanning assemblies for classes implementing <see cref="IJob"/>
     /// decorated with <see cref="QuartzJobKeyAttribute"/>.
     /// 

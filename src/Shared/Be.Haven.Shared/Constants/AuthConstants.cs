@@ -212,6 +212,16 @@ public static class AuthConstants
     public static class SystemMessage
     {
         /// <summary>
+        /// Message when the Haven bearer token is expired.
+        /// </summary>
+        public const string TOKEN_EXPIRED = "Token expired.";
+
+        /// <summary>
+        /// Message when the Haven bearer token fails validation.
+        /// </summary>
+        public const string INVALID_TOKEN = "Invalid token. {0}";
+
+        /// <summary>
         /// Message when the NA bearer token is missing or malformed.
         /// </summary>
         public const string MISSING_NA_ACCESS_TOKEN = "Missing or invalid NA bearer token.";

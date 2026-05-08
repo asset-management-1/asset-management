@@ -90,6 +90,22 @@ public static class TokenHelper
         // add new toType
         bag.Add(new Claim(toType, val));
     }
+
+    /// <summary>
+    /// Adds a claim only when the target claim type and value pair is not already present on the identity.
+    /// </summary>
+    /// <param name="identity">The identity that will receive the claim when it is missing.</param>
+    /// <param name="claimType">The claim type to ensure on the identity.</param>
+    /// <param name="claimValue">The claim value to ensure on the identity.</param>
+    public static void EnsureClaim(ClaimsIdentity identity, string claimType, string claimValue)
+    {
+        if (identity.HasClaim(claimType, claimValue))
+        {
+            return;
+        }
+
+        identity.AddClaim(new Claim(claimType, claimValue));
+    }
     
     /// <summary>
     /// Returns a safe token prefix for logging.

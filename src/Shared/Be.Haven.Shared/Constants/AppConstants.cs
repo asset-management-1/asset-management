@@ -42,14 +42,26 @@ public static class AppConstants
         public const string BACKGROUND_JOBS = "BackgroundJobs";
 
         /// <summary>
-        /// Prefix used for constructing version-specific keys in a globally scoped format.
+        /// Prefix used for constructing version-specific cache keys.
         /// </summary>
-        public const string VERSION_KEY_PREFIX = "ver:global:";
-        
+        public const string VERSION_KEY_PREFIX = "ver:";
+
         /// <summary>
-        /// Constant representing the prefix used for command identifiers within the system.
+        /// Format used to build a user-scoped cache namespace.
+        /// Usage: string.Format(USER_CACHE_SCOPE_FORMAT, userPublicId)
         /// </summary>
-        public const string COMMAND_PREFIX = "Command";
+        public const string USER_CACHE_SCOPE_FORMAT = "user:{0}";
+
+        /// <summary>
+        /// Sentinel scope value used when a cacheable request should resolve to the current authenticated user at runtime.
+        /// </summary>
+        public const string CURRENT_USER_CACHE_SCOPE = "__current_user__";
+
+        /// <summary>
+        /// Format used to prepend a cache scope segment.
+        /// Usage: string.Format(CACHE_SCOPE_SEGMENT_FORMAT, cacheScope)
+        /// </summary>
+        public const string CACHE_SCOPE_SEGMENT_FORMAT = ":{0}";
         
         /// <summary>
         /// Represents the slash ("/") character used as a constant in system variables.
@@ -128,6 +140,11 @@ public static class AppConstants
         /// The configuration section name for Google Cloud Platform (GCP) settings.
         /// </summary>
         public const string GCP_SETTINGS = "GcpSettings";
+
+        /// <summary>
+        /// The configuration section name for Cloudflare R2 storage settings.
+        /// </summary>
+        public const string R2_STORAGE_SETTINGS = "R2StorageSettings";
 
         /// <summary>
         /// Configuration section name for NA settings (bound to <c>SsoInfoOptions</c>).
@@ -1021,11 +1038,6 @@ public static class AppConstants
         public const string LOG_CONNECTION_STRING_MISSING = "Connection string is not configured or is empty for Provider={Provider}.";
         
         /// <summary>
-        /// Log message template when the current user identifier cannot be parsed as a GUID.
-        /// </summary>
-        public const string LOG_UNABLE_PARSE_USER_ID = "Unable to parse UserId '{UserId}' as GUID. Using Guid.Empty.";
-
-        /// <summary>
         /// Log message template when changes have been successfully saved to the database context.
         /// </summary>
         public const string LOG_SAVED_CHANGES = "Saved {ChangesCount} change(s) for context {ContextName}.";
@@ -1439,94 +1451,6 @@ public static class AppConstants
             /// </summary>
             public const string ERR_EMBEDDED_RESOURCE_NOT_FOUND = "Embedded excel resource not found: '{0}'. Available: {1}";
         }
-    }
-
-    /// <summary>
-    /// Contains the application-level error codes used for validating
-    /// Factory user authentication, including email and password rules.
-    /// </summary>
-    public static class ApiErrorCode
-    {
-        /// <summary>
-        /// Default error code reserved for future use or unspecified errors.
-        /// </summary>
-        public const string MSG000 = "MSG000";
-        
-        /// <summary>
-        /// MSG001 – Indicates that the password does not meet the minimum
-        /// business requirements (e.g., empty or missing).
-        /// </summary>
-        public const string MSG001 = "MSG001";
-
-        /// <summary>
-        /// Error code for unauthorized access or missing permissions.
-        /// </summary>
-        public const string MSG002 = "MSG002";
-
-        /// <summary>
-        /// Error code MSG003
-        /// </summary>
-        public const string MSG003 = "MSG003";
-        
-        public const string MSG004 = "MSG004";
-
-        /// <summary>
-        /// Error code typically used for conflict scenarios or duplicated data.
-        /// </summary>
-        public const string MSG005 = "MSG005";
-        
-        public const string MSG006 = "MSG006";
-        
-        public const string MSG007 = "MSG007";
-        
-        public const string MSG008 = "MSG008";
-        
-        public const string MSG009 = "MSG009";
-        
-        public const string MSG010 = "MSG010";
-        
-        public const string MSG011 = "MSG011";
-
-        /// <summary>
-        /// Error code for bad request or invalid operation attempt.
-        /// </summary>
-        public const string MSG012 = "MSG012";
-
-        /// <summary>
-        /// Error code for bad request or invalid operation attempt.
-        /// </summary>
-        public const string MSG013 = "MSG013";
-
-        /// <summary>
-        /// Error code representing an internal server error or unexpected failure.
-        /// </summary>
-        public const string MSG014 = "MSG014";
-
-        /// <summary>
-        /// Error code for general validation failure or invalid input.
-        /// </summary>
-        public const string MSG015 = "MSG015";
-
-        /// <summary>
-        /// Error code indicating that a required resource was not found.
-        /// </summary>
-        public const string MSG016 = "MSG016";
-
-        /// <summary>
-        /// Error code indicating that a business rule has been violated.
-        /// </summary>
-        public const string MSG017 = "MSG017";
-        
-        public const string MSG018 = "MSG018";
-        
-        public const string MSG019 = "MSG019";
-        
-        public const string MSG020 = "MSG020";
-        
-        /// <summary>
-        /// Error code for invalid username or password.
-        /// </summary>
-        public const string AUTH_INVALID_CREDENTIALS = "error_auth_invalid_credentials";
     }
 
     /// <summary>

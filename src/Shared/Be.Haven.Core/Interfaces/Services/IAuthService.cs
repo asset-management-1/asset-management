@@ -54,10 +54,10 @@ public interface IAuthService
     IEnumerable<Claim> GetAll(string claimType);
 
     /// <summary>
-    /// Gets the user identifier from claims (e.g., sub/NameIdentifier).
+    /// Gets the authenticated user's public identifier from the normalized user-id claim.
     /// </summary>
-    /// <returns>User id or <c>null</c> if not present.</returns>
-    string UserId();
+    /// <returns>The current user's public identifier, or <c>null</c> when the request is anonymous or invalid.</returns>
+    Guid? UserId();
 
     /// <summary>
     /// Retrieves the account identifier associated with the current user or context.

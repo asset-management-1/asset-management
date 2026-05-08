@@ -21,6 +21,11 @@ public class EmailOptions
     public string FromName { get; set; }
 
     /// <summary>
+    /// Gets or sets the support/report email address used in security notifications.
+    /// </summary>
+    public string SystemSupportEmail { get; set; }
+
+    /// <summary>
     /// Legacy field kept for backward compatibility with older configuration.
     /// </summary>
     public string BaseUrl { get; set; }

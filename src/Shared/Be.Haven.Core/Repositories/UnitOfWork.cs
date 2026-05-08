@@ -2,13 +2,23 @@ using Be.Haven.Core.Models;
 
 namespace Be.Haven.Core.Repositories;
 
+/// <summary>
+/// Coordinates EF Core persistence, audit stamping, and transactional execution for one DbContext.
+/// </summary>
+/// <typeparam name="TContext">The EF Core DbContext type owned by the current module.</typeparam>
 public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
 {
     private readonly TContext _dbContext;
     private readonly IAuthService _authService;
     private readonly ILogger<UnitOfWork<TContext>> _logger;
     private static readonly string ContextName = typeof(TContext).Name;
-    
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="UnitOfWork{TContext}"/> class.
+    /// </summary>
+    /// <param name="dbContext">The EF Core DbContext being coordinated.</param>
+    /// <param name="authService">The current authenticated-principal accessor used for audit stamping.</param>
+    /// <param name="logger">The unit-of-work logger.</param>
     public UnitOfWork(
         TContext dbContext,
         IAuthService authService,
@@ -33,28 +43,14 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
     public async Task<int> SaveChangesAsync(CancellationToken ct = default)
     {
         var dateTimeUtcNow = DateTime.UtcNow;
-        long? userId = null;
-
-        if (_authService.IsAuthenticated)
-        {
-            var userIdStr = _authService.UserId();
-
-            if (long.TryParse(userIdStr, out var parsedUserId))
-            {
-                userId = parsedUserId;
-            }
-            else
-            {
-                _logger.LogWarning(LOG_UNABLE_PARSE_USER_ID, userIdStr);
-            }
-        }
+        var userPublicId = _authService.UserId();
 
         foreach (var entry in _dbContext.ChangeTracker.Entries<BaseEntity>())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.CreatedBy = userId;
+                    entry.Entity.CreatedBy = userPublicId;
                     entry.Entity.CreatedAt = dateTimeUtcNow;
                     entry.Entity.UpdatedBy = null;
                     entry.Entity.UpdatedAt = null;
@@ -62,13 +58,13 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
                     break;
 
                 case EntityState.Modified:
-                    entry.Entity.UpdatedBy = userId;
+                    entry.Entity.UpdatedBy = userPublicId;
                     entry.Entity.UpdatedAt = dateTimeUtcNow;
                     break;
 
                 case EntityState.Deleted:
                     entry.State = EntityState.Modified; // soft delete
-                    entry.Entity.UpdatedBy = userId;
+                    entry.Entity.UpdatedBy = userPublicId;
                     entry.Entity.UpdatedAt = dateTimeUtcNow;
                     entry.Entity.IsDeleted = true;
                     break;
@@ -123,8 +119,7 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
         Func<CancellationToken, Task> action,
         CancellationToken ct = default)
     {
-        // Use the current execution strategy (e.g., SQL Server retry strategy)
-        // so that the entire transactional block is treated as a retriable unit.
+        // Use the provider execution strategy so the transactional block is treated as a retriable unit.
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         await strategy.ExecuteAsync(async execCt =>
@@ -188,8 +183,7 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
         Func<CancellationToken, Task<T>> action,
         CancellationToken ct = default)
     {
-        // Use the current execution strategy (e.g., SQL Server retry strategy)
-        // so that the entire transactional block is treated as a retriable unit.
+        // Use the provider execution strategy so the transactional block is treated as a retriable unit.
         var strategy = _dbContext.Database.CreateExecutionStrategy();
 
         return await strategy.ExecuteAsync(async execCt =>

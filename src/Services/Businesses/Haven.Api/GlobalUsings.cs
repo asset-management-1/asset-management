@@ -13,7 +13,7 @@ global using Be.Haven.Shared.Dtos.Options;
 global using Haven.Api.Extensions;
 global using Haven.Application.Extensions;
 global using Haven.Insfrastructure.Extensions;
-global using MediatR;
+global using Mediator;
 global using Microsoft.AspNetCore.Authorization;
 global using Microsoft.AspNetCore.Mvc;
 global using Microsoft.AspNetCore.Mvc.ApplicationModels;

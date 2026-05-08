@@ -21,10 +21,10 @@ public abstract class BaseEntity : IIsDeleted
     public DateTime CreatedAt { get; set; }
 
     /// <summary>
-    /// User ID who created the record.
+    /// Public user identifier who created the record.
     /// Null for system-generated records.
     /// </summary>
-    public long? CreatedBy { get; set; }
+    public Guid? CreatedBy { get; set; }
 
     /// <summary>
     /// UTC date when the record was last updated.
@@ -32,10 +32,10 @@ public abstract class BaseEntity : IIsDeleted
     public DateTime? UpdatedAt { get; set; }
 
     /// <summary>
-    /// User ID who last updated the record.
+    /// Public user identifier who last updated the record.
     /// Null if the record has never been updated or was updated by system.
     /// </summary>
-    public long? UpdatedBy { get; set; }
+    public Guid? UpdatedBy { get; set; }
 
     /// <summary>
     /// Soft delete flag.

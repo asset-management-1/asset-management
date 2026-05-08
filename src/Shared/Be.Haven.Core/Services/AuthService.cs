@@ -101,12 +101,17 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Gets the user identifier from claims.
+    /// Gets the authenticated user's public identifier from the normalized user-id claim.
     /// </summary>
-    /// <returns>User id string, or <c>null</c> if not present.</returns>
-    public string UserId()
+    /// <returns>The current user's public identifier, or <c>null</c> when the request is anonymous or invalid.</returns>
+    public Guid? UserId()
     {
-        return Get(ClaimTypes.NameIdentifier) ?? Get(TokenClaimTypes.SUBJECT);
+        if (!IsAuthenticated)
+        {
+            return null;
+        }
+
+        return Guid.TryParse(Get(ClaimTypes.NameIdentifier), out var userPublicId) ? userPublicId : null;
     }
 
     /// <summary>

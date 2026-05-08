@@ -25,19 +25,19 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
     /// <summary>
     /// Handles the validation behavior in the pipeline for the specified request and response types.
     /// </summary>
-    /// <param name="request">The request object of type <typeparamref name="TRequest"/> to validate.</param>
+    /// <param name="message">The request object of type <typeparamref name="TRequest"/> to validate.</param>
     /// <param name="next">The next delegate in the pipeline, which processes the request if validation passes.</param>
     /// <param name="cancellationToken">The token to observe while waiting for task completion.</param>
     /// <returns>The response object of type <typeparamref name="TResponse"/> if the validation is successful.</returns>
     /// <exception cref="Exceptions.ValidationException">Thrown when validation failures occur and the request contains invalid data.</exception>
-    public async Task<TResponse> Handle(
-        TRequest request,
-        RequestHandlerDelegate<TResponse> next,
+    public async ValueTask<TResponse> Handle(
+        TRequest message,
+        MessageHandlerDelegate<TRequest, TResponse> next,
         CancellationToken cancellationToken)
     {
         if (_validators.Any())
         {
-            var context = new ValidationContext<TRequest>(request);
+            var context = new ValidationContext<TRequest>(message);
 
             var validationResults = await Task.WhenAll(
                 _validators.Select(
@@ -49,10 +49,10 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
 
             if (failures.Count != 0)
             {
-                var firstError = failures.First();
+                var firstError = failures[0];
                 throw new ValidationException(failures, firstError.ErrorCode);
             }    
         }
-        return await next(cancellationToken);
+        return await next(message, cancellationToken);
     }
 }

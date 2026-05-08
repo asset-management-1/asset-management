@@ -35,6 +35,7 @@ builder.Services.AddCoreInfrastructure();
 builder.Services.AddApiVersioningInfrastructure();
 builder.Services.AddInfrastructure(configuration);
 builder.Services.AddApplication();
+builder.Services.AddMediatorServices();
 
 // Health checks
 builder.Services.AddConfiguredHealthChecks();

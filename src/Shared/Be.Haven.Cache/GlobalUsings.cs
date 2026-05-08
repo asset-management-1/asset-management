@@ -1,12 +1,14 @@
 // Global using directives
 
 global using Be.Haven.Cache.Interfaces;
+global using Be.Haven.Cache.Models;
 global using Be.Haven.Cache.Services;
+global using Be.Haven.Cache.Helpers;
 global using Be.Haven.Core.Extensions.Objects;
 global using Be.Haven.Core.Interfaces.Services;
 global using Be.Haven.Core.Interfaces.Services.Gcp;
 global using Be.Haven.Shared.Dtos.Options;
-global using MediatR;
+global using Mediator;
 global using Microsoft.Extensions.Caching.Distributed;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;

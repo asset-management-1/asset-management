@@ -86,4 +86,55 @@ public static class ApiLogConstants
         /// </summary>
         public const string LOG_CLAIMS_NORMALIZED = "NA token validation: claims normalized.";
     }
+
+    /// <summary>
+    /// Log templates for Haven token authentication lifecycle.
+    /// </summary>
+    public static class HavenAuthenticationLogs
+    {
+        /// <summary>
+        /// Logged when authentication is skipped for the health endpoint.
+        /// </summary>
+        public const string LOG_AUTH_SKIPPED_HEALTH = "Haven auth skipped for health endpoint. Path={Path}, Method={Method}";
+
+        /// <summary>
+        /// Logged when a protected endpoint is called without a valid bearer header.
+        /// </summary>
+        public const string LOG_AUTH_FAILED = "Haven token validation failed: missing/invalid Authorization header. Path={Path}, Method={Method}";
+
+        /// <summary>
+        /// Logged when Haven token validation begins.
+        /// </summary>
+        public const string LOG_AUTH_STARTED = "Haven token validation started. Path={Path}, Method={Method}";
+
+        /// <summary>
+        /// Logged when Haven token validation succeeds.
+        /// </summary>
+        public const string LOG_AUTH_SUCCEEDED = "Haven token validation succeeded. UserId={UserId}";
+
+        /// <summary>
+        /// Logged when Haven token validation fails because the token is expired.
+        /// </summary>
+        public const string LOG_AUTH_REJECTED_EXPIRED = "Haven token validation rejected: expired token.";
+
+        /// <summary>
+        /// Logged when Haven token validation fails for any other reason.
+        /// </summary>
+        public const string LOG_AUTH_REJECTED = "Haven token validation rejected. ErrorType={ErrorType}, Error={Error}";
+
+        /// <summary>
+        /// Logged when a 401 challenge response is written by the Haven authentication handler.
+        /// </summary>
+        public const string LOG_CHALLENGE_401 = "Haven auth response: challenge issued (401).";
+
+        /// <summary>
+        /// Logged when a 403 forbidden response is written by the Haven authentication handler.
+        /// </summary>
+        public const string LOG_FORBIDDEN_403 = "Haven auth response: access forbidden (403).";
+
+        /// <summary>
+        /// Logged when the Haven authentication handler writes an error payload.
+        /// </summary>
+        public const string LOG_WRITE_ERROR_PAYLOAD = "Haven auth response: writing error payload. StatusCode={StatusCode}, Code={Code}, Message={Message}";
+    }
 }

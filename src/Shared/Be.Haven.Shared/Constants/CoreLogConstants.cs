@@ -172,6 +172,34 @@ public static class CoreLogConstants
         /// Cache invalidation version was bumped after a successful write command.
         /// </summary>
         public const string CACHE_VERSION_BUMPED = "Cache version bumped. Epoch={Epoch} NewVersion={NewVersion}";
+
+        /// <summary>
+        /// Current-user scoped cache could not resolve a principal and falls back to unscoped behavior.
+        /// </summary>
+        public const string LOG_CACHE_CURRENT_USER_SCOPE_SKIPPED =
+            "Current-user cache scope skipped because principal is not authenticated. RequestType={RequestType}";
+
+        /// <summary>
+        /// Current-user scoped cache resolved its user namespace from the authenticated principal.
+        /// </summary>
+        public const string LOG_CACHE_CURRENT_USER_SCOPE_RESOLVED =
+            "Current-user cache scope resolved from authenticated principal. RequestType={RequestType}";
+    }
+
+    /// <summary>
+    /// Centralized log message templates for private Cloudflare R2 object uploads.
+    /// </summary>
+    public static class R2StorageLogs
+    {
+        /// <summary>
+        /// Logged after a private object upload completes without exposing the object key.
+        /// </summary>
+        public const string R2_UPLOAD_COMPLETED = "Cloudflare R2 upload completed. BucketName={BucketName}, FileSize={FileSize}.";
+
+        /// <summary>
+        /// Logged when a private object upload fails without exposing the object key.
+        /// </summary>
+        public const string R2_UPLOAD_FAILED = "Cloudflare R2 upload failed. BucketName={BucketName}.";
     }
     
     /// <summary>

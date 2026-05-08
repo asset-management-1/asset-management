@@ -30,19 +30,18 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
     public string GetEpoch() => DateTime.UtcNow.ToString("yyyyMMdd");
 
     /// <summary>
-    /// Retrieves the current cache version for a given epoch.
+    /// Retrieves the current cache version for a given cache group, scope, and epoch.
     /// </summary>
-    /// <param name="epoch">
-    /// The epoch scope for the version counter.
-    /// Pass a frozen epoch value (captured once) to avoid mismatch at UTC midnight.
-    /// </param>
+    /// <param name="cacheGroup">The logical cache group whose version should be read.</param>
+    /// <param name="cacheScope">The optional cache scope within the logical group.</param>
+    /// <param name="epoch">The epoch scope for the version counter. Pass a frozen epoch value (captured once) to avoid mismatch at UTC midnight.</param>
     /// <returns>
     /// Returns the current version as a long.
     /// If the key does not exist (first use), returns <see cref="DEFAULT_VERSION"/> (1).
     /// </returns>
-    public async Task<long> GetAsync(string epoch)
+    public async Task<long> GetAsync(string cacheGroup, string cacheScope, string epoch)
     {
-        var key = GetVersionKey(epoch);
+        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
 
         try
         {
@@ -97,18 +96,17 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
     }
 
     /// <summary>
-    /// Atomically bumps (increments) the cache version for a given epoch.
+    /// Atomically bumps (increments) the cache version for a given cache group, scope, and epoch.
     /// </summary>
-    /// <param name="epoch">
-    /// The epoch scope for the version counter.
-    /// Pass a frozen epoch value (captured once) to avoid mismatch at UTC midnight.
-    /// </param>
+    /// <param name="cacheGroup">The logical cache group whose version should be invalidated.</param>
+    /// <param name="cacheScope">The optional cache scope within the logical group.</param>
+    /// <param name="epoch">The epoch scope for the version counter. Pass a frozen epoch value (captured once) to avoid mismatch at UTC midnight.</param>
     /// <returns>
     /// Returns the new incremented version.
     /// </returns>
-    public async Task<long> InvalidateAsync(string epoch)
+    public async Task<long> InvalidateAsync(string cacheGroup, string cacheScope, string epoch)
     {
-        var key = GetVersionKey(epoch);
+        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
         
         // If key doesn't exist, seed it to DEFAULT_VERSION (1) first,
         // so the next INCR becomes 2 (i.e., version actually changes).
@@ -169,9 +167,18 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
     }
 
     /// <summary>
-    /// Builds the Redis key for a given epoch.
+    /// Builds the Redis key for a given cache group, scope, and epoch.
     /// </summary>
+    /// <param name="cacheGroup">The logical cache group.</param>
+    /// <param name="cacheScope">The optional cache scope.</param>
     /// <param name="epoch">Epoch identifier (e.g., yyyyMMdd).</param>
     /// <returns>Redis key string.</returns>
-    private static string GetVersionKey(string epoch) => $"{VERSION_KEY_PREFIX}{epoch}";
+    private static string GetVersionKey(string cacheGroup, string cacheScope, string epoch)
+    {
+        var normalizedScope = string.IsNullOrWhiteSpace(cacheScope)
+            ? string.Empty
+            : string.Format(CACHE_SCOPE_SEGMENT_FORMAT, cacheScope);
+
+        return $"{VERSION_KEY_PREFIX}{cacheGroup}{normalizedScope}:{epoch}";
+    }
 }

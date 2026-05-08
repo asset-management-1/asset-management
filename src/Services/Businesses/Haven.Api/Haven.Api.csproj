@@ -8,11 +8,17 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
+        <PackageReference Include="Mediator.SourceGenerator" Version="3.0.2">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6"/>
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\Shared\Be.Haven.ApiCommon\Be.Haven.ApiCommon.csproj" />
+      <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
       <ProjectReference Include="..\Haven.Insfrastructure\Haven.Insfrastructure.csproj" />
     </ItemGroup>
 
