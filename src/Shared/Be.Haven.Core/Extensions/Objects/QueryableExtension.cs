@@ -234,7 +234,7 @@ public static class QueryableExtension
 
             ConstantExpression constantExpression = Expression.Constant(paramValue, entityProp.PropertyType);
             Expression entityMemberExpression = Expression.Property(entityParameter, entityProp);
-            Expression subExpression = null;
+            Expression subExpression;
 
             // For non-string properties, use exact equality.
             if (paramProp.PropertyType != typeof(string))
@@ -247,12 +247,9 @@ public static class QueryableExtension
                 subExpression = Expression.Call(entityMemberExpression, ContainsMethod, constantExpression);
             }
 
-            if (subExpression is not null)
-            {
-                mainExpression = mainExpression is null
-                    ? subExpression
-                    : Expression.And(mainExpression, subExpression);
-            }
+            mainExpression = mainExpression is null
+                ? subExpression
+                : Expression.And(mainExpression, subExpression);
         }
 
         return mainExpression is null

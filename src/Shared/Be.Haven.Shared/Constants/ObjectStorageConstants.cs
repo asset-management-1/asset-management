@@ -26,6 +26,16 @@ public static class ObjectStorageConstants
     public const string SIDE_OBJECT_SLOT = "side";
 
     /// <summary>
+    /// Default private object-key prefix used for CCCD KYC files.
+    /// </summary>
+    public const string DEFAULT_KYC_OBJECT_PREFIX = "kyc/cccd";
+
+    /// <summary>
+    /// Default object-key prefix used for tenant vehicle images.
+    /// </summary>
+    public const string DEFAULT_VEHICLE_OBJECT_PREFIX = "vehicles";
+
+    /// <summary>
     /// Message used when a required object-storage upload file is missing.
     /// </summary>
     public const string OBJECT_STORAGE_REQUIRED_FILE_MISSING_MESSAGE = "Required upload file is missing.";

@@ -1,20 +1,10 @@
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Storage;
 
 /// <summary>
 /// Represents Cloudflare R2 private bucket configuration.
 /// </summary>
 public class R2StorageOptions
 {
-    /// <summary>
-    /// Default private object-key prefix used for CCCD KYC files.
-    /// </summary>
-    public const string DefaultKycObjectPrefix = "kyc/cccd";
-
-    /// <summary>
-    /// Default object-key prefix used for tenant vehicle images.
-    /// </summary>
-    public const string DefaultVehicleObjectPrefix = "vehicles";
-
     /// <summary>
     /// Gets or sets the Cloudflare account identifier.
     /// </summary>
@@ -48,10 +38,10 @@ public class R2StorageOptions
     /// <summary>
     /// Gets or sets the object-key prefix used for KYC files.
     /// </summary>
-    public string KycObjectPrefix { get; set; } = DefaultKycObjectPrefix;
+    public string KycObjectPrefix { get; set; } = DEFAULT_KYC_OBJECT_PREFIX;
 
     /// <summary>
     /// Gets or sets the object-key prefix used for tenant vehicle images.
     /// </summary>
-    public string VehicleObjectPrefix { get; set; } = DefaultVehicleObjectPrefix;
+    public string VehicleObjectPrefix { get; set; } = DEFAULT_VEHICLE_OBJECT_PREFIX;
 }

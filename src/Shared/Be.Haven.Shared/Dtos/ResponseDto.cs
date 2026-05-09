@@ -54,10 +54,8 @@ public class ResponseDto<T>
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ResponseDto{T}"/> class with the specified data and optional metadata.
-    /// If <paramref name="meta"/> is null, a default <see cref="MetaDetailDto"/> is created.
     /// </summary>
     /// <param name="data">The data to include in the response.</param>
-    /// <param name="meta">Optional metadata associated with the response.</param>
     public ResponseDto(T data)
     {
         Data = data;

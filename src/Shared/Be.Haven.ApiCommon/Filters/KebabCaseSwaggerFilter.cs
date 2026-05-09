@@ -40,7 +40,7 @@ public sealed class KebabCaseSwaggerFilter : IOperationFilter
                                             if (p.In != ParameterLocation.Path) return true;
 
                                             // Already kebab-case => keep
-                                            if (p.Name.Contains('-')) return true;
+                                            if (p.Name != null && p.Name.Contains('-')) return true;
 
                                             // Convert camelCase -> kebab-case
                                             var kebab = StringConvertHelper.ToKebabCase(p.Name);

@@ -1,7 +1,4 @@
-﻿using Be.Haven.Cache.Interfaces;
-using Be.Haven.Cache.Services;
-
-namespace Be.Haven.Cache.Extensions;
+﻿namespace Be.Haven.Cache.Extensions;
 
 public static class ServiceRegistration
 {

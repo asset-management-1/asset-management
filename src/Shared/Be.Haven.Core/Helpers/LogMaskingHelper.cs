@@ -112,7 +112,7 @@ public static class LogMaskingHelper
                     if (SENSITIVE_KEYS.Contains(property.Name))
                     {
                         property.Value = MaskValue(
-                            property.Value?.ToString(),
+                            property.Value.ToString(),
                             visibleTrailingCharacters,
                             mask) ?? mask;
                         continue;

@@ -1,4 +1,4 @@
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Observability;
 
 /// <summary>
 /// Configuration options for enabling OpenTelemetry instrumentation

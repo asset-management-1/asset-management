@@ -230,7 +230,7 @@ public abstract class BaseQuartzJob : IJob
         if (!UseDistributedLock || _lock is null)
         {
             Logger.LogDebug(QuartzLogs.LOG_JOB_LOCK_DISABLED, key);
-            return NoopLock.INSTANCE;
+            return NoopLock.Instance;
         }
 
         var waitTimeout = ResolveLockWaitTimeout();
@@ -324,7 +324,7 @@ public abstract class BaseQuartzJob : IJob
     /// </summary>
     private sealed class NoopLock : IAsyncDisposable
     {
-        public static readonly NoopLock INSTANCE = new();
+        public static readonly NoopLock Instance = new();
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

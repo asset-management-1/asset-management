@@ -17,7 +17,7 @@ public class DbConnectionFactory : IDbConnectionFactory
         ILogger<DbConnectionFactory> logger)
     {
         _connectionStringProvider = connectionStringProvider;
-        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
+        _gcpOptions = gcpOptions.Value;
         _logger = logger;
     }
 
@@ -86,9 +86,9 @@ public class DbConnectionFactory : IDbConnectionFactory
     private static DbConnection Create(SqlProvider provider, string cs) =>
         provider switch
         {
-            SqlProvider.SQL_Server or SqlProvider.MySQL => new SqlConnection(cs),
-            SqlProvider.PostgreSQL => new Npgsql.NpgsqlConnection(cs),
-            SqlProvider.SQLite => new SqliteConnection(cs),
+            SqlProvider.SqlServer or SqlProvider.MySql => new SqlConnection(cs),
+            SqlProvider.PostgreSql => new Npgsql.NpgsqlConnection(cs),
+            SqlProvider.SqLite => new SqliteConnection(cs),
             _ => throw new NotSupportedException(string.Format(ERROR_UNSUPPORTED_DATABASE_PROVIDER, provider))
         };
 }

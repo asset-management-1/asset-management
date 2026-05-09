@@ -1,5 +1,3 @@
-using Be.Haven.Shared.Enums;
-
 namespace Be.Haven.Shared.Dtos.Responses
 {
     /// <summary>

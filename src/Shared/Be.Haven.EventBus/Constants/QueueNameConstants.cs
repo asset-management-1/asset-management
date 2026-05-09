@@ -15,7 +15,7 @@ public static class QueueNameConstants
         /// The Topic name for events related to National Address To-Do items.
         /// This Topic is used to publish To-Do messages from the National Address Portal.
         /// </summary>
-        public const string NationAddressTodoTopic = "nation-address-topic-todo";
+        public const string NATION_ADDRESS_TODO_TOPIC = "nation-address-topic-todo";
     }
 
     /// <summary>
@@ -27,6 +27,6 @@ public static class QueueNameConstants
         /// The Subscription name for the NationAddressTodoTopic.
         /// This Subscription allows services to receive To-Do messages.
         /// </summary>
-        public const string NationAddressTodoSub = "nation-address-topic-todo-sub";
+        public const string NATION_ADDRESS_TODO_SUB = "nation-address-topic-todo-sub";
     }
 }

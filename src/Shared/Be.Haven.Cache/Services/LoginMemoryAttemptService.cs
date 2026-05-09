@@ -1,6 +1,4 @@
-﻿using Be.Haven.Cache.Interfaces;
-
-namespace Be.Haven.Cache.Services;
+﻿namespace Be.Haven.Cache.Services;
 
 /// <summary>
 /// Provides an in-memory implementation of <see cref="ILoginAttemptService"/>.

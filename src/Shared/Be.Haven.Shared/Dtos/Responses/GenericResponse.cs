@@ -1,5 +1,3 @@
-using Be.Haven.Shared.Constants;
-
 namespace Be.Haven.Shared.Dtos.Responses;
 
 /// <summary>

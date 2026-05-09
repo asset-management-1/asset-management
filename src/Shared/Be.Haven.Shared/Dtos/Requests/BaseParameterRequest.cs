@@ -1,5 +1,3 @@
-using Be.Haven.Shared.Configurations;
-
 namespace Be.Haven.Shared.Dtos.Requests;
 
 /// <summary>

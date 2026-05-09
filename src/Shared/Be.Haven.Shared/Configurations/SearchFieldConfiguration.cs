@@ -1,6 +1,4 @@
-﻿using Be.Haven.Shared.Enums;
-
-namespace Be.Haven.Shared.Configurations;
+﻿namespace Be.Haven.Shared.Configurations;
 
 /// <summary>
 /// Represents the configuration for a searchable field, including

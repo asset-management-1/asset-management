@@ -61,18 +61,18 @@ public class EmailService : IEmailService
             }
 
             // Add carbon copy recipients when provided.
-            if (request.RequestData.CC is not null)
+            if (request.RequestData.Cc is not null)
             {
-                foreach (var recipient in request.RequestData.CC.Where(x => !string.IsNullOrWhiteSpace(x.Email)))
+                foreach (var recipient in request.RequestData.Cc.Where(x => !string.IsNullOrWhiteSpace(x.Email)))
                 {
                     message.AddCc(new EmailAddress(recipient.Email));
                 }
             }
 
             // Add blind carbon copy recipients when provided.
-            if (request.RequestData.BCC is not null)
+            if (request.RequestData.Bcc is not null)
             {
-                foreach (var recipient in request.RequestData.BCC.Where(x => !string.IsNullOrWhiteSpace(x.Email)))
+                foreach (var recipient in request.RequestData.Bcc.Where(x => !string.IsNullOrWhiteSpace(x.Email)))
                 {
                     message.AddBcc(new EmailAddress(recipient.Email));
                 }

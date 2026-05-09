@@ -1,4 +1,4 @@
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Data;
 
 /// <summary>
 /// Defines the configuration options for database settings commonly used in the application.
@@ -10,7 +10,7 @@ public class DatabaseOptions
     /// <summary>
     /// Indicates which SQL provider should be used by EF Core and Dapper.
     /// </summary>
-    public SqlProvider Provider { get; set; } = SqlProvider.PostgreSQL;
+    public SqlProvider Provider { get; set; } = SqlProvider.PostgreSql;
 
     /// <summary>
     /// The configured connection-string name to resolve from the ConnectionStrings section.

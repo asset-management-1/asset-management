@@ -34,7 +34,7 @@ public static class AppConstants
         /// <summary>
         /// Constant representing the authentication scheme for National Address Bearer tokens.
         /// </summary>
-        public const string NA_BEARER = "NaBearer";
+        public const string HAVEN_BEARER = "HavenBearer";
 
         /// <summary>
         /// Constant representing the identifier for background jobs in the system.
@@ -461,8 +461,7 @@ public static class AppConstants
         /// Number cut url environment variable.
         /// </summary>
         public const int NUMBER_SEGMENTS = 2;
-
-        /// <summary>
+        
         /// <summary>
         /// Content-Type environment variable.
         /// </summary>
@@ -1298,15 +1297,16 @@ public static class AppConstants
         public const string HANDLER_NOT_RESOLVED_FROM_DI_SIMPLE = "Handler could not be resolved from DI.";
 
         /// <summary>
-        /// Error message used when the background execution of <see cref="GpsSubscriberService"/>
-        /// has been canceled. This typically indicates a normal application shutdown and that
-        /// all subscriber tasks stopped gracefully.
+        /// Represents the cancellation message used when the execution of a background service, such as
+        /// GcpSubscriberJob, is terminated. This typically occurs during application shutdown to signal that
+        /// the subscriber stopped gracefully, and no further processing will continue.
         /// </summary>
         public const string EXECUTE_ASYNC_CANCELED_MESSAGE = "GpsSubscriberService execution was canceled. This usually happens during application shutdown. The subscriber stopped gracefully but no further processing can continue.";
 
         /// <summary>
-        /// Error message used when <see cref="GpsSubscriberService"/> encounters an unhandled exception
-        /// during message processing. This indicates a runtime failure that forces the service to stop.
+        /// Represents the error message used when the GpsSubscriberService encounters
+        /// an unhandled exception during asynchronous message processing, leading to
+        /// the service shutdown.
         /// </summary>
         public const string EXECUTE_ASYNC_UNHANDLED_EXCEPTION_MESSAGE = "GpsSubscriberService encountered an unhandled exception during message processing. The service cannot continue and has been stopped.";
 
@@ -1456,77 +1456,5 @@ public static class AppConstants
             /// </summary>
             public const string ERR_EMBEDDED_RESOURCE_NOT_FOUND = "Embedded excel resource not found: '{0}'. Available: {1}";
         }
-    }
-
-    /// <summary>
-    /// Provides default pagination parameters used across list-query endpoints.
-    /// </summary>
-    public static class GetListDefaultParam
-    {
-        /// <summary>
-        /// The default number of items to return per page when no PageSize is specified.
-        /// </summary>
-        public const int DEFAULT_PAGE_SIZE = 10;
-
-        /// <summary>
-        /// The default page index to start from when no PageNumber is specified.
-        /// Typically this is page 1 (the first page).
-        /// </summary>
-        public const int DEFAULT_PAGENUMBER = 1;
-    }
-
-    /// <summary>
-    /// Contains predefined action names used for generating cache keys 
-    /// and mapping pagination states in the OData pagination workflow.
-    /// </summary>
-    public static class ActionName
-    {
-        /// <summary>
-        /// The action identifier used when retrieving requests by FactoryId.
-        /// This value is typically used as part of cache key generation.
-        /// </summary>
-        public const string GET_REQUEST_BY_FACTORYID = "GetRequestByFactoryId";
-    }
-
-    /// <summary>
-    /// Defines constant names for query parameters related to OData nextLink 
-    /// handling, such as $top, $skiptoken, or other pagination-related values.
-    /// These constants help avoid magic strings when parsing or modifying 
-    /// nextLink URLs.
-    /// </summary>
-    public static class NextLinkParam
-    {
-        /// <summary>
-        /// Format for storing per-user cache entry.
-        /// Usage: string.Format(USER_CACHE_KEY_FORMAT, userId, actionName)
-        /// Result: "userId:actionName"
-        /// </summary>
-        public const string USER_CACHE_KEY_FORMAT = "{0}:{1}";
-
-        /// <summary>
-        /// Format for storing the list of cache keys belonging to the user.
-        /// Result: "userId:keys"
-        /// </summary>
-        public const string USER_ACTION_KEY_LIST_FORMAT = "{0}:{1}:keys";
-
-        /// <summary>
-        /// Format for action + page index (used in nextLink mapping)
-        /// </summary>
-        public const string ACTION_IN_PAGE_KEY_FORMAT = "{0}:P{1}";
-
-        /// <summary>
-        /// Error message used when failing to retrieve a nextLink value from cache.
-        /// </summary>
-        public const string ERROR_WITH_RETRIEVIE_NEXTLINK_FROM_CACHE = "Failed to retrieve nextLink from cache: {0}";
-
-        /// <summary>
-        /// Error message used when failing to store a nextLink value in cache.
-        /// </summary>
-        public const string ERROR_WITH_STORE_NEXTLINK_FROM_CACHE = "Failed to store nextLink to cache: {0}";
-
-        /// <summary>
-        /// Error message returned when required parameters (action name or nextLink) are missing.
-        /// </summary>
-        public const string MISSING_ACTION_NAME_AND_NEXTlINK = "Action name and nextLink value are required";
     }
 }

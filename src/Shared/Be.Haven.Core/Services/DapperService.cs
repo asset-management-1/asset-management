@@ -19,7 +19,7 @@ public sealed class DapperService : IDapperService
         IOptions<GcpOptions> gcpOptions)
     {
         _factory = factory;
-        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
+        _gcpOptions = gcpOptions.Value;
     }
 
     /// <summary>

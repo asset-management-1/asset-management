@@ -8,20 +8,20 @@ public enum SqlProvider : byte
     /// <summary>
     /// Microsoft SQL Server database provider.
     /// </summary>
-    SQL_Server = 0,
+    SqlServer = 0,
 
     /// <summary>
     /// MySQL database provider.
     /// </summary>
-    MySQL = 1,
+    MySql = 1,
 
     /// <summary>
     /// PostgreSQL database provider.
     /// </summary>
-    PostgreSQL = 2,
+    PostgreSql = 2,
 
     /// <summary>
     /// SQLite database provider.
     /// </summary>
-    SQLite = 3
+    SqLite = 3
 }

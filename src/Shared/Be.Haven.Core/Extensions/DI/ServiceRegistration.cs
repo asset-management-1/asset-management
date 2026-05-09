@@ -277,7 +277,7 @@ public static class ServiceRegistration
             // Use the configured provider once here so every DbContext follows the same runtime database.
             switch (resolvedProvider)
             {
-                case SqlProvider.PostgreSQL:
+                case SqlProvider.PostgreSql:
                     options.UseNpgsql(
                         connectionString,
                         postgresOptions => postgresOptions
@@ -289,7 +289,7 @@ public static class ServiceRegistration
                                 TimeSpan.FromSeconds(SQL_RETRY_DELAY_SECONDS),
                                 null));
                     break;
-                case SqlProvider.SQL_Server:
+                case SqlProvider.SqlServer:
                     options.UseSqlServer(
                         connectionString,
                         sqlOptions => sqlOptions

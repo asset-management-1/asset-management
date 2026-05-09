@@ -1,4 +1,4 @@
-namespace Be.Haven.ApiCommon.Options;
+namespace Be.Haven.ApiCommon.Options.Swagger;
 
 /// <summary>
 /// Configures Swagger documents for each discovered API version (v1, v2, ...).

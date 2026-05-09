@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Gcp;
 
 /// <summary>
 /// Represents the configuration settings required for uploading files to GCP.

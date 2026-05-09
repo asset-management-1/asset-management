@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Gcp;
 
 /// <summary>
 /// Represents configuration options for accessing Google Cloud Storage resources.

@@ -18,7 +18,7 @@ public class DbConnectionHostService : IHostedService
         ILogger<DbConnectionHostService> logger)
     {
         _provider = provider;
-        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
+        _gcpOptions = gcpOptions.Value;
         _logger = logger;
     }
 

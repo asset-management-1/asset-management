@@ -1,4 +1,4 @@
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Authentications;
 
 /// <summary>
 /// Represents the shared token-validation settings required by Haven authentication handlers.

@@ -1,5 +1,3 @@
-using Be.Haven.Core.Models;
-
 namespace Be.Haven.Core.Repositories;
 
 /// <summary>

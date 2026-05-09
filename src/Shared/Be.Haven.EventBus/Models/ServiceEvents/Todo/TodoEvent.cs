@@ -5,8 +5,8 @@
 /// This class maps to the National Address To-Do Topic and Subscription.
 /// </summary>
 [Gcp(
-    QueueNameConstants.TopicNames.NationAddressTodoTopic,
-    QueueNameConstants.SubNames.NationAddressTodoSub)]
+    QueueNameConstants.TopicNames.NATION_ADDRESS_TODO_TOPIC,
+    QueueNameConstants.SubNames.NATION_ADDRESS_TODO_SUB)]
 public class TodoEvent : IBaseMessageEvent
 {
     /// <summary>

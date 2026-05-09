@@ -152,7 +152,7 @@ internal static class R2SignatureHelper
     /// <returns>The lowercase hexadecimal signature.</returns>
     private static string CalculateSignature(R2StorageOptions options, string dateStamp, string stringToSign)
     {
-        var dateKey = HmacSha256(Encoding.UTF8.GetBytes($"AWS4{options.SecretAccessKey}"), dateStamp);
+        var dateKey = HmacSha256(UTF8.GetBytes($"AWS4{options.SecretAccessKey}"), dateStamp);
         var regionKey = HmacSha256(dateKey, R2_SIGNATURE_REGION);
         var serviceKey = HmacSha256(regionKey, R2_SIGNATURE_SERVICE_NAME);
         var signingKey = HmacSha256(serviceKey, R2_SIGNATURE_TERMINATOR);
@@ -166,7 +166,7 @@ internal static class R2SignatureHelper
     /// <param name="value">The value to hash.</param>
     /// <returns>The lowercase hexadecimal SHA-256 hash.</returns>
     private static string HashHex(string value) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
+        Convert.ToHexString(SHA256.HashData(UTF8.GetBytes(value))).ToLowerInvariant();
 
     /// <summary>
     /// Computes one HMAC-SHA256 block.
@@ -178,6 +178,6 @@ internal static class R2SignatureHelper
     {
         using var hmac = new HMACSHA256(key);
 
-        return hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
+        return hmac.ComputeHash(UTF8.GetBytes(data));
     }
 }

@@ -1,4 +1,4 @@
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Email;
 
 /// <summary>
 /// Represents configuration settings for sending emails.

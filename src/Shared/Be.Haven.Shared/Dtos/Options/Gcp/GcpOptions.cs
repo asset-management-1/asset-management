@@ -1,4 +1,4 @@
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Gcp;
 
 /// <summary>
 /// Configuration options for GCP integration, including project details, logging, database, and secret management.

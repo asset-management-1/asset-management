@@ -1,6 +1,4 @@
-﻿using Be.Haven.Cache.Interfaces;
-
-namespace Be.Haven.Cache.Services;
+﻿namespace Be.Haven.Cache.Services;
 
 /// <summary>
 /// Provides a Redis-based implementation of <see cref="ILoginAttemptService"/>.
@@ -34,6 +32,7 @@ public class LoginAttemptService : ILoginAttemptService
     /// </summary>
     /// <param name="userName">The username to check for a lockout state.</param>
     /// <param name="ct">A cancellation token used to cancel the operation.</param>
+    /// <returns>A task that completes when the lockout check finishes.</returns>
     /// <exception cref="ArgumentException">Thrown when the user is currently locked out.</exception>
     public async Task CheckAccountLockedAsync(
         string userName,
@@ -54,10 +53,7 @@ public class LoginAttemptService : ILoginAttemptService
         // Retrieve remaining TTL (time to live) for informational logging.
         var ttl = await _redis.KeyTimeToLiveAsync(lockKey);
 
-        /// <summary>
-        /// Logs a warning indicating that the user is still locked out,
-        /// along with the remaining lock duration.
-        /// </summary>
+        // Logs a warning indicating that the user is still locked out, along with the remaining lock duration.
         _logger.LogWarning(USER_LOCKED, userName, ttl?.TotalSeconds);
 
         throw new ArgumentException(ACCOUNT_LOCKED);
@@ -69,6 +65,7 @@ public class LoginAttemptService : ILoginAttemptService
     /// </summary>
     /// <param name="userName">The username whose failed attempt count should be updated.</param>
     /// <param name="ct">A cancellation token used to cancel the operation.</param>
+    /// <returns>A task that completes when the failed-attempt counter is updated.</returns>
     public async Task CountFailedAttemptAsync(
         string userName,
         CancellationToken ct)
@@ -81,15 +78,10 @@ public class LoginAttemptService : ILoginAttemptService
         var failKey = GetFailKey(userName);
         var lockKey = GetLockKey(userName);
 
-        /// <summary>
-        /// Atomically increments the failed attempt counter in Redis.
-        /// </summary>
+        // Atomically increment the failed attempt counter in Redis.
         var failedCount = await _redis.StringIncrementAsync(failKey);
 
-        /// <summary>
-        /// Sets a time-to-live for the failed attempt counter on the first failed attempt.
-        /// Ensures that counters automatically reset after the configured window.
-        /// </summary>
+        // Set the counter TTL only on the first failed attempt so the window expires automatically.
         if (failedCount == 1)
         {
             await _redis.KeyExpireAsync(failKey, _options.FailedWindow);
@@ -101,10 +93,7 @@ public class LoginAttemptService : ILoginAttemptService
             failedCount,
             _options.MaxFailedAttempts);
 
-        /// <summary>
-        /// Locks the user if the number of failed attempts reaches the configured threshold.
-        /// A separate Redis key is created to represent the lock state with an expiration time.
-        /// </summary>
+        // Create a separate lock key when the configured failed-attempt threshold is reached.
         if (failedCount >= _options.MaxFailedAttempts)
         {
             await _redis.StringSetAsync(lockKey, LOCKED, _options.LockDuration);
@@ -123,6 +112,7 @@ public class LoginAttemptService : ILoginAttemptService
     /// </summary>
     /// <param name="userName">The username whose lock and failed attempts will be cleared.</param>
     /// <param name="ct">A cancellation token used to cancel the operation.</param>
+    /// <returns>A task that completes when the lockout state is removed.</returns>
     public async Task RemoveAttemptsAsync(
         string userName,
         CancellationToken ct)
@@ -138,9 +128,7 @@ public class LoginAttemptService : ILoginAttemptService
         await _redis.KeyDeleteAsync(failKey);
         await _redis.KeyDeleteAsync(lockKey);
 
-        /// <summary>
-        /// Logs that the user’s login attempt data and lock state were successfully cleared.
-        /// </summary>
+        // Record that the user's failed-attempt and lockout state has been cleared.
         _logger.LogInformation(USER_RESET, userName);
     }
 

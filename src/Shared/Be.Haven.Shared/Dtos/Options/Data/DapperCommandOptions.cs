@@ -1,6 +1,4 @@
-using Be.Haven.Shared.Enums;
-
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Data;
 
 /// <summary>
 /// Represents configuration options for executing Dapper commands. This class encapsulates

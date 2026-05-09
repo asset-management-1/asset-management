@@ -1,5 +1,3 @@
-using Be.Haven.Cache.Interfaces;
-
 namespace Be.Haven.Cache.Behaviours;
 
 /// <summary>

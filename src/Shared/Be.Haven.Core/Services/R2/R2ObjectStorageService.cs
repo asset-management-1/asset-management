@@ -82,7 +82,7 @@ public class R2ObjectStorageService : IObjectStorageService
             };
 
             _logger.LogInformation(
-                CoreLogConstants.R2StorageLogs.R2_UPLOAD_COMPLETED,
+                R2StorageLogs.R2_UPLOAD_COMPLETED,
                 upload.BucketName,
                 upload.FileSize);
 
@@ -92,7 +92,7 @@ public class R2ObjectStorageService : IObjectStorageService
         {
             _logger.LogError(
                 ex,
-                CoreLogConstants.R2StorageLogs.R2_UPLOAD_FAILED,
+                R2StorageLogs.R2_UPLOAD_FAILED,
                 _options.BucketName);
             throw new ArgumentException(R2_UPLOAD_FAILED_MESSAGE, ex);
         }
@@ -141,14 +141,14 @@ public class R2ObjectStorageService : IObjectStorageService
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
-                    CoreLogConstants.R2StorageLogs.R2_DELETE_FAILED,
+                    R2StorageLogs.R2_DELETE_FAILED,
                     _options.BucketName);
 
                 return false;
             }
 
             _logger.LogInformation(
-                CoreLogConstants.R2StorageLogs.R2_DELETE_COMPLETED,
+                R2StorageLogs.R2_DELETE_COMPLETED,
                 _options.BucketName);
 
             return true;
@@ -157,7 +157,7 @@ public class R2ObjectStorageService : IObjectStorageService
         {
             _logger.LogWarning(
                 ex,
-                CoreLogConstants.R2StorageLogs.R2_DELETE_FAILED,
+                R2StorageLogs.R2_DELETE_FAILED,
                 _options.BucketName);
 
             return false;

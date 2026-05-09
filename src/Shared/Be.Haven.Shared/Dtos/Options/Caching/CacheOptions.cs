@@ -1,4 +1,4 @@
-namespace Be.Haven.Shared.Dtos.Options;
+namespace Be.Haven.Shared.Dtos.Options.Caching;
 
 /// <summary>
 /// Represents configuration options for caching behavior.

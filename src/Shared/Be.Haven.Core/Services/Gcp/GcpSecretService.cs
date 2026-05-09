@@ -28,7 +28,7 @@ public sealed class GcpSecretService : IGcpSecretService
         _client = client;
         _logger = logger;
         _cachingService = cachingService;
-        _gcpOptions = gcpOptions.Value ?? new GcpOptions();
+        _gcpOptions = gcpOptions.Value;
         _resourcePrefix = resourcePrefix;
         _defaultVersion = defaultVersion;
     }
