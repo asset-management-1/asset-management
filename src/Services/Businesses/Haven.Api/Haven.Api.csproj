@@ -19,7 +19,7 @@
     <ItemGroup>
       <ProjectReference Include="..\..\..\Shared\Be.Haven.ApiCommon\Be.Haven.ApiCommon.csproj" />
       <ProjectReference Include="..\Haven.Application\Haven.Application.csproj" />
-      <ProjectReference Include="..\Haven.Insfrastructure\Haven.Insfrastructure.csproj" />
+      <ProjectReference Include="..\Haven.Infrastructure\Haven.Infrastructure.csproj" />
     </ItemGroup>
 
     <ItemGroup>

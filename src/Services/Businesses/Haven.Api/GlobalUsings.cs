@@ -9,7 +9,7 @@ global using Be.Haven.ApiCommon.Routing;
 global using Be.Haven.Cache.Extensions;
 global using Be.Haven.Core.Extensions.DI;
 global using Be.Haven.Core.Factories;
-global using Be.Haven.Shared.Dtos.Options;
+global using Be.Haven.Shared.Dtos.Options.Gcp;
 global using Haven.Api.Extensions;
 global using Haven.Application.Extensions;
 global using Haven.Insfrastructure.Extensions;

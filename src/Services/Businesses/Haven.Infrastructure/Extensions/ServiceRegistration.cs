@@ -1,9 +1,3 @@
-using Be.Haven.Core.Extensions.DI;
-using Be.Haven.Core.Interfaces.Services;
-using Be.Haven.Core.Services;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Haven.Insfrastructure.Extensions;
 
 public static class ServiceRegistration
