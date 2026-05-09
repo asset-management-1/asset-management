@@ -17,7 +17,13 @@ public static class DataPrivacyConstants
     {
         "password", "pwd", "pass",
         "newPassword", "confirmPassword",
-        "secret", "clientSecret"
+        "secret", "clientSecret", "secretKey",
+        "token", "accessToken", "access_token",
+        "refreshToken", "refresh_token",
+        "externalToken", "external_token",
+        "idToken", "id_token",
+        "authorization", "apiKey", "api_key",
+        "otp", "identifierValue", "nationalId", "cccd"
     };
 
     /// <summary>
@@ -27,7 +33,13 @@ public static class DataPrivacyConstants
     public static readonly Regex PLAIN_TEXT_REGEX = new(
         @"(?ix)
         \b
-        (password|pwd|pass|newpassword|confirmpassword|secret|clientsecret)
+        (password|pwd|pass|newpassword|confirmpassword
+        |secret|clientsecret|secretkey
+        |token|accesstoken|access_token
+        |refreshtoken|refresh_token
+        |externaltoken|external_token
+        |idtoken|id_token|authorization
+        |apikey|api_key|otp|identifiervalue|nationalid|cccd)
         \b
         (\s*[:=]\s*)
         ([""']?)

@@ -1,5 +1,3 @@
-using Be.Haven.Core.Extensions.Serializations;
-
 namespace Be.Haven.Core.Services;
 
 public class JsonSerializerService : IJsonSerializerService
@@ -89,6 +87,22 @@ public class JsonSerializerService : IJsonSerializerService
     public T DeserializeIgnoreToPascalProperties<T>(string json)
     {
         return JsonConvert.DeserializeObject<T>(json, _jsonSerializerToPascalSettings);
+    }
+
+    /// <summary>
+    /// Deserializes a JSON array into a typed list while retaining PascalCase property names.
+    /// </summary>
+    /// <typeparam name="T">The list element type.</typeparam>
+    /// <param name="json">The JSON array text.</param>
+    /// <returns>The deserialized list, or an empty list when the payload is blank.</returns>
+    public List<T> DeserializeList<T>(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return [];
+        }
+
+        return JsonConvert.DeserializeObject<List<T>>(json, _jsonSerializerToPascalSettings) ?? [];
     }
 
     /// <summary>

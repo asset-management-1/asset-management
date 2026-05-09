@@ -10,9 +10,13 @@ public static class LogMaskingHelper
     /// <param name="input">The input string that potentially contains sensitive data to be masked.</param>
     /// <param name="customMask">An optional custom masking string to use when replacing sensitive data.
     /// If not provided, a default masking value is used.</param>
+    /// <param name="visibleTrailingCharacters">The number of trailing sensitive-value characters to keep visible.</param>
     /// <returns>The input string with sensitive data masked. If no sensitive data is detected,
     /// the original input string is returned unmodified.</returns>
-    public static string MaskAllSensitiveData(string input, string customMask = null)
+    public static string MaskAllSensitiveData(
+        string input,
+        string customMask = null,
+        int visibleTrailingCharacters = 0)
     {
         if (string.IsNullOrWhiteSpace(input) || !ContainsSensitiveKeyword(input))
             return input;
@@ -24,18 +28,46 @@ public static class LogMaskingHelper
         // 1. Full JSON
         if (LooksLikeJson(input))
         {
-            var maskedJson = TryMaskFullJson(input, mask);
+            var maskedJson = TryMaskFullJson(input, mask, visibleTrailingCharacters);
             if (!string.Equals(maskedJson, input, StringComparison.Ordinal))
                 return maskedJson;
         }
 
         // 2. JSON blocks inside text
-        var masked = MaskAllJsonBlocksInText(input, mask);
+        var masked = MaskAllJsonBlocksInText(input, mask, visibleTrailingCharacters);
 
         // 3. Plain text fallback
-        masked = MaskPlainText(masked, mask);
+        masked = MaskPlainText(masked, mask, visibleTrailingCharacters);
 
         return masked;
+    }
+
+    /// <summary>
+    /// Masks one sensitive value while optionally preserving a configured number of trailing characters.
+    /// </summary>
+    /// <param name="input">The sensitive value to mask.</param>
+    /// <param name="visibleTrailingCharacters">The number of trailing characters to keep visible.</param>
+    /// <param name="customMask">The optional mask text used before the visible suffix.</param>
+    /// <returns>The masked value, or the original value when no text is supplied.</returns>
+    public static string MaskValue(
+        string input,
+        int visibleTrailingCharacters = 0,
+        string customMask = null)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return input;
+        }
+
+        var mask = string.IsNullOrWhiteSpace(customMask)
+            ? DEFAULT_MASK
+            : customMask;
+        if (visibleTrailingCharacters <= 0 || input.Length <= visibleTrailingCharacters)
+        {
+            return mask;
+        }
+
+        return $"{mask}{input[^visibleTrailingCharacters..]}";
     }
 
     /// <summary>
@@ -45,13 +77,17 @@ public static class LogMaskingHelper
     /// </summary>
     /// <param name="text">The input string to be checked and potentially masked if it contains JSON content.</param>
     /// <param name="mask">The masking string to substitute for sensitive data within the JSON.</param>
+    /// <param name="visibleTrailingCharacters">The number of trailing sensitive-value characters to keep visible.</param>
     /// <returns>The masked JSON string if the input was valid JSON and contained sensitive data, or the original string if masking was unnecessary or the input was not valid JSON.</returns>
-    private static string TryMaskFullJson(string text, string mask)
+    private static string TryMaskFullJson(
+        string text,
+        string mask,
+        int visibleTrailingCharacters)
     {
         if (!TryParseJson(text, out var token))
             return text;
 
-        MaskJsonToken(token, mask);
+        MaskJsonToken(token, mask, visibleTrailingCharacters);
         return token.ToString(Formatting.None);
     }
 
@@ -62,7 +98,11 @@ public static class LogMaskingHelper
     /// </summary>
     /// <param name="token">The JSON token to be masked, representing an object, array, or value.</param>
     /// <param name="mask">The masking string used to replace sensitive data within the token.</param>
-    private static void MaskJsonToken(JToken token, string mask)
+    /// <param name="visibleTrailingCharacters">The number of trailing sensitive-value characters to keep visible.</param>
+    private static void MaskJsonToken(
+        JToken token,
+        string mask,
+        int visibleTrailingCharacters)
     {
         switch (token)
         {
@@ -71,18 +111,21 @@ public static class LogMaskingHelper
                 {
                     if (SENSITIVE_KEYS.Contains(property.Name))
                     {
-                        property.Value = mask;
+                        property.Value = MaskValue(
+                            property.Value?.ToString(),
+                            visibleTrailingCharacters,
+                            mask) ?? mask;
                         continue;
                     }
 
-                    MaskJsonToken(property.Value, mask);
+                    MaskJsonToken(property.Value, mask, visibleTrailingCharacters);
                 }
                 break;
 
             case JArray array:
                 foreach (var item in array)
                 {
-                    MaskJsonToken(item, mask);
+                    MaskJsonToken(item, mask, visibleTrailingCharacters);
                 }
                 break;
 
@@ -91,7 +134,7 @@ public static class LogMaskingHelper
                 if (string.IsNullOrWhiteSpace(str))
                     return;
 
-                var maskedValue = MaskAllSensitiveData(str, mask);
+                var maskedValue = MaskAllSensitiveData(str, mask, visibleTrailingCharacters);
 
                 if (!string.Equals(maskedValue, str, StringComparison.Ordinal))
                 {
@@ -109,8 +152,12 @@ public static class LogMaskingHelper
     /// </summary>
     /// <param name="text">The input text potentially containing JSON blocks to be masked.</param>
     /// <param name="mask">The masking string used to replace sensitive data in JSON tokens.</param>
+    /// <param name="visibleTrailingCharacters">The number of trailing sensitive-value characters to keep visible.</param>
     /// <returns>The text with all recognized JSON blocks having their sensitive data masked.</returns>
-    private static string MaskAllJsonBlocksInText(string text, string mask)
+    private static string MaskAllJsonBlocksInText(
+        string text,
+        string mask,
+        int visibleTrailingCharacters)
     {
         var blocks = ExtractJsonBlocks(text);
         if (blocks.Count == 0)
@@ -129,7 +176,7 @@ public static class LogMaskingHelper
             if (!TryParseJson(original, out var token))
                 continue;
 
-            MaskJsonToken(token, mask);
+            MaskJsonToken(token, mask, visibleTrailingCharacters);
 
             var masked = token.ToString(Formatting.None);
 
@@ -154,7 +201,6 @@ public static class LogMaskingHelper
     {
         var results = new List<(int Start, int Length)>();
         var stack = new Stack<(char Bracket, int Index)>();
-
         var inString = false;
         var stringDelimiter = '\0';
         var escape = false;
@@ -163,62 +209,141 @@ public static class LogMaskingHelper
         {
             var c = text[i];
 
-            if (inString)
+            // Handle quoted JSON text first so braces inside strings do not affect block detection.
+            if (TryHandleStringCharacter(c, ref inString, ref stringDelimiter, ref escape))
             {
-                if (escape)
-                {
-                    escape = false;
-                    continue;
-                }
-
-                if (c == '\\')
-                {
-                    escape = true;
-                    continue;
-                }
-
-                if (c == stringDelimiter)
-                {
-                    inString = false;
-                }
-
                 continue;
             }
 
-            switch (c)
+            if (TryStartStringCharacter(c, ref inString, ref stringDelimiter))
             {
-                case '"':
-                case '\'':
-                    inString = true;
-                    stringDelimiter = c;
-                    continue;
-                case '{':
-                case '[':
-                    stack.Push((c, i));
-                    continue;
-                case '}':
-                case ']':
-                {
-                    if (stack.Count == 0)
-                        continue;
-
-                    var open = stack.Pop();
-                    if (!IsMatching(open.Bracket, c))
-                        continue;
-
-                    if (stack.Count == 0)
-                    {
-                        var start = open.Index;
-                        var length = i - start + 1;
-                        results.Add((start, length));
-                    }
-
-                    break;
-                }
+                continue;
             }
+
+            if (TryPushOpeningJsonBracket(c, i, stack))
+            {
+                continue;
+            }
+
+            TryAddClosingJsonBlock(c, i, stack, results);
         }
 
         return results;
+    }
+
+    /// <summary>
+    /// Handles one character while the scanner is inside quoted JSON text.
+    /// </summary>
+    /// <param name="character">The current character being scanned.</param>
+    /// <param name="inString">The flag that indicates whether scanning is inside quoted text.</param>
+    /// <param name="stringDelimiter">The quote character that opened the current string.</param>
+    /// <param name="escape">The flag that indicates whether the previous character was an escape marker.</param>
+    /// <returns><c>true</c> when the character was consumed by string-state handling; otherwise <c>false</c>.</returns>
+    private static bool TryHandleStringCharacter(
+        char character,
+        ref bool inString,
+        ref char stringDelimiter,
+        ref bool escape)
+    {
+        // Non-string characters are handled by the bracket scanner.
+        if (!inString)
+        {
+            return false;
+        }
+
+        if (escape)
+        {
+            escape = false;
+            return true;
+        }
+
+        if (character == '\\')
+        {
+            escape = true;
+            return true;
+        }
+
+        if (character == stringDelimiter)
+        {
+            inString = false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Starts quoted-string scanning when the current character is a JSON quote.
+    /// </summary>
+    /// <param name="character">The current character being scanned.</param>
+    /// <param name="inString">The flag that indicates whether scanning is inside quoted text.</param>
+    /// <param name="stringDelimiter">The quote character that opened the current string.</param>
+    /// <returns><c>true</c> when a string was opened; otherwise <c>false</c>.</returns>
+    private static bool TryStartStringCharacter(
+        char character,
+        ref bool inString,
+        ref char stringDelimiter)
+    {
+        // Only JSON quote characters can start a protected string segment.
+        if (character != '"' && character != '\'')
+        {
+            return false;
+        }
+
+        inString = true;
+        stringDelimiter = character;
+        return true;
+    }
+
+    /// <summary>
+    /// Pushes an opening JSON bracket onto the scanner stack.
+    /// </summary>
+    /// <param name="character">The current character being scanned.</param>
+    /// <param name="index">The current character index in the source text.</param>
+    /// <param name="stack">The stack of open JSON brackets.</param>
+    /// <returns><c>true</c> when an opening bracket was pushed; otherwise <c>false</c>.</returns>
+    private static bool TryPushOpeningJsonBracket(
+        char character,
+        int index,
+        Stack<(char Bracket, int Index)> stack)
+    {
+        // Track only top-level JSON object or array boundaries.
+        if (character != '{' && character != '[')
+        {
+            return false;
+        }
+
+        stack.Push((character, index));
+        return true;
+    }
+
+    /// <summary>
+    /// Adds a complete JSON block when the current character closes the outermost bracket.
+    /// </summary>
+    /// <param name="character">The current character being scanned.</param>
+    /// <param name="index">The current character index in the source text.</param>
+    /// <param name="stack">The stack of open JSON brackets.</param>
+    /// <param name="results">The collected JSON block ranges.</param>
+    private static void TryAddClosingJsonBlock(
+        char character,
+        int index,
+        Stack<(char Bracket, int Index)> stack,
+        List<(int Start, int Length)> results)
+    {
+        // Ignore non-closing characters and unmatched closing brackets.
+        if ((character != '}' && character != ']') || stack.Count == 0)
+        {
+            return;
+        }
+
+        var open = stack.Pop();
+        if (!IsMatching(open.Bracket, character) || stack.Count != 0)
+        {
+            return;
+        }
+
+        var start = open.Index;
+        var length = index - start + 1;
+        results.Add((start, length));
     }
 
     /// <summary>
@@ -281,8 +406,12 @@ public static class LogMaskingHelper
     /// </summary>
     /// <param name="text">The input text to be inspected and masked if sensitive data is detected.</param>
     /// <param name="mask">The mask value to replace sensitive data. If null or empty, a default mask will be used.</param>
+    /// <param name="visibleTrailingCharacters">The number of trailing sensitive-value characters to keep visible.</param>
     /// <returns>A string with sensitive plain text patterns replaced by the specified mask.</returns>
-    private static string MaskPlainText(string text, string mask)
+    private static string MaskPlainText(
+        string text,
+        string mask,
+        int visibleTrailingCharacters)
     {
         if (string.IsNullOrWhiteSpace(text))
             return text;
@@ -293,7 +422,12 @@ public static class LogMaskingHelper
             var separator = match.Groups[2].Value;
             var quote = match.Groups[3].Value;
 
-            return $"{key}{separator}{quote}{mask}{quote}";
+            var maskedValue = MaskValue(
+                match.Groups[4].Value,
+                visibleTrailingCharacters,
+                mask);
+
+            return $"{key}{separator}{quote}{maskedValue}{quote}";
         });
     }
 

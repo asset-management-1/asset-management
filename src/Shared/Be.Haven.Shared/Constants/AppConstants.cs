@@ -676,6 +676,11 @@ public static class AppConstants
         public const string UPLOAD_GCP_SERVICE = "UploadGcpService";
 
         /// <summary>
+        /// The name used to identify the Cloudflare R2 object upload HTTP client.
+        /// </summary>
+        public const string UPLOAD_R2_OBJECT = "upload_r2_object";
+
+        /// <summary>
         /// The name of the HTTP client configuration used for retrieving an image
         /// from GCP by its file identifier.
         /// </summary>

@@ -11,6 +11,11 @@ public class R2StorageOptions
     public const string DefaultKycObjectPrefix = "kyc/cccd";
 
     /// <summary>
+    /// Default object-key prefix used for tenant vehicle images.
+    /// </summary>
+    public const string DefaultVehicleObjectPrefix = "vehicles";
+
+    /// <summary>
     /// Gets or sets the Cloudflare account identifier.
     /// </summary>
     public string AccountId { get; set; }
@@ -36,7 +41,17 @@ public class R2StorageOptions
     public string SecretAccessKey { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional public base URL used for non-sensitive public objects.
+    /// </summary>
+    public string PublicBaseUrl { get; set; }
+
+    /// <summary>
     /// Gets or sets the object-key prefix used for KYC files.
     /// </summary>
     public string KycObjectPrefix { get; set; } = DefaultKycObjectPrefix;
+
+    /// <summary>
+    /// Gets or sets the object-key prefix used for tenant vehicle images.
+    /// </summary>
+    public string VehicleObjectPrefix { get; set; } = DefaultVehicleObjectPrefix;
 }

@@ -18,6 +18,11 @@ public class BaseHttpRequest
     public string RequestData { get; set; }
 
     /// <summary>
+    /// Gets or sets the raw request body stream for binary or signed payload calls.
+    /// </summary>
+    public Stream RequestStream { get; set; }
+
+    /// <summary>
     /// Gets or sets the form data of the HTTP request as a collection of key-value pairs.
     /// </summary>
     public IEnumerable<KeyValuePair<string, string>> RequestFormData { get; set; }

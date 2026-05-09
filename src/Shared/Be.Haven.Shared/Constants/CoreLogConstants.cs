@@ -200,6 +200,16 @@ public static class CoreLogConstants
         /// Logged when a private object upload fails without exposing the object key.
         /// </summary>
         public const string R2_UPLOAD_FAILED = "Cloudflare R2 upload failed. BucketName={BucketName}.";
+
+        /// <summary>
+        /// Logged after a private object delete completes without exposing the object key.
+        /// </summary>
+        public const string R2_DELETE_COMPLETED = "Cloudflare R2 delete completed. BucketName={BucketName}.";
+
+        /// <summary>
+        /// Logged when a private object delete fails without exposing the object key.
+        /// </summary>
+        public const string R2_DELETE_FAILED = "Cloudflare R2 delete failed. BucketName={BucketName}.";
     }
     
     /// <summary>

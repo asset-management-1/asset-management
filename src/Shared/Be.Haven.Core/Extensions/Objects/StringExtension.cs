@@ -3,6 +3,40 @@ namespace Be.Haven.Core.Extensions.Objects;
 public static class StringExtension
 {
     /// <summary>
+    /// Normalizes optional text by trimming it and treating blank values as missing.
+    /// </summary>
+    /// <param name="value">The source text value.</param>
+    /// <returns>The trimmed value, or <c>null</c> when the source is empty.</returns>
+    public static string NormalizeOptional(this string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>
+    /// Normalizes an email address for consistent cache keys, lookups, and persistence.
+    /// </summary>
+    /// <param name="email">The source email address.</param>
+    /// <returns>The trimmed lowercase email address, or <c>null</c> when the source is empty.</returns>
+    public static string NormalizeEmail(this string email)
+    {
+        return email.NormalizeOptional()?.ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Normalizes a text code into an uppercase alphanumeric value.
+    /// </summary>
+    /// <param name="value">The source text code.</param>
+    /// <returns>The uppercase alphanumeric code, or <c>null</c> when the source is empty.</returns>
+    public static string NormalizeAlphanumericCode(this string value)
+    {
+        var normalizedValue = value.NormalizeOptional();
+
+        return normalizedValue is null
+            ? null
+            : new string(normalizedValue.ToUpperInvariant().Where(char.IsLetterOrDigit).ToArray());
+    }
+
+    /// <summary>
     /// Removes the specified value from the end of the source string.
     /// </summary>
     /// <param name="source">The source string.</param>

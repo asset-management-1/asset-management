@@ -32,11 +32,14 @@ public interface IThirdPartyApiService
     /// The request object containing the necessary details for interacting with the API,
     /// such as HTTP method, endpoint, headers, content, and query parameters.
     /// </param>
+    /// <param name="cancellationToken">The token used to cancel the outbound request.</param>
     /// <returns>
     /// A task that represents the asynchronous operation. The task result contains the HTTP response message.
     /// </returns>
     /// <exception cref="ArgumentException">
     /// Thrown when an unsupported or invalid HTTP method is provided in the request.
     /// </exception>
-    Task<HttpResponseMessage> HandleDynamicHttpRequest(BaseThirdPartyApiRequest request);
+    Task<HttpResponseMessage> HandleDynamicHttpRequest(
+        BaseThirdPartyApiRequest request,
+        CancellationToken cancellationToken = default);
 }

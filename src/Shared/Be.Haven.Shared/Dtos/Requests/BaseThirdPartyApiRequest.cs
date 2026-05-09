@@ -29,6 +29,13 @@ public class BaseThirdPartyApiRequest
     public string Content { get; set; }
 
     /// <summary>
+    /// Gets or sets the raw request body stream for binary or signed payload calls.
+    /// </summary>
+    [JsonIgnore]
+    [Newtonsoft.Json.JsonIgnore]
+    public Stream ContentStream { get; set; }
+
+    /// <summary>
     /// Represents the form data to be sent with the request as key-value pairs.
     /// </summary>
     public IEnumerable<KeyValuePair<string, string>> FormData { get; set; }

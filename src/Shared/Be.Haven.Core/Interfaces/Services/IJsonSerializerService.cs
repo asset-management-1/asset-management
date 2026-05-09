@@ -22,6 +22,14 @@ public interface IJsonSerializerService
     T DeserializeIgnoreToPascalProperties<T>(string json);
 
     /// <summary>
+    /// Deserializes a JSON array into a typed list.
+    /// </summary>
+    /// <typeparam name="T">The list element type.</typeparam>
+    /// <param name="json">The JSON array text.</param>
+    /// <returns>The deserialized list, or an empty list when the payload is blank.</returns>
+    List<T> DeserializeList<T>(string json);
+
+    /// <summary>
     /// Serializes the specified object into a JSON string.
     /// </summary>
     string Serialize<T>(T obj);

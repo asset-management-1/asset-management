@@ -20,8 +20,11 @@ public class RestClientMultipleService : IRestClientMultipleService
     /// Sends a GET request using the specified BaseHttpRequest object and returns the HttpResponseMessage.
     /// </summary>
     /// <param name="request">The request object containing the URI, base address, headers, and query parameters.</param>
+    /// <param name="cancellationToken">The token used to cancel the outbound request.</param>
     /// <returns>The HTTP response message resulting from the GET request.</returns>
-    public async Task<HttpResponseMessage> GetAsync(BaseHttpRequest request)
+    public async Task<HttpResponseMessage> GetAsync(
+        BaseHttpRequest request,
+        CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient(request.HttpClientName);
 
@@ -39,7 +42,7 @@ public class RestClientMultipleService : IRestClientMultipleService
 
         // Perform the GET request
         AddHeaders(httpClient, request.AdditionalHeaders);
-        var httpResponseMessage = await httpClient.GetAsync(request.RequestUri);
+        var httpResponseMessage = await httpClient.GetAsync(request.RequestUri, cancellationToken);
         return httpResponseMessage;
     }
 
@@ -47,11 +50,15 @@ public class RestClientMultipleService : IRestClientMultipleService
     /// Sends a POST request to the specified URI with the provided request data and headers.
     /// </summary>
     /// <param name="request"> An instance of BaseHttpRequest containing the request data, headers, and optional base address. </param>
+    /// <param name="cancellationToken">The token used to cancel the outbound request.</param>
     /// <returns> The HTTP response message received from the server. </returns>
-    public async Task<HttpResponseMessage> PostAsync(BaseHttpRequest request)
+    public async Task<HttpResponseMessage> PostAsync(
+        BaseHttpRequest request,
+        CancellationToken cancellationToken = default)
     {
         // Set the timeout for the request
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TIME_RUN_REQUEST));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
         
         try
         {
@@ -74,8 +81,8 @@ public class RestClientMultipleService : IRestClientMultipleService
             {
                 // Send the request with form data
                 httpResponseMessage = await httpClient.PostAsync(
-                    request.RequestUri, 
-                    new FormUrlEncodedContent(request.RequestFormData), cts.Token);
+                    request.RequestUri,
+                    new FormUrlEncodedContent(request.RequestFormData), linkedCts.Token);
             }
             else if (request.ContentType == MULTIPART_FORM_DATA)
             {
@@ -86,20 +93,18 @@ public class RestClientMultipleService : IRestClientMultipleService
 
                 httpResponseMessage = await httpClient.PostAsync(
                     request.RequestUri,
-                    form, cts.Token
+                    form, linkedCts.Token
                 );
             }
             else
             {
-                // Create the HTTP content for the request
-                var httpContent = CreateHttpContent(
-                    request.RequestData,
-                    request.ContentType);
+                // Create the HTTP content for the request.
+                using var httpContent = CreateHttpContent(request);
 
                 // Send the request
                 httpResponseMessage = await httpClient.PostAsync(
                     request.RequestUri,
-                    httpContent, cts.Token);
+                    httpContent, linkedCts.Token);
             }
 
             return httpResponseMessage;
@@ -172,8 +177,11 @@ public class RestClientMultipleService : IRestClientMultipleService
     /// Sends a PUT request to the specified URI with the provided request data.
     /// </summary>
     /// <param name="request">Contains the request details including URI, data, headers, base address, and content type.</param>
+    /// <param name="cancellationToken">The token used to cancel the outbound request.</param>
     /// <returns>The HTTP response message received from the server.</returns>
-    public async Task<HttpResponseMessage> PutAsync(BaseHttpRequest request)
+    public async Task<HttpResponseMessage> PutAsync(
+        BaseHttpRequest request,
+        CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient(request.HttpClientName);
 
@@ -190,15 +198,16 @@ public class RestClientMultipleService : IRestClientMultipleService
         AddHeaders(httpClient, request.AdditionalHeaders);
 
         // Create the HTTP content for the request
-        var httpContent = CreateHttpContent(request.RequestData, request.ContentType);
+        using var httpContent = CreateHttpContent(request);
         
         // Set the timeout for the request
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TIME_RUN_REQUEST));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
 
         try
         {
             // Send the request
-            var httpResponseMessage = await httpClient.PutAsync(request.RequestUri, httpContent, cts.Token);
+            var httpResponseMessage = await httpClient.PutAsync(request.RequestUri, httpContent, linkedCts.Token);
 
             return httpResponseMessage;
         }
@@ -270,8 +279,11 @@ public class RestClientMultipleService : IRestClientMultipleService
     /// Sends a DELETE request to the specified URI with optional headers and query parameters.
     /// </summary>
     /// <param name="request"> An object containing details of the request, such as the URI, base address, headers, and query parameters. </param>
+    /// <param name="cancellationToken">The token used to cancel the outbound request.</param>
     /// <returns> The HTTP response message received from the DELETE request. </returns>
-    public async Task<HttpResponseMessage> DeleteAsync(BaseHttpRequest request)
+    public async Task<HttpResponseMessage> DeleteAsync(
+        BaseHttpRequest request,
+        CancellationToken cancellationToken = default)
     {
         var httpClient = _httpClientFactory.CreateClient(request.HttpClientName);
 
@@ -289,7 +301,7 @@ public class RestClientMultipleService : IRestClientMultipleService
 
         // Perform the GET request
         AddHeaders(httpClient, request.AdditionalHeaders);
-        var httpResponseMessage = await httpClient.DeleteAsync(request.RequestUri);
+        var httpResponseMessage = await httpClient.DeleteAsync(request.RequestUri, cancellationToken);
         return httpResponseMessage;
     }
 
@@ -316,7 +328,7 @@ public class RestClientMultipleService : IRestClientMultipleService
                 httpClient.DefaultRequestHeaders.Remove(key);
             }
 
-            httpClient.DefaultRequestHeaders.Add(key, value);
+            httpClient.DefaultRequestHeaders.TryAddWithoutValidation(key, value);
         }
     }
 
@@ -349,20 +361,27 @@ public class RestClientMultipleService : IRestClientMultipleService
     }
 
     /// <summary>
-    /// Creates a <see cref="StringContent"/> instance using the provided request payload and content type.
+    /// Creates a <see cref="HttpContent"/> instance using the provided request payload and content type.
     /// </summary>
-    /// <param name="requestData">The request body as a serialized string.</param>
-    /// <param name="contentType">
-    /// The MIME type of the content, such as <c>application/json</c> or <c>text/xml</c>.
-    /// </param>
+    /// <param name="request">The request containing either a string body or a raw stream body.</param>
     /// <returns>
-    /// A <see cref="StringContent"/> object with the specified content and appropriate headers.
+    /// A <see cref="HttpContent"/> object with the specified content and appropriate headers.
     /// </returns>
-    private static StringContent CreateHttpContent(string requestData, string contentType)
+    private static HttpContent CreateHttpContent(BaseHttpRequest request)
     {
-        var content = new StringContent(requestData, UTF8);
+        // Prefer raw stream content for object-storage uploads and other non-JSON payloads.
+        if (request.RequestStream is not null)
+        {
+            var streamContent = new StreamContent(request.RequestStream);
+            streamContent.Headers.ContentType = new MediaTypeHeaderValue(request.ContentType);
 
-        var mediaType = contentType switch
+            return streamContent;
+        }
+
+        // Fall back to string content for JSON/XML style integrations.
+        var content = new StringContent(request.RequestData, UTF8);
+
+        var mediaType = request.ContentType switch
         {
             TEXT_XML => TEXT_XML,
             _ => TEXT_JSON
@@ -387,11 +406,13 @@ public class RestClientMultipleService : IRestClientMultipleService
         string baseUri,
         Dictionary<string, string> queryParams)
     {
+        // Return the original URI when the caller has no query data to append.
         if (queryParams is null || queryParams.Count == 0)
         {
             return baseUri;
         }
 
+        // Encode each key/value pair before joining the final query string.
         var queryString = string.Join("&", queryParams.Select(kvp =>
             $"{Uri.EscapeDataString(kvp.Key)}={Uri.EscapeDataString(kvp.Value)}"));
         return $"{baseUri}?{queryString}";
@@ -404,11 +425,13 @@ public class RestClientMultipleService : IRestClientMultipleService
     /// <param name="baseAddress">The base address to set. If null or empty, no action is taken.</param>
     private static void SetBaseAddress(HttpClient httpClient, string baseAddress)
     {
+        // Skip base address configuration for clients that already resolve absolute request URIs.
         if (string.IsNullOrWhiteSpace(baseAddress))
         {
             return;
         }
 
+        // Normalize the base address so relative request paths combine correctly.
         if (!baseAddress.EndsWith('/'))
         {
             baseAddress += "/";

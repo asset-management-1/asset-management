@@ -1,13 +1,17 @@
 namespace Be.Haven.Core.Repositories;
 
+/// <summary>
+/// Provides shared EF Core repository operations for service-owned aggregate repositories.
+/// </summary>
+/// <typeparam name="T">The entity type managed by this repository.</typeparam>
 public class GenericRepository<T> : IGenericRepository<T> where T : class
 {
     protected readonly DbContext _dbContext;
 
     /// <summary>
-    /// Represents a generic repository that provides basic data access operations for entities of a specified type.
+    /// Creates the generic repository with the DbContext that owns the entity set.
     /// </summary>
-    /// <typeparam name="T">The type of entity the repository will operate on, which must be a class.</typeparam>
+    /// <param name="dbContext">The EF Core context used for repository operations.</param>
     public GenericRepository(DbContext dbContext)
     {
         _dbContext = dbContext;
@@ -21,6 +25,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task that represents the asynchronous operation. The task result contains the entity that was added.</returns>
     public virtual async Task<T> AddAsync(T entity, CancellationToken ct = default)
     {
+        // Stage the entity for insertion and let the caller's unit of work decide when to save.
         await _dbContext.Set<T>().AddAsync(entity, ct);
         return entity;
     }
@@ -30,8 +35,10 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// </summary>
     /// <param name="entities">The list of entities to be added to the database context.</param>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the add-range operation is staged in the DbContext.</returns>
     public virtual async Task AddRangeAsync(IEnumerable<T> entities, CancellationToken ct = default)
     {
+        // Stage all entities for insertion without forcing a save boundary.
         await _dbContext.Set<T>().AddRangeAsync(entities, ct);
     }
 
@@ -42,6 +49,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation, which does not produce any value.</returns>
     public virtual Task UpdateAsync(T entity)
     {
+        // Attach detached entities as modified so callers can update rows without reloading them.
         var entry = _dbContext.Entry(entity);
         if (entry.State == EntityState.Detached)
         {
@@ -58,6 +66,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation of updating the entities.</returns>
     public virtual Task UpdateRangeAsync(IEnumerable<T> entities)
     {
+        // Mark each detached entity as modified while preserving already tracked instances.
         foreach (var entity in entities)
         {
             var entry = _dbContext.Entry(entity);
@@ -77,6 +86,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation.</returns>
     public virtual Task DeleteAsync(T entity)
     {
+        // Stage a hard delete in the current DbContext; soft-delete behavior stays in owning services.
         _dbContext.Set<T>().Remove(entity);
         return Task.CompletedTask;
     }
@@ -88,6 +98,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task that represents the asynchronous delete operation.</returns>
     public virtual Task DeleteRangeAsync(List<T> entities)
     {
+        // Stage a hard delete for a bounded set of entities in the current DbContext.
         _dbContext.Set<T>().RemoveRange(entities);
         return Task.CompletedTask;
     }
@@ -99,20 +110,43 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation, containing the entity if found; otherwise, null.</returns>
     public virtual async Task<T> GetByIdAsync(int id)
     {
+        // Use EF's key lookup for simple tracked entity retrieval by primary key.
         return await _dbContext.Set<T>().FindAsync(id);
     }
 
     /// <summary>
-    /// Asynchronously retrieves the first entity that matches the specified predicate (read-only).
+    /// Loads one read-only entity when the caller needs the entity shape instead of a projected read model.
     /// </summary>
-    /// <param name="predicate">The filter expression used to match an entity.</param>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation, containing the first matching entity or null.</returns>
+    /// <param name="predicate">The filter expression used to find the entity.</param>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>The first matching entity, or <c>null</c> when no row matches.</returns>
     public virtual async Task<T> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default)
     {
+        // Return read-only entity data for callers that do not need tracking.
         return await _dbContext.Set<T>()
                                .AsNoTracking()
                                .FirstOrDefaultAsync(predicate, ct);
+    }
+
+    /// <summary>
+    /// Loads one read-only projected result so callers can select only the fields required by the use case.
+    /// </summary>
+    /// <typeparam name="TResult">The projected result type returned to the caller.</typeparam>
+    /// <param name="predicate">The filter expression used to find the source entity.</param>
+    /// <param name="selector">The projection expression that selects the required fields.</param>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>The first matching projection, or the default value for <typeparamref name="TResult"/> when no row matches.</returns>
+    public virtual async Task<TResult> FirstOrDefaultAsync<TResult>(
+        Expression<Func<T, bool>> predicate,
+        Expression<Func<T, TResult>> selector,
+        CancellationToken ct = default)
+    {
+        // Project only the selected fields for lightweight read models.
+        return await _dbContext.Set<T>()
+                               .AsNoTracking()
+                               .Where(predicate)
+                               .Select(selector)
+                               .FirstOrDefaultAsync(ct);
     }
 
     /// <summary>
@@ -123,6 +157,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation, containing true if any entity matches; otherwise, false.</returns>
     public virtual Task<bool> AnyAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default)
     {
+        // Use an existence query instead of materializing matching rows.
         return _dbContext.Set<T>().AnyAsync(predicate, ct);
     }
 
@@ -134,21 +169,42 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation, containing the number of matching entities.</returns>
     public virtual Task<int> CountAsync(Expression<Func<T, bool>> predicate = null, CancellationToken ct = default)
     {
+        // Apply the predicate only when supplied; otherwise count the whole set.
         return predicate is null
             ? _dbContext.Set<T>().CountAsync(ct)
             : _dbContext.Set<T>().CountAsync(predicate, ct);
     }
 
     /// <summary>
-    /// Retrieves all entities of type <typeparamref name="T"/> from the database (read-only).
+    /// Loads all entities as read-only rows for bounded entity-level workflows.
     /// </summary>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation, containing a read-only list of all entities.</returns>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>A read-only list containing all entities.</returns>
     public virtual async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken ct = default)
     {
+        // Return read-only entity rows for bounded workflows that truly need full entities.
         return await _dbContext
                      .Set<T>()
                      .AsNoTracking()
+                     .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Loads all rows through a read-only projection so callers avoid materializing unused entity columns.
+    /// </summary>
+    /// <typeparam name="TResult">The projected result type returned to the caller.</typeparam>
+    /// <param name="selector">The projection expression that selects the required fields.</param>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>A read-only list containing the projected results.</returns>
+    public virtual async Task<IReadOnlyList<TResult>> GetAllAsync<TResult>(
+        Expression<Func<T, TResult>> selector,
+        CancellationToken ct = default)
+    {
+        // Prefer projections when callers need only a subset of entity fields.
+        return await _dbContext
+                     .Set<T>()
+                     .AsNoTracking()
+                     .Select(selector)
                      .ToListAsync(ct);
     }
 
@@ -160,6 +216,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation, containing a list of matching entities.</returns>
     public virtual async Task<IReadOnlyList<T>> GetListAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default)
     {
+        // Apply the supplied filter and return read-only entity rows.
         return await _dbContext.Set<T>()
                                .AsNoTracking()
                                .Where(predicate)
@@ -179,6 +236,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
         Expression<Func<T, TResult>> selector,
         CancellationToken ct = default)
     {
+        // Apply filter and projection in SQL before materializing the list.
         return await _dbContext.Set<T>()
                                .AsNoTracking()
                                .Where(predicate)
@@ -196,6 +254,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
     public virtual async Task<PaginationResponse<IReadOnlyList<T>>> GetPagedReponseAsync<TParam>(TParam parameter, CancellationToken ct = default)
         where TParam : BaseParameterRequest
     {
+        // Initialize pagination metadata before applying filter/search/query operations.
         var response = new PaginationResponse<IReadOnlyList<T>>(parameter.PageNumber, parameter.PageSize);
         var query = _dbContext.Set<T>().AsNoTracking();
         query = query.Filter(parameter);
@@ -223,6 +282,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
         where TModel : class
         where TParam : BaseParameterRequest
     {
+        // Initialize pagination metadata before projecting entities into response models.
         var response = new PaginationResponse<IReadOnlyList<TModel>>(parameter.PageNumber, parameter.PageSize);
         var query = _dbContext.Set<T>().AsNoTracking();
         query = query.Filter(parameter);
@@ -234,40 +294,6 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
         response.Items = await query.OrderBy(parameter.OrderBy)
                                     .Pagination(parameter.PageSize, parameter.PageNumber)
                                     .ProjectToType<TModel>()
-                                    .ToListAsync(ct);
-        return response;
-    }
-
-    /// <summary>
-    /// Retrieves a paginated response containing a list of models mapped from entities, based on the provided query parameter.
-    /// </summary>
-    /// <typeparam name="TParam">The type of the parameter used to filter, order, and paginate the query, which must inherit from BaseParameterRequest.</typeparam>
-    /// <typeparam name="TModel">The type of the model to map entities into, which must be a class.</typeparam>
-    /// <param name="parameter">The query parameter containing pagination and optional sorting details.</param>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <returns>A task that represents the asynchronous operation. The task result contains a PaginationResponse object with the total count and a list of models for the current page.</returns>
-    public virtual async Task<PaginationResponse<IReadOnlyList<TModel>>>
-        GetModelSingleQueryPagedReponseAsync<TParam, TModel>(TParam parameter, CancellationToken ct = default)
-        where TModel : class
-        where TParam : BaseParameterRequest
-    {
-        var response = new PaginationResponse<IReadOnlyList<TModel>>(parameter.PageNumber, parameter.PageSize);
-        var query = _dbContext.Set<T>().AsNoTracking();
-        
-        // Apply filters based on the parameter's filter rules
-        query = query.Filter(parameter);
-
-        // Apply search term filtering before counting (for accurate total count)
-        query = query.SearchTerm(parameter.SearchTerm, parameter.GetSearchProps());
-
-        // Count total items after filters/search applied 
-        response.Total = await query.CountAsync(ct);
-        
-        // Retrieve paginated items (again) to assign to response object
-        response.Items = await query.OrderBy(parameter.OrderBy)
-                                    .Pagination(parameter.PageSize, parameter.PageNumber)
-                                    .ProjectToType<TModel>()
-                                    .AsSingleQuery()
                                     .ToListAsync(ct);
         return response;
     }
@@ -359,6 +385,41 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
                                     .AsSingleQuery()
                                     .ToListAsync(ct);
 
+        return response;
+    }
+
+    /// <summary>
+    /// Retrieves a paginated response containing a list of models mapped from entities, based on the provided query parameter.
+    /// </summary>
+    /// <typeparam name="TParam">The type of the parameter used to filter, order, and paginate the query, which must inherit from BaseParameterRequest.</typeparam>
+    /// <typeparam name="TModel">The type of the model to map entities into, which must be a class.</typeparam>
+    /// <param name="parameter">The query parameter containing pagination and optional sorting details.</param>
+    /// <param name="ct">A cancellation token to cancel the operation.</param>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a PaginationResponse object with the total count and a list of models for the current page.</returns>
+    public virtual async Task<PaginationResponse<IReadOnlyList<TModel>>>
+        GetModelSingleQueryPagedReponseAsync<TParam, TModel>(TParam parameter, CancellationToken ct = default)
+        where TModel : class
+        where TParam : BaseParameterRequest
+    {
+        // Initialize pagination metadata and keep projection in a single SQL query.
+        var response = new PaginationResponse<IReadOnlyList<TModel>>(parameter.PageNumber, parameter.PageSize);
+        var query = _dbContext.Set<T>().AsNoTracking();
+
+        // Apply filters based on the parameter's filter rules
+        query = query.Filter(parameter);
+
+        // Apply search term filtering before counting (for accurate total count)
+        query = query.SearchTerm(parameter.SearchTerm, parameter.GetSearchProps());
+
+        // Count total items after filters/search applied
+        response.Total = await query.CountAsync(ct);
+
+        // Retrieve paginated items (again) to assign to response object
+        response.Items = await query.OrderBy(parameter.OrderBy)
+                                    .Pagination(parameter.PageSize, parameter.PageNumber)
+                                    .ProjectToType<TModel>()
+                                    .AsSingleQuery()
+                                    .ToListAsync(ct);
         return response;
     }
 }

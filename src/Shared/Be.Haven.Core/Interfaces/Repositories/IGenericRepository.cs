@@ -20,6 +20,7 @@ public interface IGenericRepository<T> where T : class
     /// </summary>
     /// <param name="entities">The list of entities to be added to the database context.</param>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
+    /// <returns>A task that completes when the add-range operation is staged in the DbContext.</returns>
     Task AddRangeAsync(IEnumerable<T> entities, CancellationToken ct = default);
 
     /// <summary>
@@ -54,24 +55,47 @@ public interface IGenericRepository<T> where T : class
     /// Asynchronously retrieves an entity of type <typeparamref name="T"/> by its unique identifier.
     /// </summary>
     /// <param name="id">The unique identifier of the entity to be retrieved.</param>
-    /// <
-    /// returns>A task that represents the asynchronous operation. The task result contains the entity of type <typeparamref name="T"/> if found; otherwise, null.</returns>
+    /// <returns>A task that represents the asynchronous operation. The task result contains the entity of type <typeparamref name="T"/> if found; otherwise, null.</returns>
     Task<T> GetByIdAsync(int id);
 
     /// <summary>
-    /// Asynchronously retrieves the first entity that matches the specified predicate (read-only).
+    /// Loads one read-only entity when the caller needs the entity shape instead of a projected read model.
     /// </summary>
-    /// <param name="predicate">The filter expression used to match an entity.</param>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation, containing the first matching entity or null.</returns>
+    /// <param name="predicate">The filter expression used to find the entity.</param>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>The first matching entity, or <c>null</c> when no row matches.</returns>
     Task<T> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default);
 
     /// <summary>
-    /// Retrieves all entities of type <typeparamref name="T"/> from the database (read-only).
+    /// Loads one read-only projected result so callers can select only the fields required by the use case.
     /// </summary>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <returns>A task representing the asynchronous operation, containing a read-only list of all entities.</returns>
+    /// <typeparam name="TResult">The projected result type returned to the caller.</typeparam>
+    /// <param name="predicate">The filter expression used to find the source entity.</param>
+    /// <param name="selector">The projection expression that selects the required fields.</param>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>The first matching projection, or the default value for <typeparamref name="TResult"/> when no row matches.</returns>
+    Task<TResult> FirstOrDefaultAsync<TResult>(
+        Expression<Func<T, bool>> predicate,
+        Expression<Func<T, TResult>> selector,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Loads all entities as read-only rows for bounded entity-level workflows.
+    /// </summary>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>A read-only list containing all entities.</returns>
     Task<IReadOnlyList<T>> GetAllAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Loads all rows through a read-only projection so callers avoid materializing unused entity columns.
+    /// </summary>
+    /// <typeparam name="TResult">The projected result type returned to the caller.</typeparam>
+    /// <param name="selector">The projection expression that selects the required fields.</param>
+    /// <param name="ct">A cancellation token for the database operation.</param>
+    /// <returns>A read-only list containing the projected results.</returns>
+    Task<IReadOnlyList<TResult>> GetAllAsync<TResult>(
+        Expression<Func<T, TResult>> selector,
+        CancellationToken ct = default);
 
     /// <summary>
     /// Determines asynchronously whether any entity matches the specified predicate.
@@ -98,6 +122,19 @@ public interface IGenericRepository<T> where T : class
     Task<IReadOnlyList<T>> GetListAsync(Expression<Func<T, bool>> predicate, CancellationToken ct = default);
 
     /// <summary>
+    /// Asynchronously retrieves a list of projected results of type <typeparamref name="TResult"/> that satisfy the specified criteria.
+    /// </summary>
+    /// <param name="predicate">An expression that specifies the filtering criteria to apply to the entities of type <typeparamref name="T"/>.</param>
+    /// <param name="selector">An expression that projects the entity of type <typeparamref name="T"/> into a result of type <typeparamref name="TResult"/>.</param>
+    /// <param name="ct">A cancellation token to cancel the operation.</param>
+    /// <typeparam name="TResult">The type of the result projected from the entity of type <typeparamref name="T"/>.</typeparam>
+    /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of projected results of type <typeparamref name="TResult"/>.</returns>
+    Task<IReadOnlyList<TResult>> GetListAsync<TResult>(
+        Expression<Func<T, bool>> predicate,
+        Expression<Func<T, TResult>> selector,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Asynchronously retrieves a paged response of entities of type <typeparamref name="T"/> based on the specified parameters.
     /// </summary>
     /// <param name="parameter">The request parameters of type <typeparamref name="TParam"/> used to retrieve the paged data.</param>
@@ -117,22 +154,6 @@ public interface IGenericRepository<T> where T : class
     /// <returns>A task representing the asynchronous operation. The task result contains a <see cref="PaginationResponse{T}"/>
     /// with a read-only list of the specified model type.</returns>
     Task<PaginationResponse<IReadOnlyList<TModel>>> GetModelPagedReponseAsync<TParam, TModel>(TParam parameter, CancellationToken ct = default)
-        where TModel : class
-        where TParam : BaseParameterRequest;
-
-    /// <summary>
-    /// Asynchronously retrieves a paginated response containing a single query result set
-    /// mapped to a model of type <typeparamref name="TModel"/> based on the specified parameters.
-    /// </summary>
-    /// <param name="parameter">The parameters of type <typeparamref name="TParam"/> used to filter and paginate the data.</param>
-    /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <typeparam name="TParam">The type of the parameter object derived from <see cref="BaseParameterRequest"/>.</typeparam>
-    /// <typeparam name="TModel">The type of the model that the query results will be mapped to. Must be a class.</typeparam>
-    /// <returns>A task that represents the asynchronous operation. The task result contains
-    /// a <see cref="PaginationResponse{T}"/> with a list of type <typeparamref name="TModel"/>
-    /// generated from the result of the query.</returns>
-    Task<PaginationResponse<IReadOnlyList<TModel>>> GetModelSingleQueryPagedReponseAsync<TParam, TModel>(
-        TParam parameter, CancellationToken ct = default)
         where TModel : class
         where TParam : BaseParameterRequest;
 
@@ -173,15 +194,18 @@ public interface IGenericRepository<T> where T : class
         where TParam : BaseParameterRequest;
 
     /// <summary>
-    /// Asynchronously retrieves a list of projected results of type <typeparamref name="TResult"/> that satisfy the specified criteria.
+    /// Asynchronously retrieves a paginated response containing a single query result set
+    /// mapped to a model of type <typeparamref name="TModel"/> based on the specified parameters.
     /// </summary>
-    /// <param name="predicate">An expression that specifies the filtering criteria to apply to the entities of type <typeparamref name="T"/>.</param>
-    /// <param name="selector">An expression that projects the entity of type <typeparamref name="T"/> into a result of type <typeparamref name="TResult"/>.</param>
+    /// <param name="parameter">The parameters of type <typeparamref name="TParam"/> used to filter and paginate the data.</param>
     /// <param name="ct">A cancellation token to cancel the operation.</param>
-    /// <typeparam name="TResult">The type of the result projected from the entity of type <typeparamref name="T"/>.</typeparam>
-    /// <returns>A task that represents the asynchronous operation. The task result contains a read-only list of projected results of type <typeparamref name="TResult"/>.</returns>
-    Task<IReadOnlyList<TResult>> GetListAsync<TResult>(
-        Expression<Func<T, bool>> predicate,
-        Expression<Func<T, TResult>> selector,
-        CancellationToken ct = default);
+    /// <typeparam name="TParam">The type of the parameter object derived from <see cref="BaseParameterRequest"/>.</typeparam>
+    /// <typeparam name="TModel">The type of the model that the query results will be mapped to. Must be a class.</typeparam>
+    /// <returns>A task that represents the asynchronous operation. The task result contains
+    /// a <see cref="PaginationResponse{T}"/> with a list of type <typeparamref name="TModel"/>
+    /// generated from the result of the query.</returns>
+    Task<PaginationResponse<IReadOnlyList<TModel>>> GetModelSingleQueryPagedReponseAsync<TParam, TModel>(
+        TParam parameter, CancellationToken ct = default)
+        where TModel : class
+        where TParam : BaseParameterRequest;
 }

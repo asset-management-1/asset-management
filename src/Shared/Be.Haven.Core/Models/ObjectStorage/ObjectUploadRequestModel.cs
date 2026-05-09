@@ -1,9 +1,9 @@
-namespace Be.Haven.Shared.Dtos.Requests;
+namespace Be.Haven.Core.Models.ObjectStorage;
 
 /// <summary>
-/// Represents one private object upload request for Cloudflare R2.
+/// Represents one backend-mediated object upload request.
 /// </summary>
-public class R2ObjectUploadRequest
+public class ObjectUploadRequestModel
 {
     /// <summary>
     /// Gets or sets the readable content stream positioned at the beginning.
@@ -11,7 +11,7 @@ public class R2ObjectUploadRequest
     public Stream Content { get; set; }
 
     /// <summary>
-    /// Gets or sets the destination object key inside the private bucket.
+    /// Gets or sets the destination object key inside the storage bucket.
     /// </summary>
     public string ObjectKey { get; set; }
 

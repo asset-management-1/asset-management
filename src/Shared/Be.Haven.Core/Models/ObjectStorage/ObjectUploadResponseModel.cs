@@ -1,17 +1,17 @@
-namespace Be.Haven.Shared.Dtos.Responses;
+namespace Be.Haven.Core.Models.ObjectStorage;
 
 /// <summary>
-/// Represents private Cloudflare R2 upload metadata safe for persistence.
+/// Represents uploaded object metadata safe for persistence.
 /// </summary>
-public class R2ObjectUploadResponse
+public class ObjectUploadResponseModel
 {
     /// <summary>
-    /// Gets or sets the private bucket name used by the upload.
+    /// Gets or sets the bucket name used by the upload.
     /// </summary>
     public string BucketName { get; set; }
 
     /// <summary>
-    /// Gets or sets the object key stored in the private bucket.
+    /// Gets or sets the object key stored in the bucket.
     /// </summary>
     public string ObjectKey { get; set; }
 

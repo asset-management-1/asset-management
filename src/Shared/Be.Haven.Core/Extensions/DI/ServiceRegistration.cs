@@ -14,7 +14,7 @@ public static class ServiceRegistration
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IAuthService, AuthService>();
         
-        // Register AutoMapper configurations for object mapping across layers
+        // Register Mapster configurations for object mapping across layers.
         RegisterMapperConfigurations();
     }
 
@@ -204,7 +204,7 @@ public static class ServiceRegistration
     /// <summary>
     /// Configures global mappings using the Mapster library for the current assembly.
     /// Applies settings for reference preservation, deep copy, and disables constructor mappings.
-    /// Scans the executing assembly for mapping configurations and automatically registers them.
+    /// Scans the loaded assemblies for mapping configurations and automatically registers them.
     /// </summary>
     private static void RegisterMapperConfigurations()
     {
@@ -442,9 +442,9 @@ public static class ServiceRegistration
     }
 
     /// <summary>
-    /// Registers the Cloudflare R2 object storage service and its configuration.
+    /// Registers the shared object storage abstraction backed by Cloudflare R2.
     /// </summary>
-    /// <param name="serviceCollection">The service collection to which R2 upload services are added.</param>
+    /// <param name="serviceCollection">The service collection to which object storage services are added.</param>
     /// <param name="configuration">The application configuration used to bind <see cref="R2StorageOptions"/>.</param>
     /// <returns>The modified service collection for chaining.</returns>
     public static IServiceCollection AddR2ObjectStorageService(
@@ -452,7 +452,7 @@ public static class ServiceRegistration
         IConfiguration configuration)
     {
         serviceCollection.Configure<R2StorageOptions>(configuration.GetSection(R2_STORAGE_SETTINGS));
-        serviceCollection.AddHttpClient<IR2ObjectStorageService, R2ObjectStorageService>();
+        serviceCollection.AddScoped<IObjectStorageService, R2ObjectStorageService>();
 
         return serviceCollection;
     }

@@ -20,6 +20,9 @@ public class BaseMappingConfig : IRegister
             // Maps ApiRequest.Content to BaseHttpRequest.RequestData
             .Map(dest => dest.RequestData, src => src.Content)
 
+            // Maps ApiRequest.ContentStream to BaseHttpRequest.RequestStream
+            .Map(dest => dest.RequestStream, src => src.ContentStream)
+
             // Maps ApiRequest.FormData to BaseHttpRequest.RequestFormData
             .Map(dest => dest.RequestFormData, src => src.FormData)
 
