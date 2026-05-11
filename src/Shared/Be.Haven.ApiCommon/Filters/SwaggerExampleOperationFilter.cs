@@ -118,10 +118,10 @@ public sealed class SwaggerExampleOperationFilter : IOperationFilter
             return;
         }
 
-        // Match parameter names case-insensitively so route transformers and C# casing both work.
+        // Match parameter names after normalizing separators so kebab-case routes can use CLR property names in attributes.
         var parameter = parameters
             .OfType<OpenApiParameter>()
-            .FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+            .FirstOrDefault(x => NamesMatch(x.Name, name));
         if (parameter is null)
         {
             return;
@@ -180,11 +180,43 @@ public sealed class SwaggerExampleOperationFilter : IOperationFilter
             return true;
         }
 
-        // Swagger may use CLR PascalCase for multipart forms and camelCase for JSON body schemas.
+        // Swagger may use CLR PascalCase for multipart forms, camelCase for JSON, or kebab-case for route-transformed names.
         var property = properties.FirstOrDefault(x =>
-            string.Equals(x.Key, name, StringComparison.OrdinalIgnoreCase));
+            NamesMatch(x.Key, name));
         schemaProperty = property.Value as OpenApiSchema;
         return schemaProperty is not null;
+    }
+
+    /// <summary>
+    /// Compares OpenAPI field names while ignoring casing and common separators.
+    /// </summary>
+    /// <param name="left">The first parameter or schema-property name.</param>
+    /// <param name="right">The second parameter or schema-property name.</param>
+    /// <returns><c>true</c> when both names represent the same field; otherwise <c>false</c>.</returns>
+    private static bool NamesMatch(string left, string right)
+    {
+        if (string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        // Kebab-case route parameters should still match CLR property names supplied through nameof(...).
+        return string.Equals(
+            NormalizeOpenApiName(left),
+            NormalizeOpenApiName(right),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Removes separators from an OpenAPI field name for tolerant documentation-example matching.
+    /// </summary>
+    /// <param name="name">The OpenAPI parameter or schema-property name.</param>
+    /// <returns>The normalized name used only for example matching.</returns>
+    private static string NormalizeOpenApiName(string name)
+    {
+        return string.IsNullOrWhiteSpace(name)
+            ? string.Empty
+            : new string(name.Where(char.IsLetterOrDigit).ToArray());
     }
 
     /// <summary>
