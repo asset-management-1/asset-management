@@ -93,7 +93,7 @@ public class ErrorHandlerMiddleware
                 response.Error = new ErrorDto
                 {
                     Code = apiError.ErrorCode ?? BAD_REQUEST,
-                    StatusCode = (int)HttpStatusCode.BadRequest,
+                    StatusCode = apiError.StatusCode,
                     Message = error.Message
                 };
                 _logger.LogError(error, apiError.ErrorCode ?? BAD_REQUEST);
@@ -147,11 +147,18 @@ public class ErrorHandlerMiddleware
 
                 var errorCode = !string.IsNullOrEmpty(httpStatusError.ErrorCode) ? httpStatusError.ErrorCode : statusCode switch
                 {
-                    StatusCodes.Status400BadRequest   => BAD_REQUEST,
-                    StatusCodes.Status401Unauthorized => UNAUTHORIZED,
-                    StatusCodes.Status404NotFound     => NOT_FOUND,
-                    StatusCodes.Status503ServiceUnavailable     => SERVICE_UNAVAILABLE,
-                    _                                 => INTERNAL_SERVER
+                    StatusCodes.Status400BadRequest          => BAD_REQUEST,
+                    StatusCodes.Status401Unauthorized        => UNAUTHORIZED,
+                    StatusCodes.Status403Forbidden           => FORBIDDEN,
+                    StatusCodes.Status404NotFound            => NOT_FOUND,
+                    StatusCodes.Status405MethodNotAllowed    => METHOD_NOT_ALLOWED,
+                    StatusCodes.Status406NotAcceptable       => NOT_ACCEPTABLE,
+                    StatusCodes.Status413PayloadTooLarge     => BAD_REQUEST,
+                    StatusCodes.Status415UnsupportedMediaType => UNSUPPORTED_MEDIA_TYPE,
+                    StatusCodes.Status429TooManyRequests     => MANY_REQUESTS,
+                    StatusCodes.Status500InternalServerError => INTERNAL_SERVER,
+                    StatusCodes.Status503ServiceUnavailable  => SERVICE_UNAVAILABLE,
+                    _                                        => INTERNAL_SERVER
                 };
 
                 response.Error = new ErrorDto

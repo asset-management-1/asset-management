@@ -3,6 +3,11 @@
 public static class AuthConstants
 {
     /// <summary>
+    /// Configuration section key that contains Haven authentication/JWT settings.
+    /// </summary>
+    public const string AUTH_SETTINGS = "AuthSettings";
+
+    /// <summary>
     /// Header or context key used to carry the upstream NA bearer token.
     /// </summary>
     public const string NA_TOKEN = "NA_TOKEN";
@@ -219,7 +224,7 @@ public static class AuthConstants
         /// <summary>
         /// Message when the Haven bearer token fails validation.
         /// </summary>
-        public const string INVALID_TOKEN = "Invalid token. {0}";
+        public const string INVALID_TOKEN = "Invalid token.";
 
         /// <summary>
         /// Message when the NA bearer token is missing or malformed.

@@ -46,10 +46,11 @@ public sealed class LogContextFilter : IAsyncActionFilter, IAsyncResultFilter, I
             string s => s,
             _ => JsonConvert.SerializeObject(requestObject, _jsonSerializerSettings)
         };
+        var maskedRequestBodyJson = LogMaskingHelper.MaskAllSensitiveData(requestBodyJson);
 
-        // Store the serialized request body in HttpContext so it can be reused
+        // Store the masked request body in HttpContext so it can be reused
         // by the result filter or any logging middleware.
-        context.HttpContext.Items[REQUEST_BODY] = requestBodyJson;
+        context.HttpContext.Items[REQUEST_BODY] = maskedRequestBodyJson;
 
         // Log the incoming HTTP request with the resolved action name and arguments.
         _logger.LogInformation(
@@ -57,7 +58,7 @@ public sealed class LogContextFilter : IAsyncActionFilter, IAsyncResultFilter, I
             context.HttpContext.Request.Method,
             context.HttpContext.Request.Path,
             context.ActionDescriptor.DisplayName,
-            requestBodyJson
+            maskedRequestBodyJson
         );
 
         // Continue to the next filter / controller action.
@@ -87,18 +88,19 @@ public sealed class LogContextFilter : IAsyncActionFilter, IAsyncResultFilter, I
         {
             responseBodyJson = JsonConvert.SerializeObject(objectResult.Value, _jsonSerializerSettings);
         }
+        var maskedResponseBodyJson = LogMaskingHelper.MaskAllSensitiveData(responseBodyJson);
 
-        // Retrieve the serialized request body captured in OnActionExecutionAsync.
-        var requestBodyJson = context.HttpContext.Items[REQUEST_BODY] as string;
+        // Retrieve the masked request body captured in OnActionExecutionAsync.
+        var maskedRequestBodyJson = context.HttpContext.Items[REQUEST_BODY] as string;
 
-        // Log the completed HTTP request with status code, request body, and response body.
+        // Log the completed HTTP request with masked request and response bodies.
         _logger.LogInformation(
             LOG_MSG_FINISH,
             context.HttpContext.Request.Method,
             context.HttpContext.Request.Path,
             context.HttpContext.Response.StatusCode,
-            requestBodyJson,
-            responseBodyJson
+            maskedRequestBodyJson,
+            maskedResponseBodyJson
         );
 
         // Continue the pipeline and write the response to the client.

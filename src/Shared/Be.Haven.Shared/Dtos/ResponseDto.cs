@@ -74,12 +74,33 @@ public class ResponseDto<T>
         string message,
         List<ErrorDetailDto> details = null,
         MetaDetailDto meta = null)
+        : this(code, message, AppConstants.SystemCode.BAD_REQUEST, details, meta)
     {
+        // Preserve the legacy error-constructor shape and default it to Bad Request.
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ResponseDto{T}"/> class with the specified error code, message, status, details, and optional metadata.
+    /// </summary>
+    /// <param name="code">The error code.</param>
+    /// <param name="message">The error message.</param>
+    /// <param name="statusCode">The HTTP status code associated with the error.</param>
+    /// <param name="details">Optional list of error details.</param>
+    /// <param name="meta">Optional metadata associated with the response.</param>
+    public ResponseDto(
+        string code,
+        string message,
+        int statusCode,
+        List<ErrorDetailDto> details = null,
+        MetaDetailDto meta = null)
+    {
+        // Error responses intentionally leave Data empty and carry all failure information in Error.
         Data = default;
         Error = new ErrorDto
         {
             Code = code,
             Message = message,
+            StatusCode = statusCode,
             Details = details
         };
         Meta = meta ?? new MetaDetailDto();

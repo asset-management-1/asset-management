@@ -28,12 +28,12 @@ public class LoginAttemptService : ILoginAttemptService
 
     /// <summary>
     /// Ensures that the specified user is not currently locked out.
-    /// If the user is locked, this method throws an exception to prevent further login attempts.
+    /// If the user is locked, this method throws HTTP 429 to prevent further login attempts.
     /// </summary>
     /// <param name="userName">The username to check for a lockout state.</param>
     /// <param name="ct">A cancellation token used to cancel the operation.</param>
     /// <returns>A task that completes when the lockout check finishes.</returns>
-    /// <exception cref="ArgumentException">Thrown when the user is currently locked out.</exception>
+    /// <exception cref="HttpStatusCodeException">Thrown when the user is currently locked out.</exception>
     public async Task CheckAccountLockedAsync(
         string userName,
         CancellationToken ct)
@@ -56,7 +56,10 @@ public class LoginAttemptService : ILoginAttemptService
         // Logs a warning indicating that the user is still locked out, along with the remaining lock duration.
         _logger.LogWarning(USER_LOCKED, userName, ttl?.TotalSeconds);
 
-        throw new ArgumentException(ACCOUNT_LOCKED);
+        throw new HttpStatusCodeException(
+            ACCOUNT_LOCKED,
+            AppConstants.SystemMessageCode.MANY_REQUESTS,
+            AppConstants.SystemCode.MANY_REQUESTS);
     }
 
     /// <summary>

@@ -40,9 +40,13 @@ public class LoginMemoryAttemptService : ILoginAttemptService
     }
 
     /// <summary>
-    /// Ensures the user is not currently locked. If locked, throws an exception.
+    /// Ensures the user is not currently locked. If locked, throws HTTP 429.
     /// If the lock has expired, resets the user's state.
     /// </summary>
+    /// <param name="userName">The username to check for a lockout state.</param>
+    /// <param name="ct">The token used to cancel the operation.</param>
+    /// <returns>A task that completes when the lockout check finishes.</returns>
+    /// <exception cref="HttpStatusCodeException">Thrown when the user is currently locked.</exception>
     public Task CheckAccountLockedAsync(
         string userName,
         CancellationToken ct)
@@ -69,7 +73,10 @@ public class LoginMemoryAttemptService : ILoginAttemptService
                 userName,
                 remaining.TotalSeconds);
 
-            throw new ArgumentException(ACCOUNT_LOCKED);
+            throw new HttpStatusCodeException(
+                ACCOUNT_LOCKED,
+                AppConstants.SystemMessageCode.MANY_REQUESTS,
+                AppConstants.SystemCode.MANY_REQUESTS);
         }
 
         // If the lock has expired, clear lock info and reset failed count
@@ -86,6 +93,9 @@ public class LoginMemoryAttemptService : ILoginAttemptService
     /// Registers a failed login attempt for a specific user.
     /// If the number of failed attempts exceeds the limit, the user will be locked.
     /// </summary>
+    /// <param name="userName">The username whose failed-attempt counter should be updated.</param>
+    /// <param name="ct">The token used to cancel the operation.</param>
+    /// <returns>A task that completes when the failed-attempt counter is updated.</returns>
     public Task CountFailedAttemptAsync(
         string userName,
         CancellationToken ct)
@@ -142,6 +152,9 @@ public class LoginMemoryAttemptService : ILoginAttemptService
     /// <summary>
     /// Resets all login attempt data and removes any active lock for the given user.
     /// </summary>
+    /// <param name="userName">The username whose lockout state should be removed.</param>
+    /// <param name="ct">The token used to cancel the operation.</param>
+    /// <returns>A task that completes when the lockout state is removed.</returns>
     public Task RemoveAttemptsAsync(
         string userName,
         CancellationToken ct)

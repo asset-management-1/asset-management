@@ -39,4 +39,9 @@ public static class ObjectStorageConstants
     /// Message used when a required object-storage upload file is missing.
     /// </summary>
     public const string OBJECT_STORAGE_REQUIRED_FILE_MISSING_MESSAGE = "Required upload file is missing.";
+
+    /// <summary>
+    /// Message used when a batch object-storage upload fails after cleanup has been attempted.
+    /// </summary>
+    public const string OBJECT_STORAGE_BATCH_UPLOAD_FAILED_MESSAGE = "Object-storage batch upload failed.";
 }

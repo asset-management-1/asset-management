@@ -69,8 +69,7 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
         catch (Exception ex)
         {
             Logger.LogWarning(ex, HavenAuthenticationLogs.LOG_AUTH_REJECTED, ex.GetType().Name, ex.Message);
-            var failureMessage = string.Format(INVALID_TOKEN, ex.Message);
-            return Task.FromResult(AuthenticateResult.Fail(failureMessage));
+            return Task.FromResult(AuthenticateResult.Fail(INVALID_TOKEN));
         }
     }
 

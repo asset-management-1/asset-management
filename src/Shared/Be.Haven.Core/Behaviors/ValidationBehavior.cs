@@ -35,24 +35,30 @@ public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TReques
         MessageHandlerDelegate<TRequest, TResponse> next,
         CancellationToken cancellationToken)
     {
-        if (_validators.Any())
+        // Run registered validators before the handler so invalid requests never reach business flow.
+        var validators = _validators.ToList();
+        if (validators.Count > 0)
         {
             var context = new ValidationContext<TRequest>(message);
 
             var validationResults = await Task.WhenAll(
-                _validators.Select(
+                validators.Select(
                     v => v.ValidateAsync(context, cancellationToken)));
 
+            // Flatten all validator failures into one standardized ValidationException.
             var failures = validationResults
                 .SelectMany(r => r.Errors)
-                    .Where(f => f != null).ToList();
+                .Where(f => f != null)
+                .ToList();
 
             if (failures.Count != 0)
             {
                 var firstError = failures[0];
                 throw new ValidationException(failures, firstError.ErrorCode);
-            }    
+            }
         }
+
+        // Continue the pipeline only after all validation rules pass.
         return await next(message, cancellationToken);
     }
 }

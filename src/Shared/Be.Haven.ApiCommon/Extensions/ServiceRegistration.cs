@@ -3,6 +3,23 @@ namespace Be.Haven.ApiCommon.Extensions;
 public static class ServiceRegistration
 {
     /// <summary>
+    /// Registers the shared Haven bearer-token authentication handler.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    public static void AddHavenAuthenticationServices(this IServiceCollection services)
+    {
+        // Use the same bearer scheme across services so [Authorize] resolves the shared handler consistently.
+        services.AddHttpContextAccessor();
+        services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = BEARER;
+                    options.DefaultChallengeScheme = BEARER;
+                    options.DefaultForbidScheme = BEARER;
+                })
+                .AddScheme<AuthenticationSchemeOptions, HavenAuthenticationHandler>(BEARER, _ => { });
+    }
+
+    /// <summary>
     /// Configures Swagger/OpenAPI services for the application.
     /// This includes adding versioning support, sorting endpoints alphabetically, grouping by versions,
     /// and enabling annotations to enhance API documentation.

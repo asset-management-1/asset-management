@@ -14,16 +14,29 @@ public class ApiException : Exception
     public string ErrorCode { get; }
 
     /// <summary>
+    /// Gets the HTTP status code that should be used for the API error response.
+    /// </summary>
+    public int StatusCode { get; }
+
+    /// <summary>
     /// Initializes a new instance of the <see cref="ApiException"/> class.
     /// </summary>
-    public ApiException() : base() { }
+    public ApiException() : base()
+    {
+        // Application exceptions default to Bad Request unless a caller provides a more specific status.
+        StatusCode = StatusCodes.Status400BadRequest;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ApiException"/> class
     /// with a descriptive error message.
     /// </summary>
     /// <param name="message">The error message describing the issue.</param>
-    public ApiException(string message) : base(message) { }
+    public ApiException(string message) : base(message)
+    {
+        // Application exceptions default to Bad Request unless a caller provides a more specific status.
+        StatusCode = StatusCodes.Status400BadRequest;
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ApiException"/> class
@@ -36,7 +49,23 @@ public class ApiException : Exception
     public ApiException(string message, string errorCode)
         : base(message)
     {
+        // Keep existing callers as business errors while allowing newer callers to opt into other statuses.
         ErrorCode = errorCode;
+        StatusCode = StatusCodes.Status400BadRequest;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApiException"/> class with a message, error code, and HTTP status code.
+    /// </summary>
+    /// <param name="message">The error message describing the issue.</param>
+    /// <param name="errorCode">The application error code used to identify this error type.</param>
+    /// <param name="statusCode">The HTTP status code that should be returned to the caller.</param>
+    public ApiException(string message, string errorCode, int statusCode)
+        : base(message)
+    {
+        // Preserve the business error code while carrying the HTTP status for the response middleware.
+        ErrorCode = errorCode;
+        StatusCode = statusCode;
     }
 
     /// <summary>
@@ -46,5 +75,9 @@ public class ApiException : Exception
     /// <param name="message">The message format string.</param>
     /// <param name="args">Values to format into the message string.</param>
     public ApiException(string message, params object[] args)
-        : base(string.Format(CultureInfo.CurrentCulture, message, args)) { }
+        : base(string.Format(CultureInfo.CurrentCulture, message, args))
+    {
+        // Formatted application errors keep the legacy Bad Request behavior.
+        StatusCode = StatusCodes.Status400BadRequest;
+    }
 }

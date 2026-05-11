@@ -23,15 +23,14 @@ public class ValidationException : Exception
         string errorCode = BAD_REQUEST)
         : base(GetExceptionMessage(failures))
     {
-        ErrorCode = errorCode;
-        // Iterate through each ValidationFailure object
+        // Validation failures always return through Error.Details with a consistent issue-array shape.
+        ErrorCode = string.IsNullOrWhiteSpace(errorCode) ? BAD_REQUEST : errorCode;
         foreach (var failure in failures)
         {
-            // Add the error message to the Errors list
-            Errors.Add(new ErrorDetailDto()
+            Errors.Add(new ErrorDetailDto
             {
                 Field = failure.PropertyName,
-                Issue = failure.ErrorMessage
+                Issue = new[] { failure.ErrorMessage }
             });
         }
     }
@@ -47,18 +46,17 @@ public class ValidationException : Exception
         string errorCode = BAD_REQUEST)
         : base(VALIDATION_FAILURES_HAVE_OCCURRED)
     {
-        ErrorCode = errorCode;
-        // Iterate through each ValidationFailure object
+        // Data-annotation validation is normalized to the same details shape as FluentValidation.
+        ErrorCode = string.IsNullOrWhiteSpace(errorCode) ? BAD_REQUEST : errorCode;
         foreach (var failure in failures)
         {
             var members = failure.MemberNames.Any() ? failure.MemberNames : [string.Empty];
             foreach (var member in members)
             {
-                // Add the error message to the Errors list
                 Errors.Add(new ErrorDetailDto
                 {
                     Field = member,
-                    Issue = failure.ErrorMessage
+                    Issue = new[] { failure.ErrorMessage }
                 });
             }
         }
@@ -68,6 +66,8 @@ public class ValidationException : Exception
     /// Builds the exception message based on validation failures.
     /// If the list is empty, returns the default validation error message.
     /// </summary>
+    /// <param name="failures">The validation failures used to build the exception message.</param>
+    /// <returns>The combined validation message, or the default validation message when no failure exists.</returns>
     private static string GetExceptionMessage(IEnumerable<ValidationFailure> failures)
     {
         var list = failures?.ToList() ?? [];
@@ -75,7 +75,7 @@ public class ValidationException : Exception
         if (list.Count == 0)
             return VALIDATION_FAILURES_HAVE_OCCURRED;
 
-        // Join all failure messages into a single readable string
+        // Join all failure messages into one readable exception message for logs and clients.
         return string.Join(ONE_LINE_SEPARATOR, list.Select(f => f.ErrorMessage));
     }
 }

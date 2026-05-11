@@ -61,7 +61,8 @@ public static class ObjectStorageHelper
                 result.UploadsBySlot.Values,
                 cancellationToken);
 
-            throw;
+            // Wrap the failed upload explicitly after cleanup so callers can convert it to their business error.
+            throw new InvalidOperationException(OBJECT_STORAGE_BATCH_UPLOAD_FAILED_MESSAGE, ex);
         }
     }
 
