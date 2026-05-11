@@ -26,4 +26,19 @@ public static class SwaggerUiConstants
     /// </summary>
     public const string OPERATION_SEARCH_SCRIPT_RESOURCE_NOT_FOUND =
         "Embedded Swagger operation-search script resource was not found: {0}.";
+
+    /// <summary>
+    /// Error message format used when a Swagger example provider type does not implement the required contract.
+    /// </summary>
+    public const string SWAGGER_EXAMPLE_PROVIDER_INTERFACE_REQUIRED_FORMAT = "{0} must implement {1}.";
+
+    /// <summary>
+    /// Error message format used when a Swagger example provider cannot be created as the expected contract.
+    /// </summary>
+    public const string SWAGGER_EXAMPLE_PROVIDER_CREATION_FAILED_FORMAT = "{0} could not be created as {1}.";
+
+    /// <summary>
+    /// Error message used when a Swagger example object cannot be converted into a JSON node.
+    /// </summary>
+    public const string SWAGGER_EXAMPLE_JSON_NODE_REQUIRED = "Swagger example JSON node could not be created.";
 }

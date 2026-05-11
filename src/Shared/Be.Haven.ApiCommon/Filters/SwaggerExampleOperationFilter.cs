@@ -273,13 +273,27 @@ public sealed class SwaggerExampleOperationFilter : IOperationFilter
     /// <returns>The serialized example JSON node.</returns>
     private static JsonNode BuildExampleNode(Type providerType)
     {
+        var providerTypeName = providerType.FullName ?? providerType.Name;
+
         // Provider type errors should surface during Swagger generation because they indicate bad API docs wiring.
         if (!typeof(ISwaggerExampleProvider).IsAssignableFrom(providerType))
         {
-            throw new InvalidOperationException($"{providerType.FullName} must implement {nameof(ISwaggerExampleProvider)}.");
+            throw new InvalidOperationException(string.Format(
+                CultureInfo.InvariantCulture,
+                SWAGGER_EXAMPLE_PROVIDER_INTERFACE_REQUIRED_FORMAT,
+                providerTypeName,
+                nameof(ISwaggerExampleProvider)));
         }
 
-        var provider = (ISwaggerExampleProvider)Activator.CreateInstance(providerType, nonPublic: true);
+        if (Activator.CreateInstance(providerType, nonPublic: true) is not ISwaggerExampleProvider provider)
+        {
+            throw new InvalidOperationException(string.Format(
+                CultureInfo.InvariantCulture,
+                SWAGGER_EXAMPLE_PROVIDER_CREATION_FAILED_FORMAT,
+                providerTypeName,
+                nameof(ISwaggerExampleProvider)));
+        }
+
         return BuildExampleNode(provider.GetExample());
     }
 
@@ -292,6 +306,7 @@ public sealed class SwaggerExampleOperationFilter : IOperationFilter
     {
         // Serialize through System.Text.Json so examples match the API's camelCase/string-enum behavior.
         var json = System.Text.Json.JsonSerializer.Serialize(example, ExampleSerializerOptions);
-        return JsonNode.Parse(json);
+        return JsonNode.Parse(json)
+               ?? throw new InvalidOperationException(SWAGGER_EXAMPLE_JSON_NODE_REQUIRED);
     }
 }
