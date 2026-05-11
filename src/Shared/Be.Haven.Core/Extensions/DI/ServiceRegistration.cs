@@ -332,16 +332,22 @@ public static class ServiceRegistration
         // Bind all GCP-related options at once here. The service itself does not read IConfiguration.
         var opts = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
 
-        // Register the Secret Manager client with the appropriate regional endpoint
-        services.AddSingleton(_ => new SecretManagerServiceClientBuilder
+        if (opts.SecretManagerSettings.IsUseSecret)
         {
-            Endpoint = string.Format(SECRET_MANAGER_ENDPOINT_FORMAT, opts.SecretManagerSettings.Location),
-        }.Build());
+            // Register the Secret Manager client only when GCP secrets are enabled.
+            services.AddSingleton(_ => new SecretManagerServiceClientBuilder
+            {
+                Endpoint = string.Format(SECRET_MANAGER_ENDPOINT_FORMAT, opts.SecretManagerSettings.Location),
+            }.Build());
+        }
 
         // Register the GcpSecretService which implements IGcpSecretService
         services.AddSingleton<IGcpSecretService>(sp =>
         {
-            var client = sp.GetRequiredService<SecretManagerServiceClient>();
+            // Local configuration mode never calls the GCP client, so avoid requiring ADC at startup.
+            var client = opts.SecretManagerSettings.IsUseSecret
+                ? sp.GetRequiredService<SecretManagerServiceClient>()
+                : null;
             var logger = sp.GetRequiredService<ILogger<GcpSecretService>>();
             var cache = sp.GetRequiredService<ICachingService>();
             var gcpOptions = sp.GetRequiredService<IOptions<GcpOptions>>();

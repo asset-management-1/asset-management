@@ -1,5 +1,8 @@
 namespace Be.Haven.Shared.Dtos;
 
+/// <summary>
+/// Represents tracing and response metadata included in standardized API responses.
+/// </summary>
 public class MetaDetailDto
 {
     /// <summary>

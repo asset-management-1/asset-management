@@ -3,6 +3,16 @@ namespace Haven.Api.Extensions;
 public static class ServiceRegistration
 {
     /// <summary>
+    /// Configures bearer-token authentication for Haven business APIs.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    public static void AddAuthServices(this IServiceCollection services)
+    {
+        // Haven.Api shares the same token validation handler used by Authentication.Api.
+        services.AddHavenAuthenticationServices();
+    }
+
+    /// <summary>
     /// Registers the source-generated mediator for Haven application handlers.
     /// </summary>
     /// <param name="services">The service collection.</param>
@@ -23,6 +33,12 @@ public static class ServiceRegistration
     public static void AddConfiguredOptions(this IServiceCollection services,
         IConfiguration configuration)
     {
+        // Bind shared token-validation settings so the ApiCommon auth handler can validate Haven tokens.
+        services.AddOptions<AuthenticationTokenValidationOptions>()
+                .Bind(configuration.GetSection(AUTH_SETTINGS))
+                .ValidateOnStart();
+
+        // Bind GCP settings used by database, observability, and secret-manager infrastructure.
         services.AddOptions<GcpOptions>()
                 .Bind(configuration.GetSection(GCP_SETTINGS))
                 .ValidateDataAnnotations()

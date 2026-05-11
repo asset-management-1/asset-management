@@ -16,36 +16,55 @@ public sealed class KebabCaseSwaggerFilter : IOperationFilter
     /// <param name="context">The context for the operation filter, providing additional metadata.</param>
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
-        // No parameters to process
-        if (operation.Parameters == null || operation.Parameters.Count == 0) return;
+        // No parameters to process.
+        var parameters = operation.Parameters;
+        if (parameters is null || parameters.Count == 0)
+        {
+            return;
+        }
 
-        // Only care about path (route) parameters: /resource/{id}
-        var pathParams = operation.Parameters
+        // Only care about path (route) parameters: /resource/{id}.
+        var pathParams = parameters
                                   .Where(p => p.In == ParameterLocation.Path)
                                   .ToList();
 
-        // Nothing to dedupe if there is 0 or 1 path param
-        if (pathParams.Count <= 1) return;
+        // Nothing to dedupe if there is 0 or 1 path param.
+        if (pathParams.Count <= 1)
+        {
+            return;
+        }
 
-        // Build a case-insensitive set of existing path parameter names
+        // Build a case-insensitive set of existing path parameter names.
         var names = new HashSet<string>(
             pathParams.Select(p => p.Name),
             StringComparer.OrdinalIgnoreCase);
 
-        // Keep non-path params as-is; for path params, drop camelCase if kebab-case exists
-        operation.Parameters = operation.Parameters
+        // Keep non-path params as-is; for path params, drop camelCase if kebab-case exists.
+        operation.Parameters = parameters
                                         .Where(p =>
                                         {
-                                            // Leave query/header/cookie/body params untouched
-                                            if (p.In != ParameterLocation.Path) return true;
+                                            // Leave query/header/cookie/body params untouched.
+                                            if (p.In != ParameterLocation.Path)
+                                            {
+                                                return true;
+                                            }
 
-                                            // Already kebab-case => keep
-                                            if (p.Name != null && p.Name.Contains('-')) return true;
+                                            // Leave unnamed parameters untouched because there is no safe route token to transform.
+                                            if (string.IsNullOrWhiteSpace(p.Name))
+                                            {
+                                                return true;
+                                            }
 
-                                            // Convert camelCase -> kebab-case
+                                            // Already kebab-case => keep.
+                                            if (p.Name.Contains('-'))
+                                            {
+                                                return true;
+                                            }
+
+                                            // Convert camelCase -> kebab-case.
                                             var kebab = StringConvertHelper.ToKebabCase(p.Name);
 
-                                            // If the kebab-case param already exists, remove the camelCase one
+                                            // If the kebab-case param already exists, remove the camelCase one.
                                             return !names.Contains(kebab);
                                         })
                                         .ToList();

@@ -23,7 +23,7 @@ builder.Services.AddConfiguredOpenTelemetry(configuration);
 builder.Services.AddConfiguredOptions(configuration);
 
 // Security / Auth
-// builder.Services.AddAuthServices();
+builder.Services.AddAuthServices();
 
 // Caching / GCP
 builder.Services.AddDistributedCache(configuration);
@@ -70,8 +70,11 @@ builder.Services.AddControllers(o =>
        });
 
 // Swagger
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddConfiguredSwagger();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddConfiguredSwagger();
+}
 
 // Kestrel
 builder.WebHost.ConfigureKestrel((context, options) =>
@@ -96,7 +99,14 @@ var app = builder.Build();
 // =========================
 
 // Swagger
-app.UseSwaggerConfiguration();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwaggerConfiguration();
+}
+else
+{
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
 

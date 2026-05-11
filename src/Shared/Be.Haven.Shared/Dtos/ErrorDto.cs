@@ -1,5 +1,8 @@
 namespace Be.Haven.Shared.Dtos;
 
+/// <summary>
+/// Represents the standardized error payload returned inside <see cref="ResponseDto{T}"/>.
+/// </summary>
 public class ErrorDto
 {
     /// <summary>

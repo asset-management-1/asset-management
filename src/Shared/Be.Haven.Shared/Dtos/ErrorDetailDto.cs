@@ -1,5 +1,8 @@
 namespace Be.Haven.Shared.Dtos;
 
+/// <summary>
+/// Represents field-level error details for validation and business-rule failures.
+/// </summary>
 public class ErrorDetailDto
 {
     /// <summary>
