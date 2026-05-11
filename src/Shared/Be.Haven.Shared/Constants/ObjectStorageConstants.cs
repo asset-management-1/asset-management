@@ -26,6 +26,11 @@ public static class ObjectStorageConstants
     public const string SIDE_OBJECT_SLOT = "side";
 
     /// <summary>
+    /// Common slot and object-key tag for avatar uploads.
+    /// </summary>
+    public const string AVATAR_OBJECT_SLOT = "avatar";
+
+    /// <summary>
     /// Default private object-key prefix used for CCCD KYC files.
     /// </summary>
     public const string DEFAULT_KYC_OBJECT_PREFIX = "kyc/cccd";
@@ -34,6 +39,11 @@ public static class ObjectStorageConstants
     /// Default object-key prefix used for tenant vehicle images.
     /// </summary>
     public const string DEFAULT_VEHICLE_OBJECT_PREFIX = "vehicles";
+
+    /// <summary>
+    /// Default object-key prefix used for account avatar images.
+    /// </summary>
+    public const string DEFAULT_AVATAR_OBJECT_PREFIX = "avatars";
 
     /// <summary>
     /// Message used when a required object-storage upload file is missing.

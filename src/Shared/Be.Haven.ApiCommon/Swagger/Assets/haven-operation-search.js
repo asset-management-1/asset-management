@@ -23,6 +23,7 @@
     const scopeLabel = 'Search scope';
     let operationIndex = [];
     let indexedSections = [];
+    let controllerScopeCache = [];
     let operationIndexSignature = '';
     let operationIndexReady = false;
     let lastSearchKey = '';
@@ -125,6 +126,10 @@
                 tagText: getTagSearchText(section),
                 operations: Array.from(section.querySelectorAll(operationSelector))
             }));
+        if (sections.length === 0) {
+            return;
+        }
+
         const signature = buildOperationIndexSignature(sections);
         if (!force && operationIndexReady && signature === operationIndexSignature) {
             return;
@@ -287,26 +292,27 @@
      * @returns {{key: string, name: string}[]} The sorted controller scopes available in the current document.
      */
     function getControllerScopes() {
-        // Read controller scopes from the cached operation index so this stays cheap during repeated UI sync.
+        // Merge from the full cached index so options do not disappear after a scope/search hides sections.
         refreshOperationIndex();
 
-        const scopes = [];
-        const seen = new Set();
+        const scopes = new Map(controllerScopeCache.map((scope) => [scope.key, scope]));
 
         operationIndex.forEach((entry) => {
             const key = entry.normalizedTag;
-            if (!key || seen.has(key)) {
+            if (!key || scopes.has(key)) {
                 return;
             }
 
-            seen.add(key);
-            scopes.push({
+            scopes.set(key, {
                 key,
                 name: entry.tagName
             });
         });
 
-        return scopes.sort((left, right) => left.name.localeCompare(right.name));
+        controllerScopeCache = Array.from(scopes.values())
+            .sort((left, right) => left.name.localeCompare(right.name));
+
+        return controllerScopeCache;
     }
 
     /**
@@ -395,8 +401,8 @@
             }
 
             .swagger-ui .${scopeMenuClass} {
-                position: absolute;
-                top: calc(100% + 4px);
+                position: fixed;
+                top: 0;
                 bottom: auto;
                 left: 0;
                 z-index: 10000;
@@ -408,7 +414,7 @@
                 overflow-y: auto;
                 border: 1px solid var(--haven-swagger-search-border);
                 border-radius: 4px;
-                background-color: transparent !important;
+                background-color: #fff !important;
                 color: inherit;
                 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
             }
@@ -485,13 +491,17 @@
                 }
 
                 .swagger-ui .${scopeMenuClass} {
-                    top: 48px;
-                    bottom: auto;
                     width: 100%;
                 }
 
                 .swagger-ui .${searchInputClass} {
                     border-radius: 0 0 4px 4px;
+                }
+            }
+
+            @media (prefers-color-scheme: dark) {
+                .swagger-ui .${scopeMenuClass} {
+                    background-color: #1f2328 !important;
                 }
             }
         `;
@@ -631,13 +641,18 @@
      * @returns {void}
      */
     function positionScopeMenu(control, menu) {
-        // Anchor the custom menu to the real combobox position and reserve space so it does not cover operations.
-        menu.style.left = `${control.offsetLeft}px`;
-        menu.style.width = `${control.offsetWidth}px`;
+        // Open downward like a normal combobox and reserve vertical space so it does not cover controller headers.
+        const controlRect = control.getBoundingClientRect();
+        const maxHeight = Math.max(96, Math.min(320, globalThis.innerHeight - controlRect.bottom - 12));
+        menu.style.maxHeight = `${maxHeight}px`;
+        menu.style.left = `${controlRect.left}px`;
+        menu.style.width = `${controlRect.width}px`;
+        menu.style.top = `${controlRect.bottom + 4}px`;
 
+        const menuHeight = menu.getBoundingClientRect().height || Math.min(menu.scrollHeight, maxHeight);
         const container = control.closest(`.${searchContainerClass}`);
         if (container instanceof HTMLElement) {
-            container.style.marginBottom = `${menu.offsetHeight + 8}px`;
+            container.style.marginBottom = `${menuHeight + 8}px`;
         }
     }
 
@@ -895,13 +910,34 @@
     }
 
     /**
+     * Checks whether a collapsed controller section should stay visible under the active filter.
+     *
+     * @param {Element} section The rendered Swagger controller/tag section.
+     * @param {string} scope The selected normalized controller scope.
+     * @param {string} query The normalized search query.
+     * @returns {boolean} True when the section header itself matches the active filter.
+     */
+    function isCollapsedSectionMatch(section, scope, query) {
+        // Swagger removes operation rows while a controller is collapsed, so preserve the matching header.
+        const tagName = getTagName(section);
+        const normalizedTag = normalize(tagName);
+        const tagText = normalize(getTagSearchText(section));
+        const isInScope = scope === allScopeValue || normalizedTag === scope;
+
+        return isInScope
+            && (query === ''
+                || normalizedTag.includes(query)
+                || tagText.includes(query));
+    }
+
+    /**
      * Clears Swagger UI's native tag filter so it does not remove operations from the rendered document.
      *
      * @param {HTMLInputElement} nativeInput The Swagger UI built-in filter input.
      * @returns {void}
      */
     function clearNativeFilterInput(nativeInput) {
-        // React-backed inputs need the native setter plus an input event to reset Swagger UI's internal filter state.
+        // Clear the native field value without dispatching input, because Swagger's filter mutates rendered operations.
         if (nativeInput.value.length === 0) {
             return;
         }
@@ -912,8 +948,6 @@
         } else {
             nativeInput.value = '';
         }
-
-        nativeInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     /**
@@ -1035,9 +1069,13 @@
         }
 
         const visibleSectionCounts = new Map();
+        const sectionHasOperations = new Map();
         indexedSections.forEach((section) => visibleSectionCounts.set(section, 0));
+        indexedSections.forEach((section) => sectionHasOperations.set(section, false));
 
         operationIndex.forEach((entry) => {
+            sectionHasOperations.set(entry.section, true);
+
             const isInScope = scope === allScopeValue || entry.normalizedTag === scope;
             const isVisible = isInScope
                 && (query === ''
@@ -1052,7 +1090,10 @@
         });
 
         visibleSectionCounts.forEach((visibleOperationCount, section) => {
-            setVisible(section, visibleOperationCount > 0);
+            const hasOperations = sectionHasOperations.get(section) ?? false;
+            setVisible(
+                section,
+                visibleOperationCount > 0 || (!hasOperations && isCollapsedSectionMatch(section, scope, query)));
         });
 
         lastSearchKey = searchKey;

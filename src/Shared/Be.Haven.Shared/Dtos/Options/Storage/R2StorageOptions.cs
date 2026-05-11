@@ -44,4 +44,9 @@ public class R2StorageOptions
     /// Gets or sets the object-key prefix used for tenant vehicle images.
     /// </summary>
     public string VehicleObjectPrefix { get; set; } = DEFAULT_VEHICLE_OBJECT_PREFIX;
+
+    /// <summary>
+    /// Gets or sets the object-key prefix used for account avatar images.
+    /// </summary>
+    public string AvatarObjectPrefix { get; set; } = DEFAULT_AVATAR_OBJECT_PREFIX;
 }
