@@ -9,8 +9,11 @@ public interface IEmailService
     /// Sends an email using the specified email request details.
     /// </summary>
     /// <param name="request">The email request containing recipients, content, and credentials.</param>
+    /// <param name="cancellationToken">The token used to cancel the SendGrid request.</param>
     /// <returns>
     /// A boolean value indicating whether the email was sent successfully.
     /// </returns>
-    Task<bool> SendEmailAsync(EmailRequest request);
+    Task<bool> SendEmailAsync(
+        EmailRequest request,
+        CancellationToken cancellationToken = default);
 }

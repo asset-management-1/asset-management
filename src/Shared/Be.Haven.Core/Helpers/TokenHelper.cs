@@ -3,6 +3,57 @@
 public static class TokenHelper
 {
     /// <summary>
+    /// Builds the cache key used to store a user's auth reset timestamp.
+    /// </summary>
+    /// <param name="userPublicId">The public user identifier.</param>
+    /// <returns>The auth reset cache key.</returns>
+    public static string BuildAuthResetCacheKey(Guid userPublicId)
+    {
+        // Keep the key format centralized so token issue, reset, and validation paths share one Redis contract.
+        return string.Format(AUTH_RESET_AT_KEY_PATTERN, userPublicId);
+    }
+
+    /// <summary>
+    /// Converts a UTC timestamp to Unix milliseconds for stable token comparison.
+    /// </summary>
+    /// <param name="utcDateTime">The UTC timestamp to convert.</param>
+    /// <returns>The Unix millisecond value.</returns>
+    public static long ToUnixTimeMilliseconds(DateTime utcDateTime)
+    {
+        // Normalize to UTC before conversion so DB values and JWT claims compare consistently.
+        var utc = utcDateTime.Kind switch
+        {
+            DateTimeKind.Utc => utcDateTime,
+            DateTimeKind.Local => utcDateTime.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(utcDateTime, DateTimeKind.Utc)
+        };
+
+        return new DateTimeOffset(utc).ToUnixTimeMilliseconds();
+    }
+
+    /// <summary>
+    /// Converts an optional auth reset timestamp to Unix milliseconds.
+    /// </summary>
+    /// <param name="authResetAt">The optional UTC auth reset timestamp.</param>
+    /// <returns>The Unix millisecond value, or <c>0</c> when no reset exists.</returns>
+    public static long ToAuthResetUnixMilliseconds(DateTime? authResetAt)
+    {
+        // Zero is the cache sentinel for users that have never reset authentication state.
+        return authResetAt.HasValue ? ToUnixTimeMilliseconds(authResetAt.Value) : 0;
+    }
+
+    /// <summary>
+    /// Builds the auth reset cache lifetime from refresh-token configuration.
+    /// </summary>
+    /// <param name="refreshTokenDays">The configured refresh-token lifetime in days.</param>
+    /// <returns>The cache lifetime for auth reset markers.</returns>
+    public static TimeSpan GetAuthResetCacheTtl(int refreshTokenDays)
+    {
+        // Keep reset markers at least as long as refresh-token sessions can exist.
+        return TimeSpan.FromDays(refreshTokenDays + AUTH_RESET_CACHE_TTL_PADDING_DAYS);
+    }
+
+    /// <summary>
     /// Calculates the remaining time until the token expires, subtracting safety padding to ensure early refresh.
     /// </summary>
     /// <param name="tokenExpiration">The expiration DateTime of the token.</param>

@@ -161,6 +161,11 @@ public static class AuthConstants
     public static class TokenClaimTypes
     {
         /// <summary>
+        /// Haven-issued access-token timestamp in Unix milliseconds.
+        /// </summary>
+        public const string HAVEN_ISSUED_AT_MS = "haven_issued_at_ms";
+
+        /// <summary>
         /// OpenID Connect subject claim.
         /// </summary>
         public const string SUBJECT = "sub";
@@ -212,6 +217,16 @@ public static class AuthConstants
     }
 
     /// <summary>
+    /// Redis key pattern for the per-user authentication reset timestamp.
+    /// </summary>
+    public const string AUTH_RESET_AT_KEY_PATTERN = "auth:auth-reset-at:{0}";
+
+    /// <summary>
+    /// Extra cache lifetime, in days, added to refresh-token lifetime for auth reset markers.
+    /// </summary>
+    public const int AUTH_RESET_CACHE_TTL_PADDING_DAYS = 1;
+
+    /// <summary>
     /// Centralized user-facing/system log messages for common auth failures.
     /// </summary>
     public static class SystemMessage
@@ -225,6 +240,11 @@ public static class AuthConstants
         /// Message when the Haven bearer token fails validation.
         /// </summary>
         public const string INVALID_TOKEN = "Invalid token.";
+
+        /// <summary>
+        /// Message when authentication reset state cannot be validated.
+        /// </summary>
+        public const string AUTH_STATE_UNAVAILABLE = "Authentication state is temporarily unavailable.";
 
         /// <summary>
         /// Message when the NA bearer token is missing or malformed.

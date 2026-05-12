@@ -10,6 +10,7 @@ public static class ServiceRegistration
     {
         // Use the same bearer scheme across services so [Authorize] resolves the shared handler consistently.
         services.AddHttpContextAccessor();
+        services.TryAddScoped<IAuthResetValidator, HavenAuthResetValidator>();
         services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = BEARER;

@@ -27,8 +27,11 @@ public class EmailService : IEmailService
     /// Sends an email using SendGrid.
     /// </summary>
     /// <param name="request">The email payload to send.</param>
+    /// <param name="cancellationToken">The token used to cancel the SendGrid request.</param>
     /// <returns><c>true</c> when SendGrid accepts the request; otherwise <c>false</c>.</returns>
-    public async Task<bool> SendEmailAsync(EmailRequest request)
+    public async Task<bool> SendEmailAsync(
+        EmailRequest request,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -91,7 +94,8 @@ public class EmailService : IEmailService
                 }
             }
 
-            var response = await _sendGridClient.SendEmailAsync(message);
+            // Propagate request cancellation to SendGrid instead of letting email sends outlive the caller.
+            var response = await _sendGridClient.SendEmailAsync(message, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
@@ -102,7 +106,7 @@ public class EmailService : IEmailService
             _logger.LogWarning(EmailLogs.SEND_FAILED, response.StatusCode);
             return false;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(ex, EmailLogs.SEND_EXCEPTION);
             return false;

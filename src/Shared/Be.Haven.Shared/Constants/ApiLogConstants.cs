@@ -118,9 +118,33 @@ public static class ApiLogConstants
         public const string LOG_AUTH_REJECTED_EXPIRED = "Haven token validation rejected: expired token.";
 
         /// <summary>
+        /// Logged when Haven token validation fails because the token was issued before the latest auth reset.
+        /// </summary>
+        public const string LOG_AUTH_REJECTED_RESET =
+            "Haven token validation rejected: token issued before latest auth reset. UserId={UserId}";
+
+        /// <summary>
         /// Logged when Haven token validation fails for any other reason.
         /// </summary>
         public const string LOG_AUTH_REJECTED = "Haven token validation rejected. ErrorType={ErrorType}, Error={Error}";
+
+        /// <summary>
+        /// Logged when auth reset marker lookup fails in cache and the handler falls back to the database.
+        /// </summary>
+        public const string LOG_AUTH_RESET_CACHE_READ_FAILED =
+            "Haven auth reset validation cache read failed for user {UserPublicId}. Falling back to database.";
+
+        /// <summary>
+        /// Logged when auth reset marker lookup fails in the database.
+        /// </summary>
+        public const string LOG_AUTH_RESET_DB_LOOKUP_FAILED =
+            "Haven auth reset validation database lookup failed for user {UserPublicId}.";
+
+        /// <summary>
+        /// Logged when best-effort cache seeding fails after auth reset marker lookup.
+        /// </summary>
+        public const string LOG_AUTH_RESET_CACHE_SEED_FAILED =
+            "Haven auth reset validation cache seed failed for user {UserPublicId}.";
 
         /// <summary>
         /// Logged when a 401 challenge response is written by the Haven authentication handler.

@@ -6,6 +6,7 @@ namespace Be.Haven.ApiCommon.Handlers;
 public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
     private readonly AuthenticationTokenValidationOptions _authOptions;
+    private readonly IAuthResetValidator _authResetValidator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HavenAuthenticationHandler"/> class.
@@ -14,28 +15,33 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
     /// <param name="logger">Creates the logger used by the base authentication handler.</param>
     /// <param name="encoder">Encodes outbound content when required by the base authentication handler.</param>
     /// <param name="authOptions">Provides the shared Haven JWT validation settings.</param>
+    /// <param name="authResetValidator">Validates access-token issue time against the latest user auth reset marker.</param>
     public HavenAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
-        IOptions<AuthenticationTokenValidationOptions> authOptions)
+        IOptions<AuthenticationTokenValidationOptions> authOptions,
+        IAuthResetValidator authResetValidator)
         : base(options, logger, encoder)
     {
+        // Keep shared JWT settings and reset validation dependency local to the handler instance.
         _authOptions = authOptions.Value;
+        _authResetValidator = authResetValidator;
     }
 
     /// <summary>
     /// Authenticates the current request by reading the bearer token, validating it, and normalizing only the claims Haven needs.
     /// </summary>
     /// <returns>An authentication result that indicates success, failure, or no result for anonymous requests.</returns>
-    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+    protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         try
         {
+            // Health checks do not participate in auth so infrastructure probes stay cheap and anonymous.
             if (Request.Path.StartsWithSegments(HEALTH))
             {
                 Logger.LogDebug(HavenAuthenticationLogs.LOG_AUTH_SKIPPED_HEALTH, Request.Path.Value, Request.Method);
-                return Task.FromResult(AuthenticateResult.NoResult());
+                return AuthenticateResult.NoResult();
             }
 
             // Authentication is enforced only for endpoints that carry authorization metadata
@@ -43,33 +49,46 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
             var endpointRequiresAuthorization = RequiresAuthorization();
             if (!TryReadBearerToken(out var token))
             {
+                // Anonymous endpoints may continue; protected endpoints fail so the challenge writes the 401 envelope.
                 if (!endpointRequiresAuthorization)
                 {
-                    return Task.FromResult(AuthenticateResult.NoResult());
+                    return AuthenticateResult.NoResult();
                 }
 
                 Logger.LogDebug(HavenAuthenticationLogs.LOG_AUTH_FAILED, Request.Path.Value, Request.Method);
-                return Task.FromResult(AuthenticateResult.Fail(AUTHENTICATION_FAIL));
+                return AuthenticateResult.Fail(AUTHENTICATION_FAIL);
             }
 
             Logger.LogInformation(HavenAuthenticationLogs.LOG_AUTH_STARTED, Request.Path.Value, Request.Method);
 
             // Token validation stays inside the handler so downstream code only sees an authenticated principal.
             var principal = Validate(token);
+
+            // Auth reset validation rejects old access tokens after password reset or logout-all.
+            await ValidateAuthResetAsync(principal, Context.RequestAborted);
             Logger.LogInformation(HavenAuthenticationLogs.LOG_AUTH_SUCCEEDED, principal.FindFirstValue(ClaimTypes.NameIdentifier));
 
+            // Successful authentication returns the normalized principal under the configured scheme.
             var ticket = new AuthenticationTicket(principal, Scheme.Name);
-            return Task.FromResult(AuthenticateResult.Success(ticket));
+            return AuthenticateResult.Success(ticket);
         }
         catch (SecurityTokenExpiredException ex)
         {
+            // Expired tokens keep a specific client-safe failure message.
             Logger.LogWarning(ex, HavenAuthenticationLogs.LOG_AUTH_REJECTED_EXPIRED);
-            return Task.FromResult(AuthenticateResult.Fail(TOKEN_EXPIRED));
+            return AuthenticateResult.Fail(TOKEN_EXPIRED);
+        }
+        catch (HttpStatusCodeException ex) when (ex.StatusCode == StatusCodes.Status503ServiceUnavailable)
+        {
+            // Dependency failures are preserved so the challenge can return 503 instead of a generic 401.
+            Logger.LogWarning(ex, HavenAuthenticationLogs.LOG_AUTH_REJECTED, ex.GetType().Name, ex.Message);
+            return AuthenticateResult.Fail(ex);
         }
         catch (Exception ex)
         {
+            // Validation details stay in logs; clients only receive the generic invalid-token message.
             Logger.LogWarning(ex, HavenAuthenticationLogs.LOG_AUTH_REJECTED, ex.GetType().Name, ex.Message);
-            return Task.FromResult(AuthenticateResult.Fail(INVALID_TOKEN));
+            return AuthenticateResult.Fail(INVALID_TOKEN);
         }
     }
 
@@ -222,6 +241,38 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
     }
 
     /// <summary>
+    /// Rejects tokens issued before the user's latest authentication reset marker.
+    /// </summary>
+    /// <param name="principal">The validated principal returned by the JWT token handler.</param>
+    /// <param name="cancellationToken">The token used to cancel cache or database reset-state lookups.</param>
+    /// <returns>A task that completes when the token reset-state check passes.</returns>
+    private async Task ValidateAuthResetAsync(
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken)
+    {
+        // The handler already normalized NameIdentifier, so reset validation can trust this claim shape.
+        var userIdClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var userPublicId))
+        {
+            throw new SecurityTokenException(AUTHENTICATION_FAIL);
+        }
+
+        var issuedAtClaim = principal.FindFirstValue(TokenClaimTypes.HAVEN_ISSUED_AT_MS);
+        if (!long.TryParse(issuedAtClaim, NumberStyles.Integer, CultureInfo.InvariantCulture, out var issuedAtMs))
+        {
+            throw new SecurityTokenException(INVALID_TOKEN);
+        }
+
+        if (await _authResetValidator.IsTokenValidAsync(userPublicId, issuedAtMs, cancellationToken))
+        {
+            return;
+        }
+
+        Logger.LogWarning(HavenAuthenticationLogs.LOG_AUTH_REJECTED_RESET, userPublicId);
+        throw new SecurityTokenException(INVALID_TOKEN);
+    }
+
+    /// <summary>
     /// Writes the standardized JSON error response used for unauthorized and forbidden authentication outcomes.
     /// </summary>
     /// <param name="statusCode">The HTTP status code written to the response.</param>
@@ -230,11 +281,22 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
     /// <returns>A task that writes the response body.</returns>
     private Task WriteErrorAsync(int statusCode, string code, string defaultMessage)
     {
+        // Preserve dependency status failures while keeping normal auth failures on the supplied status/code.
         var failure = Context.Features.Get<IAuthenticateResultFeature>()?.AuthenticateResult?.Failure;
-        var message = failure?.Message ?? defaultMessage;
+        var message = failure is HttpStatusCodeException statusCodeException
+            ? statusCodeException.Message
+            : failure?.Message ?? defaultMessage;
+        if (failure is HttpStatusCodeException statusCodeExceptionForPayload)
+        {
+            statusCode = statusCodeExceptionForPayload.StatusCode;
+            code = string.IsNullOrWhiteSpace(statusCodeExceptionForPayload.ErrorCode)
+                ? code
+                : statusCodeExceptionForPayload.ErrorCode;
+        }
 
         Logger.LogInformation(HavenAuthenticationLogs.LOG_WRITE_ERROR_PAYLOAD, statusCode, code, message);
 
+        // Rebuild the same metadata envelope used by the centralized API error middleware.
         var version = Context.Features.Get<IApiVersioningFeature>()?.RequestedApiVersion;
         string versionData = null;
         if (version is not null)
@@ -246,6 +308,7 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
         Context.Items.TryGetValue(X_CORRELATION_ID, out var correlationObject);
         Context.Items.TryGetValue(REQUEST_TIMESTAMP, out var requestTimestampObject);
 
+        // Authentication handlers bypass MVC middleware, so they must write the response DTO directly.
         var response = new ResponseDto<string>
         {
             Meta = new MetaDetailDto
