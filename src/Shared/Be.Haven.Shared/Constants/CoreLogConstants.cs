@@ -291,7 +291,7 @@ public static class CoreLogConstants
         /// <summary>
         /// Logged when a connection string is initialized from the GCP Secret Manager.
         /// </summary>
-        public const string LOG_INIT_FROM_GCP = "Connection string initialized from GCP Secret Manager. ConnectionName={ConnectionName}, SecretId={SecretId}, SecretVersion={SecretVersion}";
+        public const string LOG_INIT_FROM_GCP = "Connection string initialized from GCP Secret Manager. ConnectionName={ConnectionName}, SecretId={SecretId}";
 
         /// <summary>
         /// Logged when a DB connection fails and the interceptor will refresh the connection string once.

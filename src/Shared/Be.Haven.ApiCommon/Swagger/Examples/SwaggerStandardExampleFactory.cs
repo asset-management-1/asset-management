@@ -40,7 +40,7 @@ public static class SwaggerStandardExampleFactory
             StatusCodes.Status415UnsupportedMediaType => BuildError(UNSUPPORTED_MEDIA_TYPE, MSG_UNSUPPORTED_MEDIA_TYPE, statusCode),
             StatusCodes.Status429TooManyRequests => BuildError(MANY_REQUESTS, RedisConstants.ErrorMessage.ACCOUNT_LOCKED, statusCode),
             StatusCodes.Status503ServiceUnavailable => BuildError(SERVICE_UNAVAILABLE, SwaggerExampleConstants.SERVICE_UNAVAILABLE_MESSAGE, statusCode),
-            _ => BuildError(INTERNAL_SERVER, SwaggerExampleConstants.SERVER_ERROR_MESSAGE, StatusCodes.Status500InternalServerError)
+            _ => BuildError(INTERNAL_SERVER, UNEXPECTED_SERVER_ERROR, StatusCodes.Status500InternalServerError)
         };
     }
 

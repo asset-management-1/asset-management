@@ -6,12 +6,7 @@ namespace Be.Haven.Shared.Dtos.Options.Storage;
 public class R2StorageOptions
 {
     /// <summary>
-    /// Gets or sets the Cloudflare account identifier.
-    /// </summary>
-    public string AccountId { get; set; }
-
-    /// <summary>
-    /// Gets or sets the optional S3-compatible endpoint override.
+    /// Gets or sets the S3-compatible endpoint used for upload and delete requests.
     /// </summary>
     public string Endpoint { get; set; }
 

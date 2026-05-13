@@ -170,11 +170,11 @@ public class R2ObjectStorageService : IObjectStorageService
     /// <exception cref="InvalidOperationException">Thrown when required R2 options are missing.</exception>
     private void EnsureConfigured()
     {
-        // R2 signed requests require bucket, credentials, and either explicit endpoint or account id.
+        // R2 signed requests require endpoint, bucket, and S3-compatible credentials.
         if (string.IsNullOrWhiteSpace(_options.BucketName)
+            || string.IsNullOrWhiteSpace(_options.Endpoint)
             || string.IsNullOrWhiteSpace(_options.AccessKeyId)
-            || string.IsNullOrWhiteSpace(_options.SecretAccessKey)
-            || (string.IsNullOrWhiteSpace(_options.Endpoint) && string.IsNullOrWhiteSpace(_options.AccountId)))
+            || string.IsNullOrWhiteSpace(_options.SecretAccessKey))
         {
             throw new InvalidOperationException(R2_OPTIONS_MISSING_MESSAGE);
         }
@@ -203,10 +203,8 @@ public class R2ObjectStorageService : IObjectStorageService
     /// <returns>The absolute R2 object URI.</returns>
     private Uri BuildObjectUri(string objectKey)
     {
-        // Prefer explicit endpoint but fall back to the standard account-based R2 endpoint.
-        var endpoint = string.IsNullOrWhiteSpace(_options.Endpoint)
-            ? string.Format(R2_DEFAULT_ENDPOINT_FORMAT, _options.AccountId)
-            : _options.Endpoint.TrimEnd('/');
+        // Use the configured S3-compatible endpoint exactly as provided by the storage provider.
+        var endpoint = _options.Endpoint.TrimEnd('/');
         var canonicalPath = R2SignatureHelper.BuildCanonicalPath(objectKey);
 
         return new Uri($"{endpoint}/{_options.BucketName}{canonicalPath}");

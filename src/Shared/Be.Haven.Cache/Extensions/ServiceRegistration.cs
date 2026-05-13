@@ -30,7 +30,7 @@ public static class ServiceRegistration
             return; // Exit the method
         }
  
-        var passwordRedis = GetRedisPasswordFromGcp(configuration, cacheOption);
+        var passwordRedis = cacheOption.RedisSettings.Password;
 
         try
         {
@@ -72,48 +72,4 @@ public static class ServiceRegistration
         }
     }
 
-    /// <summary>
-    /// Retrieves the Redis password stored in Google Cloud Platform's Secret Manager
-    /// based on the provided application configuration and cache options.
-    /// </summary>
-    /// <param name="configuration">The application configuration interface used to retrieve GCP settings.</param>
-    /// <param name="cacheOption">The cache options containing Redis settings, including the secret ID of the Redis password.</param>
-    /// <returns>The Redis password as a string retrieved securely from GCP's Secret Manager.</returns>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when any required Redis settings or GCP settings are missing, or if the retrieved password is empty.
-    /// </exception>
-    private static string GetRedisPasswordFromGcp(IConfiguration configuration, CacheOptions cacheOption)
-    {
-        if (string.IsNullOrWhiteSpace(cacheOption.RedisSettings.Password))
-            return cacheOption.RedisSettings.Password;
-
-        var gcpOpts = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>();
-
-        // Build client (no DI, no cache)
-        var client = new SecretManagerServiceClientBuilder
-        {
-            Endpoint = string.Format(SECRET_MANAGER_ENDPOINT_FORMAT, gcpOpts.SecretManagerSettings.Location),
-        }.Build();
-
-        var resourcePrefix = string.Format(
-            SECRET_RESOURCE_PREFIX_FORMAT,
-            gcpOpts.ProjectNumber,
-            gcpOpts.SecretManagerSettings.Location);
-
-        var ver = string.IsNullOrWhiteSpace(gcpOpts.SecretManagerSettings.DefaultSecretVersion)
-            ? LATEST
-            : gcpOpts.SecretManagerSettings.DefaultSecretVersion;
-
-        var secretVersionName = $"{resourcePrefix}/{cacheOption.RedisSettings.Password}/{VERSIONS_SEGMENT}/{ver}";
-
-        // Sync-over-async at startup (acceptable here); avoid .Result
-        var resp = client.AccessSecretVersionAsync(secretVersionName)
-                         .GetAwaiter().GetResult();
-
-        var passwordRedis = resp.Payload.Data.ToStringUtf8();
-        if (string.IsNullOrWhiteSpace(passwordRedis))
-            throw new InvalidOperationException(REDIS_PASSWORD_SECRET_EMPTY);
-
-        return passwordRedis;
-    }
 }

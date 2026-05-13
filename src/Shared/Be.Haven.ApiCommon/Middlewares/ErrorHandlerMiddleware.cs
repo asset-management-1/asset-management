@@ -172,11 +172,12 @@ public class ErrorHandlerMiddleware
                 break;
 
             default:
+                // Unexpected exceptions are logged with details but exposed with a generic client-safe message.
                 response.Error = new ErrorDto
                 {
                     Code = INTERNAL_SERVER,
                     StatusCode = (int)HttpStatusCode.InternalServerError,
-                    Message = error.Message
+                    Message = UNEXPECTED_SERVER_ERROR
                 };
                 _logger.LogError(error, INTERNAL_SERVER);
                 break;

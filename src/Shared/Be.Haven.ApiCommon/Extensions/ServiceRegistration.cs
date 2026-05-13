@@ -21,6 +21,38 @@ public static class ServiceRegistration
     }
 
     /// <summary>
+    /// Binds and validates shared Haven token validation options.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    public static void AddHavenTokenValidationOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Validate the shared auth handler options at startup so protected endpoints fail fast when config is unsafe.
+        services.AddOptions<AuthenticationTokenValidationOptions>()
+                .Bind(configuration.GetSection(AUTH_SETTINGS))
+                .Validate(IsValidHavenTokenValidationOptions, AUTH_OPTIONS_INVALID)
+                .ValidateOnStart();
+    }
+
+    /// <summary>
+    /// Determines whether shared Haven token validation options are safe for the current environment.
+    /// </summary>
+    /// <param name="options">The bound token validation options.</param>
+    /// <returns><c>true</c> when the options can validate Haven JWTs safely; otherwise <c>false</c>.</returns>
+    private static bool IsValidHavenTokenValidationOptions(AuthenticationTokenValidationOptions options)
+    {
+        // Issuer, audience, and secret are mandatory in every environment because the auth handler validates every token.
+        return options is not null
+               && !string.IsNullOrWhiteSpace(options.Issuer)
+               && options.Audiences is not null
+               && options.Audiences.Count > 0
+               && options.Audiences.Any(audience => !string.IsNullOrWhiteSpace(audience))
+               && !string.IsNullOrWhiteSpace(options.SecretKey);
+    }
+
+    /// <summary>
     /// Configures Swagger/OpenAPI services for the application.
     /// This includes adding versioning support, sorting endpoints alphabetically, grouping by versions,
     /// and enabling annotations to enhance API documentation.

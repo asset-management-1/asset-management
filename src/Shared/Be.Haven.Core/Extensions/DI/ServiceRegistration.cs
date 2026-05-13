@@ -335,13 +335,10 @@ public static class ServiceRegistration
         if (opts.SecretManagerSettings.IsUseSecret)
         {
             // Register the Secret Manager client only when GCP secrets are enabled.
-            services.AddSingleton(_ => new SecretManagerServiceClientBuilder
-            {
-                Endpoint = string.Format(SECRET_MANAGER_ENDPOINT_FORMAT, opts.SecretManagerSettings.Location),
-            }.Build());
+            services.AddSingleton(_ => SecretManagerResourceHelper.BuildClient(opts.SecretManagerSettings.Location));
         }
 
-        // Register the GcpSecretService which implements IGcpSecretService
+        // Register the runtime secret service; local mode returns configured values without calling GCP.
         services.AddSingleton<IGcpSecretService>(sp =>
         {
             // Local configuration mode never calls the GCP client, so avoid requiring ADC at startup.
@@ -352,10 +349,8 @@ public static class ServiceRegistration
             var cache = sp.GetRequiredService<ICachingService>();
             var gcpOptions = sp.GetRequiredService<IOptions<GcpOptions>>();
 
-            // Construct the resource prefix for accessing secrets
-            // Format: projects/{projectId}/locations/{location}/secrets
-            var resourcePrefix = string.Format(
-                SECRET_RESOURCE_PREFIX_FORMAT,
+            // Construct the global or regional resource prefix for accessing secrets.
+            var resourcePrefix = SecretManagerResourceHelper.BuildResourcePrefix(
                 opts.ProjectNumber,
                 opts.SecretManagerSettings.Location);
 
@@ -364,8 +359,7 @@ public static class ServiceRegistration
                 logger,
                 cache,
                 gcpOptions,
-                resourcePrefix,
-                opts.SecretManagerSettings.DefaultSecretVersion);
+                resourcePrefix);
         });
     }
 
@@ -412,8 +406,9 @@ public static class ServiceRegistration
         this IServiceCollection serviceCollection,
         IConfiguration configuration)
     {
-        // Bind EmailOptions section from configuration
-        serviceCollection.Configure<EmailOptions>(configuration.GetSection(EMAIL_SETTINGS));
+        // Bind EmailOptions after startup secret-overlay resolution has produced final option values.
+        serviceCollection.AddOptions<EmailOptions>()
+                         .Bind(configuration.GetSection(EMAIL_SETTINGS));
 
         // Register EmailService as a singleton implementation of IEmailService
         serviceCollection.AddScoped<IEmailService, EmailService>();
@@ -457,7 +452,8 @@ public static class ServiceRegistration
         this IServiceCollection serviceCollection,
         IConfiguration configuration)
     {
-        serviceCollection.Configure<R2StorageOptions>(configuration.GetSection(R2_STORAGE_SETTINGS));
+        serviceCollection.AddOptions<R2StorageOptions>()
+                         .Bind(configuration.GetSection(R2_STORAGE_SETTINGS));
         serviceCollection.AddScoped<IObjectStorageService, R2ObjectStorageService>();
 
         return serviceCollection;

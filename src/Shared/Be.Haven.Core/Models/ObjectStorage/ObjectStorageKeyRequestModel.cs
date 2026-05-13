@@ -21,7 +21,7 @@ public class ObjectStorageKeyRequestModel
     public Guid OwnerPublicId { get; set; }
 
     /// <summary>
-    /// Gets or sets the object tag that describes the uploaded file purpose.
+    /// Gets or sets the object tag that describes the uploaded file role.
     /// </summary>
     public string Tag { get; set; }
 

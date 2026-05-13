@@ -8,7 +8,6 @@
 public class UploadGcpService : IUploadGcpService
 {
     private readonly IThirdPartyApiService _thirdPartyApiService;
-    private readonly IGcpSecretService _gcpSecretService;
     private readonly UploadGcpOptions _uploadGcpOptions;
 
     /// <summary>
@@ -22,12 +21,9 @@ public class UploadGcpService : IUploadGcpService
     /// </param>
     public UploadGcpService(
         IThirdPartyApiService thirdPartyApiService,
-        IJsonSerializerService jsonSerializerService,
-        IGcpSecretService gcpSecretService,
         IOptions<UploadGcpOptions> uploadGcpOptions)
     {
         _thirdPartyApiService = thirdPartyApiService;
-        _gcpSecretService = gcpSecretService;
         _uploadGcpOptions = uploadGcpOptions.Value;
     }
 
@@ -58,9 +54,10 @@ public class UploadGcpService : IUploadGcpService
                 { UPLOAD_GCP_UPLOAD_BY, request.UploadedBy },
                 { UPLOAD_GCP_THUMBNAIL, request.GenerateThumbnail.ToString() },
                 { UPLOAD_GCP_RESOURCE_ID, request.ResourceId.ToString() }
-            },    Headers = new Dictionary<string, string>
+            },
+            Headers = new Dictionary<string, string>
             {
-                { UPLOAD_GCP_API_KEY, "xpMDSzxwJxDtFcHDYTWOVG1QGYwjuGUAQhVikIcMG8G3srqp" }
+                { UPLOAD_GCP_API_KEY, _uploadGcpOptions.ApiKey }
             },
             File = request.File
         };
@@ -91,10 +88,10 @@ public class UploadGcpService : IUploadGcpService
             Method = GET,
             BaseUrl = _uploadGcpOptions.BaseUrl,
             Endpoint = string.Format(_uploadGcpOptions.EndPoints.GetFileById, fileId),
-            ContentType = TEXT_JSON,    
+            ContentType = TEXT_JSON,
             Headers = new Dictionary<string, string>
             {
-                { UPLOAD_GCP_API_KEY, "xpMDSzxwJxDtFcHDYTWOVG1QGYwjuGUAQhVikIcMG8G3srqp" }
+                { UPLOAD_GCP_API_KEY, _uploadGcpOptions.ApiKey }
             },
         };
 

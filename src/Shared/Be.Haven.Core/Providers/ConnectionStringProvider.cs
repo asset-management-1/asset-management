@@ -1,5 +1,8 @@
 namespace Be.Haven.Core.Providers;
 
+/// <summary>
+/// Resolves database connection strings from local configuration or GCP Secret Manager.
+/// </summary>
 public sealed class ConnectionStringProvider : IConnectionStringProvider
 {
     private readonly IConfiguration _configuration;
@@ -13,8 +16,11 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _refreshGates = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Provides methods for retrieving and managing database connection strings.
+    /// Initializes a new instance of the <see cref="ConnectionStringProvider"/> class.
     /// </summary>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="gcpSecretService">The runtime Secret Manager service.</param>
+    /// <param name="logger">The logger used to record connection-string source decisions.</param>
     public ConnectionStringProvider(
         IConfiguration configuration,
         IGcpSecretService gcpSecretService,
@@ -37,11 +43,11 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
         if (string.IsNullOrWhiteSpace(connectionName))
             throw new ArgumentException(DatabaseConnectionConstants.ERR_CONNECTION_NAME_REQUIRED, nameof(connectionName));
 
-        // 1) Prefer last-known-good
+        // Prefer last-known-good so transient config or secret issues do not break healthy callers.
         if (_lkg.TryGetValue(connectionName, out var cs) && !string.IsNullOrWhiteSpace(cs))
             return cs;
 
-        // 2) Fallback to config
+        // Fall back to local configuration when no initialized secret-backed value exists yet.
         cs = _configuration.GetConnectionString(connectionName);
         
         if (string.IsNullOrWhiteSpace(cs))
@@ -109,11 +115,12 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
         if (opts.DatabaseSettings.IsUseGcp
             && string.Equals(connectionName, configuredConnectionName, StringComparison.OrdinalIgnoreCase))
         {
+            // Database connection secrets always use the latest secret version.
             var cs = await _gcpSecretService.GetByIdAsync(
                 opts.DatabaseSettings.SecretId,
-                opts.DatabaseSettings.SecretVersion,
-                false,
-                ct);
+                version: null,
+                isCached: false,
+                ct: ct);
 
             if (string.IsNullOrWhiteSpace(cs))
                 throw new InvalidOperationException(
@@ -122,8 +129,7 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
             _logger.LogInformation(
                 DatabaseConnectionConstants.LOG_INIT_FROM_GCP,
                 connectionName,
-                opts.DatabaseSettings.SecretId,
-                opts.DatabaseSettings.SecretVersion);
+                opts.DatabaseSettings.SecretId);
 
             return cs;
         }

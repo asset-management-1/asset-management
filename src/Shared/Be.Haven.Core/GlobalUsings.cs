@@ -2,6 +2,7 @@
 
 global using Asp.Versioning;
 global using Be.Haven.Core.Exceptions;
+global using Be.Haven.Core.Extensions.Configurations;
 global using Be.Haven.Core.Extensions.Objects;
 global using Be.Haven.Core.Extensions.Serializations;
 global using Be.Haven.Core.Factories;
@@ -25,6 +26,8 @@ global using Be.Haven.Shared.Dtos;
 global using Be.Haven.Shared.Dtos.Attributes;
 global using Be.Haven.Shared.Dtos.Options.Data;
 global using Be.Haven.Shared.Dtos.Options.Email;
+global using Be.Haven.Shared.Dtos.Options.Authentications;
+global using Be.Haven.Shared.Dtos.Options.Caching;
 global using Be.Haven.Shared.Dtos.Options.Gcp;
 global using Be.Haven.Shared.Dtos.Options.Observability;
 global using Be.Haven.Shared.Dtos.Options.Scheduling;

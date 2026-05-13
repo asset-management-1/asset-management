@@ -2,6 +2,7 @@ namespace Be.Haven.Shared.Dtos.Options.Gcp;
 
 /// <summary>
 /// Configuration options for GCP Secret Manager integration.
+/// Secret reads use the <c>latest</c> version when callers do not pass an explicit version.
 /// </summary>
 public class SecretManagerOptions
 {
@@ -10,11 +11,6 @@ public class SecretManagerOptions
     /// When <c>false</c>, secret access falls back to local configuration or environment values.
     /// </summary>
     public bool IsUseSecret { get; set; } = false;
-
-    /// <summary>
-    /// The default version to use when retrieving secrets (e.g., "latest").
-    /// </summary>
-    public string DefaultSecretVersion { get; set; } = "latest";
 
     /// <summary>
     /// The GCP region/location for Secret Manager operations.

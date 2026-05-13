@@ -201,9 +201,18 @@ public static class ObjectStorageHelper
         // Reuse the common owner-scoped path shape for every backend-mediated upload.
         var prefix = ResolvePrefix(request.ConfiguredPrefix, request.DefaultPrefix);
         var extension = Path.GetExtension(request.FileName);
-        var objectName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}-{request.Tag}-{Guid.NewGuid():N}";
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
+        var shortId = Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture)[..8];
 
-        return string.Format(OWNER_SCOPED_OBJECT_KEY_FORMAT, prefix, request.OwnerPublicId, objectName, extension);
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            OWNER_SCOPED_OBJECT_KEY_FORMAT,
+            prefix,
+            request.OwnerPublicId,
+            timestamp,
+            request.Tag,
+            shortId,
+            extension);
     }
 
     /// <summary>

@@ -227,10 +227,25 @@ public static class AuthConstants
     public const int AUTH_RESET_CACHE_TTL_PADDING_DAYS = 1;
 
     /// <summary>
+    /// Default access-token lifetime in minutes.
+    /// </summary>
+    public const int DEFAULT_ACCESS_TOKEN_MINUTES = 60;
+
+    /// <summary>
+    /// Default refresh-token lifetime in days.
+    /// </summary>
+    public const int DEFAULT_REFRESH_TOKEN_DAYS = 7;
+
+    /// <summary>
     /// Centralized user-facing/system log messages for common auth failures.
     /// </summary>
     public static class SystemMessage
     {
+        /// <summary>
+        /// Message used when shared Haven token validation settings are incomplete or unsafe for the current environment.
+        /// </summary>
+        public const string AUTH_OPTIONS_INVALID = "AuthSettings must include issuer, audience, and a valid secret for the current environment.";
+
         /// <summary>
         /// Message when the Haven bearer token is expired.
         /// </summary>

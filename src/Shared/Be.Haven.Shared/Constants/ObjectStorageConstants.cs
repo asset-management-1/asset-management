@@ -8,7 +8,7 @@ public static class ObjectStorageConstants
     /// <summary>
     /// Generic object-key format for owner-scoped uploads.
     /// </summary>
-    public const string OWNER_SCOPED_OBJECT_KEY_FORMAT = "{0}/{1}/{2}{3}";
+    public const string OWNER_SCOPED_OBJECT_KEY_FORMAT = "{0}/{1}/{2}-{3}-{4}{5}";
 
     /// <summary>
     /// Common slot and object-key tag for front-side uploads.
@@ -31,9 +31,9 @@ public static class ObjectStorageConstants
     public const string AVATAR_OBJECT_SLOT = "avatar";
 
     /// <summary>
-    /// Default private object-key prefix used for CCCD KYC files.
+    /// Default private object-key prefix used for identity-document KYC files.
     /// </summary>
-    public const string DEFAULT_KYC_OBJECT_PREFIX = "kyc/cccd";
+    public const string DEFAULT_KYC_OBJECT_PREFIX = "identities";
 
     /// <summary>
     /// Default object-key prefix used for tenant vehicle images.

@@ -1,5 +1,8 @@
 namespace Be.Haven.Core.Services.Gcp;
 
+/// <summary>
+/// Provides runtime access to Google Cloud Secret Manager secrets.
+/// </summary>
 public sealed class GcpSecretService : IGcpSecretService
 {
     private readonly SecretManagerServiceClient _client;
@@ -7,30 +10,29 @@ public sealed class GcpSecretService : IGcpSecretService
     private readonly ICachingService _cachingService;
     private readonly GcpOptions _gcpOptions;
 
-    // Resource name prefix, e.g. "projects/my-project/secrets"
+    // Resource name prefix, e.g. "projects/my-project/secrets".
     private readonly string _resourcePrefix;
 
-    // Default version to use when none is specified (e.g. "latest")
-    private readonly string _defaultVersion;
-
-      /// <summary>
-    /// Service for interacting with Google Cloud Platform (GCP) secrets.
-    /// - Provides functionality to fetch and manage secrets stored in GCP's Secret Manager.
+    /// <summary>
+    /// Initializes a new instance of the <see cref="GcpSecretService"/> class.
     /// </summary>
+    /// <param name="client">The Secret Manager client, or <c>null</c> when Secret Manager is disabled.</param>
+    /// <param name="logger">The logger used to record Secret Manager operations.</param>
+    /// <param name="cachingService">The cache service used for optional secret caching.</param>
+    /// <param name="gcpOptions">The bound GCP options.</param>
+    /// <param name="resourcePrefix">The Secret Manager resource prefix.</param>
     public GcpSecretService(
         SecretManagerServiceClient client,
         ILogger<GcpSecretService> logger,
         ICachingService cachingService,
         IOptions<GcpOptions> gcpOptions,
-        string resourcePrefix,
-        string defaultVersion)
+        string resourcePrefix)
     {
         _client = client;
         _logger = logger;
         _cachingService = cachingService;
         _gcpOptions = gcpOptions.Value;
         _resourcePrefix = resourcePrefix;
-        _defaultVersion = defaultVersion;
     }
 
     /// <summary>
@@ -40,7 +42,7 @@ public sealed class GcpSecretService : IGcpSecretService
     /// </summary>
     /// <param name="secretId">The unique identifier of the secret in GCP Secret Manager.</param>
     /// <param name="version">
-    /// The specific version of the secret to retrieve. If not provided, the default version is used.
+    /// The specific version of the secret to retrieve. If not provided, <c>latest</c> is used.
     /// </param>
     /// <param name="isCached">
     /// A flag indicating whether the retrieval should utilize caching. Defaults to <c>true</c>.
@@ -78,7 +80,7 @@ public sealed class GcpSecretService : IGcpSecretService
     /// </summary>
     /// <typeparam name="T">The type to deserialize the JSON content into.</typeparam>
     /// <param name="secretId">The identifier of the secret to retrieve.</param>
-    /// <param name="version">The version of the secret to retrieve. Defaults to the configured default version if not specified.</param>
+    /// <param name="version">The version of the secret to retrieve. Defaults to <c>latest</c> if not specified.</param>
     /// <param name="ct">A CancellationToken to observe the cancellation of the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the deserialized object of type <typeparamref name="T"/>.</returns>
     public async Task<T> GetJsonAsync<T>(
@@ -95,7 +97,7 @@ public sealed class GcpSecretService : IGcpSecretService
     /// - Allows fetching the raw binary data associated with a secret.
     /// </summary>
     /// <param name="secretId">The identifier of the secret to retrieve. This value must not be null or whitespace.</param>
-    /// <param name="version">The secret version to fetch. If null or not specified, the default version will be used.</param>
+    /// <param name="version">The secret version to fetch. If null or not specified, <c>latest</c> will be used.</param>
     /// <param name="ct">A cancellation token that can be used to cancel the operation.</param>
     /// <returns>A byte array representing the value of the requested secret.</returns>
     /// <exception cref="ArgumentException">Thrown if the <paramref name="secretId"/> is null, empty, or contains only whitespace.</exception>
@@ -160,7 +162,7 @@ public sealed class GcpSecretService : IGcpSecretService
     /// Determines whether a specific version of a secret exists in the Google Cloud Platform Secret Manager.
     /// </summary>
     /// <param name="secretId">The identifier of the secret to check.</param>
-    /// <param name="version">The version of the secret to look for. If null, the default version will be used.</param>
+    /// <param name="version">The version of the secret to look for. If null, <c>latest</c> will be used.</param>
     /// <param name="ct">The cancellation token used to propagate notifications that the operation should be canceled.</param>
     /// <returns>Returns <c>true</c> if the specified version of the secret exists; otherwise, returns <c>false</c>.</returns>
     public async Task<bool> VersionExistsAsync(
@@ -268,11 +270,11 @@ public sealed class GcpSecretService : IGcpSecretService
 
     /// <summary>
     /// Resolves the version of a secret to utilize when interacting with the secret.
-    /// If the provided version is null or empty, the default version is returned.
+    /// If the provided version is null or empty, <c>latest</c> is returned.
     /// </summary>
     /// <param name="version">The version of the secret to resolve. Can be null or empty.</param>
-    /// <returns>The resolved version. Returns the default version if the input is null or empty.</returns>
-    private string ResolveVersion(string version) => string.IsNullOrWhiteSpace(version) ? _defaultVersion : version;
+    /// <returns>The resolved version. Returns <c>latest</c> if the input is null or empty.</returns>
+    private static string ResolveVersion(string version) => string.IsNullOrWhiteSpace(version) ? LATEST : version;
 
     /// <summary>
     /// Constructs a cache key for a secret using the provided secret ID and version.

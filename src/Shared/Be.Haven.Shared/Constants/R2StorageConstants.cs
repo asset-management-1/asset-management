@@ -86,11 +86,6 @@ public static class R2StorageConstants
     public const string R2_DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
     /// <summary>
-    /// Endpoint format used when an explicit R2 endpoint is not configured.
-    /// </summary>
-    public const string R2_DEFAULT_ENDPOINT_FORMAT = "https://{0}.r2.cloudflarestorage.com";
-
-    /// <summary>
     /// SHA-256 hash for an empty payload used by delete requests.
     /// </summary>
     public const string R2_EMPTY_PAYLOAD_HASH = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";

@@ -9,8 +9,7 @@ public interface IGcpSecretService
     /// </summary>
     /// <param name="secretId">The unique identifier of the secret in the Secret Manager.</param>
     /// <param name="version">
-    /// Optional version of the secret to be retrieved. If <c>null</c> or not provided, the default implementation
-    /// typically uses <c>"latest"</c>.
+    /// Optional version of the secret to be retrieved. If <c>null</c> or not provided, the implementation uses <c>"latest"</c>.
     /// </param>
     /// <param name="isCached">
     /// Indicates whether to use a cached value if available. If <c>true</c>, the method may return a cached version of the secret.
@@ -32,8 +31,7 @@ public interface IGcpSecretService
     /// </summary>
     /// <param name="secretId">Logical secret identifier (the short name created in Secret Manager).</param>
     /// <param name="version">
-    /// Optional version to read. If <c>null</c> or empty, the implementation should use the configured default
-    /// (typically <c>"latest"</c>).
+    /// Optional version to read. If <c>null</c> or empty, the implementation uses <c>"latest"</c>.
     /// </param>
     /// <param name="ct">Cancellation token for the underlying network call.</param>
     /// <returns>The secret payload as a byte array.</returns>
@@ -53,7 +51,7 @@ public interface IGcpSecretService
     /// </summary>
     /// <typeparam name="T">The type to deserialize the JSON content into.</typeparam>
     /// <param name="secretId">The identifier of the secret to retrieve.</param>
-    /// <param name="version">The version of the secret to retrieve. Defaults to the configured default version if not specified.</param>
+    /// <param name="version">The version of the secret to retrieve. Defaults to <c>latest</c> if not specified.</param>
     /// <param name="ct">A CancellationToken to observe the cancellation of the asynchronous operation.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the deserialized object of type <typeparamref name="T"/>.</returns>
     Task<T> GetJsonAsync<T>(
@@ -79,8 +77,7 @@ public interface IGcpSecretService
     /// </summary>
     /// <param name="secretId">Logical secret identifier.</param>
     /// <param name="version">
-    /// Optional version to check. If <c>null</c> or empty, the implementation should use the configured default
-    /// (typically <c>"latest"</c>).
+    /// Optional version to check. If <c>null</c> or empty, the implementation uses <c>"latest"</c>.
     /// </param>
     /// <param name="ct">Cancellation token for the underlying network call.</param>
     /// <returns>

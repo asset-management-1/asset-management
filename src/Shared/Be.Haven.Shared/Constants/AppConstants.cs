@@ -310,7 +310,17 @@ public static class AppConstants
         public const string SECRET_MANAGER_ENDPOINT_FORMAT = "secretmanager.{0}.rep.googleapis.com";
 
         /// <summary>
-        /// Format string for constructing the resource path of a Google Cloud secret, which includes the project ID and location.
+        /// Global Secret Manager location value. Global secrets use the default Google client endpoint.
+        /// </summary>
+        public const string SECRET_MANAGER_GLOBAL_LOCATION = "global";
+
+        /// <summary>
+        /// Format string for constructing the global resource path of a Google Cloud secret.
+        /// </summary>
+        public const string SECRET_RESOURCE_GLOBAL_PREFIX_FORMAT = "projects/{0}/secrets";
+
+        /// <summary>
+        /// Format string for constructing the regional resource path of a Google Cloud secret.
         /// </summary>
         public const string SECRET_RESOURCE_PREFIX_FORMAT = "projects/{0}/locations/{1}/secrets";
 
@@ -998,6 +1008,11 @@ public static class AppConstants
         /// Removed when generating stack trace lines so the message is not repeated for each line.
         /// </summary>
         public const string LOG_TOKEN_MESSAGE = " {Message:lj}";
+
+        /// <summary>
+        /// Generic message returned for unexpected server errors so internal exception details are not exposed.
+        /// </summary>
+        public const string UNEXPECTED_SERVER_ERROR = "An unexpected error occurred.";
         
         /// <summary>
         /// Log message indicating that an HTTP request failed due to a specific HTTP request exception.
@@ -1024,12 +1039,12 @@ public static class AppConstants
         /// <summary>
         /// Log message indicating that the database connection string is being resolved using GCP Secret Manager.
         /// </summary>
-        public const string LOG_USING_GCP_SECRET = "Using GCP Secret Manager to resolve database connection string. SecretId={SecretId}, Version={SecretVersion}.";
+        public const string LOG_USING_GCP_SECRET = "Using GCP Secret Manager to resolve database connection string. SecretId={SecretId}.";
 
         /// <summary>
         /// Log message indicating a failure to retrieve the database connection string from GCP Secret Manager.
         /// </summary>
-        public const string LOG_GCP_SECRET_ERROR = "Failed to retrieve database connection string from GCP Secret Manager. SecretId={SecretId}, Version={SecretVersion}.";
+        public const string LOG_GCP_SECRET_ERROR = "Failed to retrieve database connection string from GCP Secret Manager. SecretId={SecretId}.";
 
         /// <summary>
         /// Log message indicating that the database connection has been successfully opened.
@@ -1091,6 +1106,11 @@ public static class AppConstants
         /// Message thrown when the secretId is null/empty.
         /// </summary>
         public const string SECRET_ID_REQUIRED = "SecretId is required.";
+
+        /// <summary>
+        /// Error message format used when a configured Secret Manager value cannot be loaded.
+        /// </summary>
+        public const string SECRET_MANAGER_VALUE_LOAD_FAILED = "Failed to load secret for config path {0} from secret {1} in {2}.";
 
         /// <summary>
         /// The message indicating that a request to retrieve a new token is being sent.

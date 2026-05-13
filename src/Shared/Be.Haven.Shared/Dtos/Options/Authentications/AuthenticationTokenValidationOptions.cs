@@ -16,12 +16,12 @@ public class AuthenticationTokenValidationOptions
     public List<string> Audiences { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets the secret key used to validate Haven JWT signatures.
+    /// Gets or sets the JWT signature secret value, or the Secret Manager key when secret resolution is enabled.
     /// </summary>
     public string SecretKey { get; set; }
 
     /// <summary>
     /// Gets or sets the refresh-token lifetime in days, used to cache auth reset state.
     /// </summary>
-    public int RefreshTokenDays { get; set; } = 30;
+    public int RefreshTokenDays { get; set; } = AuthConstants.DEFAULT_REFRESH_TOKEN_DAYS;
 }
