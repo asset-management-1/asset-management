@@ -21,9 +21,9 @@ public class CorrelationIdHandler : DelegatingHandler
     /// Intercepts an outgoing HTTP request and injects the Correlation ID header when available.
     /// </summary>
     /// <param name="request">The outgoing <see cref="HttpRequestMessage"/>.</param>
-    /// <param name="ct">A cancellation token that can be used to cancel the operation.</param>
+    /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
     /// <returns>The <see cref="HttpResponseMessage"/> returned by the inner handler.</returns>
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         // Try to read Correlation ID from HttpContext (preferred).
         var ctx = _httpContextAccessor.HttpContext;
@@ -38,6 +38,6 @@ public class CorrelationIdHandler : DelegatingHandler
         if (!string.IsNullOrWhiteSpace(correlationId) && !request.Headers.Contains(X_CORRELATION_ID))
             request.Headers.Add(X_CORRELATION_ID, correlationId);
 
-        return base.SendAsync(request, ct);
+        return base.SendAsync(request, cancellationToken);
     }
 }
