@@ -1,7 +1,13 @@
 namespace Authentication.Application.Commands.ForgotPassword;
 
+/// <summary>
+/// Validates forgot-password OTP request payloads.
+/// </summary>
 public class ForgotPasswordCommandValidator : AbstractValidator<ForgotPasswordCommand>
 {
+    /// <summary>
+    /// Creates validation rules for the reset email address.
+    /// </summary>
     public ForgotPasswordCommandValidator()
     {
         RuleFor(x => x.Email)

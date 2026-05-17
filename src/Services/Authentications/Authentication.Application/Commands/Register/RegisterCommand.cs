@@ -1,6 +1,9 @@
 namespace Authentication.Application.Commands.Register;
 
-public class RegisterCommand : ICommand<ResponseDto<string>>
+/// <summary>
+/// Represents the request payload for the register command.
+/// </summary>
+public class RegisterCommand : ICommand<ResponseDto<OperationStatusResponseDto>>
 {
     /// <summary>
     /// Username used for account login.
@@ -8,22 +11,17 @@ public class RegisterCommand : ICommand<ResponseDto<string>>
     public string UserName { get; set; }
 
     /// <summary>
-    /// Tenant or landlord party type.
+    /// Tenant or landlord party type. Accepted values: <c>Tenant</c>, <c>Landlord</c>.
     /// </summary>
-    public string PartyType { get; set; }
+    public PartyTypeEnum PartyType { get; set; }
 
     /// <summary>
-    /// Plain text password for account creation.
+    /// Plain text password for account creation. The API never returns this value.
     /// </summary>
     public string Password { get; set; }
 
     /// <summary>
-    /// Password confirmation.
-    /// </summary>
-    public string ConfirmPassword { get; set; }
-
-    /// <summary>
-    /// Optional user email.
+    /// User email used for OTP delivery and account contact.
     /// </summary>
     public string Email { get; set; }
 

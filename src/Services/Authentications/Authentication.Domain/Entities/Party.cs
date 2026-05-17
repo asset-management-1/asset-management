@@ -1,21 +1,11 @@
-﻿namespace Authentication.Domain.Entities;
+namespace Authentication.Domain.Entities;
 
 /// <summary>
 /// Represents a business or real-world entity (person or organization)
 /// that can be associated with user accounts.
 /// </summary>
-public class Party
+public class Party : BaseEntity
 {
-    /// <summary>
-    /// Internal primary key.
-    /// </summary>
-    public long Id { get; set; }
-
-    /// <summary>
-    /// Public identifier used for API/UI exposure.
-    /// </summary>
-    public Guid PublicId { get; set; }
-
     /// <summary>
     /// Type of party (e.g., Individual, Organization).
     /// </summary>
@@ -25,11 +15,6 @@ public class Party
     /// Display name used in UI.
     /// </summary>
     public string DisplayName { get; set; }
-
-    /// <summary>
-    /// Legal/official name of the party.
-    /// </summary>
-    public string LegalName { get; set; }
 
     /// <summary>
     /// Primary contact phone number.
@@ -47,31 +32,6 @@ public class Party
     public long StatusId { get; set; }
 
     /// <summary>
-    /// Record creation timestamp (UTC).
-    /// </summary>
-    public DateTime CreatedAt { get; set; }
-
-    /// <summary>
-    /// User who created the record.
-    /// </summary>
-    public long? CreatedBy { get; set; }
-
-    /// <summary>
-    /// Last update timestamp (UTC).
-    /// </summary>
-    public DateTime? UpdatedAt { get; set; }
-
-    /// <summary>
-    /// User who last updated the record.
-    /// </summary>
-    public long? UpdatedBy { get; set; }
-
-    /// <summary>
-    /// Soft delete flag.
-    /// </summary>
-    public bool IsDeleted { get; set; }
-
-    /// <summary>
     /// Navigation to party type master data.
     /// </summary>
     public virtual MasterDataValue PartyType { get; set; }
@@ -82,7 +42,12 @@ public class Party
     public virtual MasterDataValue Status { get; set; }
 
     /// <summary>
-    /// Related user accounts linked to this party.
+    /// Related user-party context mappings linked to this party.
     /// </summary>
-    public virtual ICollection<User> Users { get; set; } = new List<User>();
+    public virtual ICollection<UserParty> UserParties { get; set; } = new List<UserParty>();
+
+    /// <summary>
+    /// Related tenant profile vehicles linked to this party.
+    /// </summary>
+    public virtual ICollection<PartyVehicle> PartyVehicles { get; set; } = new List<PartyVehicle>();
 }

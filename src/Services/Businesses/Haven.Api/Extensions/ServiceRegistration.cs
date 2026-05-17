@@ -30,13 +30,12 @@ public static class ServiceRegistration
     /// </summary>
     /// <param name="services">The service collection to which the options will be added.</param>
     /// <param name="configuration">The application configuration containing the sections to bind to options.</param>
-    public static void AddConfiguredOptions(this IServiceCollection services,
+    public static void AddConfiguredOptions(
+        this IServiceCollection services,
         IConfiguration configuration)
     {
         // Bind shared token-validation settings so the ApiCommon auth handler can validate Haven tokens.
-        services.AddOptions<AuthenticationTokenValidationOptions>()
-                .Bind(configuration.GetSection(AUTH_SETTINGS))
-                .ValidateOnStart();
+        services.AddHavenTokenValidationOptions(configuration);
 
         // Bind GCP settings used by database, observability, and secret-manager infrastructure.
         services.AddOptions<GcpOptions>()

@@ -1,5 +1,8 @@
 namespace Authentication.Api.Extensions;
 
+/// <summary>
+/// Registers API-layer configuration and authentication services for the authentication module.
+/// </summary>
 public static class ServiceRegistration
 {
     /// <summary>
@@ -8,14 +11,27 @@ public static class ServiceRegistration
     /// </summary>
     /// <param name="services">The service collection to which the options will be added.</param>
     /// <param name="configuration">The application configuration containing the sections to bind to options.</param>
-    public static void AddConfiguredOptions(this IServiceCollection services,
+    public static void AddConfiguredOptions(
+        this IServiceCollection services,
         IConfiguration configuration)
     {
-        services.AddOptions<GcpOptions>()
-                .Bind(configuration.GetSection(GCP_SETTINGS))
-                .ValidateDataAnnotations()
-                .ValidateOnStart();
+        // Token validation options bind after startup secret-overlay resolution has produced final values.
+        services.AddHavenTokenValidationOptions(configuration);
+        services.AddConfiguredOption<GcpOptions>(configuration, GCP_SETTINGS, validateDataAnnotations: true);
+        services.AddAuthOptions(configuration);
+        services.AddConfiguredOption<ExternalAuthenticationOptions>(configuration, EXTERNAL_AUTHENTICATION_SETTINGS);
+    }
 
+    /// <summary>
+    /// Binds authentication token issuing options after startup secret-overlay resolution.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    private static void AddAuthOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Token issuing uses the same final secret value as the shared token validator.
         services.AddOptions<AuthOptions>()
                 .Bind(configuration.GetSection(AUTH_SETTINGS))
                 .ValidateOnStart();
@@ -24,31 +40,49 @@ public static class ServiceRegistration
     /// <summary>
     /// Configures JWT bearer authentication for the authentication API.
     /// </summary>
-    public static void AddAuthServices(this IServiceCollection services, IConfiguration configuration)
+    /// <param name="services">The service collection.</param>
+    public static void AddAuthServices(this IServiceCollection services)
     {
-        var authOptions = configuration.GetSection(AUTH_SETTINGS).Get<AuthOptions>() ?? new AuthOptions();
-        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(authOptions.SecretKey));
+        // Authentication.Api uses the shared Haven bearer-token handler from ApiCommon.
+        services.AddHavenAuthenticationServices();
+    }
 
-        services.AddAuthentication(options =>
-                {
-                    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-                })
-                .AddJwtBearer(options =>
-                {
-                    options.RequireHttpsMetadata = false;
-                    options.SaveToken = true;
-                    options.TokenValidationParameters = new TokenValidationParameters
-                    {
-                        ValidateIssuer = true,
-                        ValidateAudience = true,
-                        ValidateIssuerSigningKey = true,
-                        ValidateLifetime = true,
-                        ValidIssuer = authOptions.Issuer,
-                        ValidAudiences = authOptions.Audiences,
-                        IssuerSigningKey = signingKey,
-                        ClockSkew = TimeSpan.Zero
-                    };
-                });
+    /// <summary>
+    /// Registers the source-generated mediator for authentication application handlers.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    public static void AddMediatorServices(this IServiceCollection services)
+    {
+        services.AddMediator(options =>
+        {
+            options.ServiceLifetime = ServiceLifetime.Scoped;
+            options.Assemblies = [typeof(global::Authentication.Application.Extensions.ServiceRegistration)];
+        });
+    }
+
+    /// <summary>
+    /// Binds and validates a strongly typed options object from configuration.
+    /// </summary>
+    /// <typeparam name="TOptions">The options type to bind.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="sectionName">The configuration section name.</param>
+    /// <param name="validateDataAnnotations">Indicates whether data-annotation validation should be applied.</param>
+    private static void AddConfiguredOption<TOptions>(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string sectionName,
+        bool validateDataAnnotations = false)
+        where TOptions : class
+    {
+        var optionsBuilder = services.AddOptions<TOptions>()
+            .Bind(configuration.GetSection(sectionName));
+
+        if (validateDataAnnotations)
+        {
+            optionsBuilder.ValidateDataAnnotations();
+        }
+
+        optionsBuilder.ValidateOnStart();
     }
 }

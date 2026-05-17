@@ -1,21 +1,15 @@
+using Haven.Infrastructure.Extensions;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// =========================
-// 1) Configuration
-// =========================
-
-//Read Configuration from appSettings
 var env = builder.Environment.EnvironmentName;
 
-var configuration = new ConfigurationBuilder()
+IConfiguration configuration = new ConfigurationBuilder()
                     .AddJsonFile(APPSETTING_JSON, optional: false, reloadOnChange: true)
                     .AddJsonFile(string.Format(APPSETTING_DEVELOPMENT_JSON, env), optional: true, reloadOnChange: true)
                     .AddEnvironmentVariables()
                     .Build();
-
-// =========================
-// 2) Services
-// =========================
+configuration = await configuration.ApplySecretsAsync();
 
 // Observability
 builder.Services.AddConfiguredLogging(configuration);
@@ -93,10 +87,6 @@ builder.WebHost.ConfigureKestrel((context, options) =>
 });
 
 var app = builder.Build();
-
-// =========================
-// 3) Middleware pipeline
-// =========================
 
 // Swagger
 if (app.Environment.IsDevelopment())

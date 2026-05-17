@@ -1,9 +1,16 @@
 namespace Authentication.Application.Commands.ChangeForgotPassword;
 
+/// <summary>
+/// Validates forgot-password change requests after OTP verification.
+/// </summary>
 public class ChangeForgotPasswordCommandValidator : AbstractValidator<ChangeForgotPasswordCommand>
 {
+    /// <summary>
+    /// Creates validation rules for forgot-password password replacement.
+    /// </summary>
     public ChangeForgotPasswordCommandValidator()
     {
+        // Validate reset-session input and password strength before the handler checks cached reset state.
         RuleFor(x => x.Email)
             .Required()
             .EmailAddress();
@@ -17,9 +24,5 @@ public class ChangeForgotPasswordCommandValidator : AbstractValidator<ChangeForg
             .Matches("[@$!%*?&]")
             .WithMessage(PASSWORD_COMPLEXITY_RULES);
 
-        RuleFor(x => x.ConfirmPassword)
-            .Required()
-            .Equal(x => x.NewPassword)
-            .WithMessage(CONFIRM_PASSWORD_MUST_MATCH_NEW_PASSWORD);
     }
 }

@@ -5,9 +5,16 @@
         <Nullable>disable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <NoWarn>$(NoWarn);1591</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Mediator.Abstractions" Version="3.0.2" />
+        <PackageReference Include="Mediator.SourceGenerator" Version="3.0.2">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+        </PackageReference>
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.7" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.7">
@@ -19,6 +26,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\Shared\Be.Haven.ApiCommon\Be.Haven.ApiCommon.csproj" />
+      <ProjectReference Include="..\Authentication.Application\Authentication.Application.csproj" />
       <ProjectReference Include="..\Authentication.Infrastructure\Authentication.Infrastructure.csproj" />
     </ItemGroup>
 

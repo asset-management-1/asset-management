@@ -479,7 +479,7 @@ public sealed class HavenAuthenticationHandlerTests
             {
                 services.AddRouting();
                 services.AddAuthorization();
-                services.AddSingleton(Options.Create(new AuthenticationTokenValidationOptions
+                services.AddSingleton(OptionsFactory.Create(new AuthenticationTokenValidationOptions
                 {
                     Issuer = Issuer,
                     Audiences = [Audience],
@@ -568,7 +568,7 @@ public sealed class HavenAuthenticationHandlerTests
             schemeOptions.Object,
             LoggerFactory.Create(_ => { }),
             UrlEncoder.Default,
-            Options.Create(new AuthenticationTokenValidationOptions
+            OptionsFactory.Create(new AuthenticationTokenValidationOptions
             {
                 Issuer = Issuer,
                 Audiences = [Audience],

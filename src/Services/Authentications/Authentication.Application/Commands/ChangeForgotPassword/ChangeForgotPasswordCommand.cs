@@ -3,7 +3,7 @@ namespace Authentication.Application.Commands.ChangeForgotPassword;
 /// <summary>
 /// Represents a request to change password after forgot-password OTP verification.
 /// </summary>
-public class ChangeForgotPasswordCommand : ICommand<ResponseDto<string>>
+public class ChangeForgotPasswordCommand : ICommand<ResponseDto<OperationStatusResponseDto>>
 {
     /// <summary>
     /// Email address of the account that completed OTP verification.
@@ -15,8 +15,4 @@ public class ChangeForgotPasswordCommand : ICommand<ResponseDto<string>>
     /// </summary>
     public string NewPassword { get; set; }
 
-    /// <summary>
-    /// Confirmation value for <see cref="NewPassword"/>.
-    /// </summary>
-    public string ConfirmPassword { get; set; }
 }

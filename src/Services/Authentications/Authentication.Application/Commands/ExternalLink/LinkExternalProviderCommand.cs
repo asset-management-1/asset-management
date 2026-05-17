@@ -3,10 +3,10 @@ namespace Authentication.Application.Commands.ExternalLink;
 /// <summary>
 /// Represents a request to link an external provider to the current user.
 /// </summary>
-public class LinkExternalProviderCommand : ICommand<ResponseDto<string>>
+public class LinkExternalProviderCommand : ICommand<ResponseDto<OperationStatusResponseDto>>
 {
     /// <summary>
-    /// External provider name.
+    /// External provider name. Supported values depend on configuration, such as <c>google</c>, <c>apple</c>, <c>microsoft</c>, or <c>facebook</c>.
     /// </summary>
     public string Provider { get; set; }
 

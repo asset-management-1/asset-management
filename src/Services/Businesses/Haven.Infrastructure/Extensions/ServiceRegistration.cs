@@ -1,4 +1,4 @@
-namespace Haven.Insfrastructure.Extensions;
+namespace Haven.Infrastructure.Extensions;
 
 public static class ServiceRegistration
 {

@@ -1,7 +1,13 @@
 namespace Authentication.Application.Commands.VerifyRegisterEmail;
 
+/// <summary>
+/// Validates register email verification requests.
+/// </summary>
 public class VerifyRegisterEmailCommandValidator : AbstractValidator<VerifyRegisterEmailCommand>
 {
+    /// <summary>
+    /// Creates validation rules for the pending email and OTP fields.
+    /// </summary>
     public VerifyRegisterEmailCommandValidator()
     {
         RuleFor(x => x.Email)
@@ -10,6 +16,6 @@ public class VerifyRegisterEmailCommandValidator : AbstractValidator<VerifyRegis
 
         RuleFor(x => x.Otp)
             .Required()
-            .Length(6);
+            .Length(OTP_LENGTH);
     }
 }

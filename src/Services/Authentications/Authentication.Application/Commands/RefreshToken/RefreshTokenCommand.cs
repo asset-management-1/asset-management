@@ -1,6 +1,9 @@
 namespace Authentication.Application.Commands.RefreshToken;
 
-public class RefreshTokenCommand : ICommand<ResponseDto<LoginResponse>>
+/// <summary>
+/// Represents a request to exchange a refresh token for a new token pair.
+/// </summary>
+public class RefreshTokenCommand : ICommand<ResponseDto<LoginResponseDto>>
 {
     /// <summary>
     /// Refresh token used to issue a new token pair.

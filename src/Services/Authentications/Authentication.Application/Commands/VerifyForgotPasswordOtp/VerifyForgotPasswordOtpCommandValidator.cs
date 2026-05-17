@@ -1,7 +1,13 @@
 namespace Authentication.Application.Commands.VerifyForgotPasswordOtp;
 
+/// <summary>
+/// Validates forgot-password OTP verification requests.
+/// </summary>
 public class VerifyForgotPasswordOtpCommandValidator : AbstractValidator<VerifyForgotPasswordOtpCommand>
 {
+    /// <summary>
+    /// Creates validation rules for email and OTP fields.
+    /// </summary>
     public VerifyForgotPasswordOtpCommandValidator()
     {
         RuleFor(x => x.Email)
@@ -10,6 +16,6 @@ public class VerifyForgotPasswordOtpCommandValidator : AbstractValidator<VerifyF
 
         RuleFor(x => x.Otp)
             .Required()
-            .Length(6);
+            .Length(OTP_LENGTH);
     }
 }

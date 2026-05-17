@@ -1,6 +1,6 @@
 using Be.Haven.ApiCommon.Options.Swagger;
 
-namespace Be.Haven.Tests.Shared.Be.Haven.ApiCommon.Swagger;
+namespace Be.Haven.Tests.Shared.Be.Haven.ApiCommon.Options.Swagger;
 
 public sealed class ConfigureSwaggerOptionsTests
 {

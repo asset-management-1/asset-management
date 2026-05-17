@@ -8,7 +8,7 @@ public class RefreshTokenRepository : GenericRepository<RefreshToken>, IRefreshT
     private readonly AuthenticationDbContext _authenticationDbContext;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="RefreshTokenRepository"/> class.
+    /// Creates the refresh-token repository with EF access for token rotation and revocation writes.
     /// </summary>
     /// <param name="dbContext">The authentication database context.</param>
     public RefreshTokenRepository(AuthenticationDbContext dbContext) : base(dbContext)
@@ -17,82 +17,152 @@ public class RefreshTokenRepository : GenericRepository<RefreshToken>, IRefreshT
     }
 
     /// <summary>
-    /// Gets a refresh token for login flow, including user and authorization data.
+    /// Gets a refresh token row for refresh flow, including the associated user identity.
     /// </summary>
     /// <param name="refreshTokenHash">The hashed refresh token.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
-    /// <returns>The matched refresh token with user, roles, and permissions; otherwise <c>null</c>.</returns>
-    public Task<RefreshToken> GetForLoginAsync(
+    /// <returns>The matched refresh token row with user status data; otherwise <c>null</c>.</returns>
+    public Task<RefreshToken> GetForRefreshAsync(
         string refreshTokenHash,
         CancellationToken cancellationToken = default)
     {
+        // Empty token hashes cannot identify a refresh token.
         if (string.IsNullOrWhiteSpace(refreshTokenHash))
         {
             return Task.FromResult<RefreshToken>(null);
         }
 
-        // Load full user authorization graph to generate access token after refresh.
+        // This is a bounded refresh-token lookup; include the small graph needed for validation and in-place rotation.
         return _authenticationDbContext.RefreshTokens
-            .AsNoTracking()
             .Include(x => x.User)
                 .ThenInclude(x => x.Status)
-            .Include(x => x.User)
-                .ThenInclude(x => x.UserRoles)
-                    .ThenInclude(x => x.Role)
-                        .ThenInclude(x => x.RolePermissions)
-                            .ThenInclude(x => x.Permission)
             .FirstOrDefaultAsync(
-                x => x.TokenHash == refreshTokenHash
+                x => (x.TokenHash == refreshTokenHash || x.PreviousTokenHash == refreshTokenHash)
                      && !x.IsDeleted,
                 cancellationToken);
     }
 
     /// <summary>
-    /// Gets a refresh token by user identifier and token hash.
+    /// Gets the client-session refresh token for one user and client instance.
     /// </summary>
     /// <param name="userId">The internal user identifier.</param>
-    /// <param name="refreshTokenHash">The hashed refresh token.</param>
+    /// <param name="deviceId">The normalized client instance identifier.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
-    /// <returns>The matched refresh token; otherwise <c>null</c>.</returns>
-    public Task<RefreshToken> GetByUserAndHashAsync(
+    /// <returns>The tracked refresh token row when it exists; otherwise <c>null</c>.</returns>
+    public Task<RefreshToken> GetClientSessionByUserAndDeviceIdAsync(
         long userId,
-        string refreshTokenHash,
+        string deviceId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(refreshTokenHash))
+        // A missing client instance id cannot identify a stable client session.
+        if (string.IsNullOrWhiteSpace(deviceId))
         {
             return Task.FromResult<RefreshToken>(null);
         }
 
-        // Validate that the refresh token belongs to the specific user.
+        // Login updates the tracked row in place to prevent one-row-per-login spam for the same client instance.
         return _authenticationDbContext.RefreshTokens
-            .AsNoTracking()
             .FirstOrDefaultAsync(
                 x => x.UserId == userId
-                     && x.TokenHash == refreshTokenHash
+                     && x.DeviceId == deviceId
                      && !x.IsDeleted,
                 cancellationToken);
     }
 
     /// <summary>
-    /// Gets all active (non-revoked and non-expired) refresh tokens of a user.
+    /// Stages one refresh-token revocation by marking only revocation columns as modified.
+    /// </summary>
+    /// <param name="refreshTokenId">The internal refresh-token identifier.</param>
+    /// <param name="revokedAt">The UTC revocation timestamp.</param>
+    /// <param name="replacedByTokenHash">The replacement token hash when token rotation is happening.</param>
+    /// <returns>A completed task after the field-level update is staged.</returns>
+    public Task StageRevocationAsync(
+        long refreshTokenId,
+        DateTime revokedAt,
+        string replacedByTokenHash = null)
+    {
+        // Attach a stub token so EF marks only revocation fields as modified.
+        var refreshToken = new RefreshToken
+        {
+            Id = refreshTokenId,
+            RevokedAt = revokedAt,
+            ReplacedByTokenHash = replacedByTokenHash
+        };
+
+        _authenticationDbContext.RefreshTokens.Attach(refreshToken);
+        _authenticationDbContext.Entry(refreshToken).Property(x => x.RevokedAt).IsModified = true;
+        if (!string.IsNullOrWhiteSpace(replacedByTokenHash))
+        {
+            _authenticationDbContext.Entry(refreshToken).Property(x => x.ReplacedByTokenHash).IsModified = true;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Stages revocation for all active refresh tokens owned by one user.
     /// </summary>
     /// <param name="userId">The internal user identifier.</param>
+    /// <param name="revokedAt">The UTC revocation timestamp.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
-    /// <returns>A list of active refresh tokens.</returns>
-    public Task<List<RefreshToken>> GetActiveByUserIdAsync(
+    /// <returns>A task that completes after all field-level revocation updates are staged.</returns>
+    public async Task StageActiveRevocationsByUserIdAsync(
         long userId,
+        DateTime revokedAt,
         CancellationToken cancellationToken = default)
     {
+        // Capture one timestamp for the active-token filter used by this revocation batch.
         var now = DateTime.UtcNow;
 
-        // Active tokens must not be deleted, revoked, or expired.
-        return _authenticationDbContext.RefreshTokens
+        // Load ids only, then stage field-level updates without materializing full token rows.
+        var refreshTokenIds = await _authenticationDbContext.RefreshTokens
             .AsNoTracking()
             .Where(x => x.UserId == userId
                         && !x.IsDeleted
                         && !x.RevokedAt.HasValue
                         && x.ExpiresAt > now)
+            .Select(x => x.Id)
             .ToListAsync(cancellationToken);
+
+        foreach (var refreshTokenId in refreshTokenIds)
+        {
+            // Stage each token through the same revocation helper to keep modified columns consistent.
+            await StageRevocationAsync(refreshTokenId, revokedAt);
+        }
+    }
+
+    /// <summary>
+    /// Stages active refresh-token revocations for one server-issued session without loading full token rows.
+    /// </summary>
+    /// <param name="userId">The internal user identifier.</param>
+    /// <param name="sessionPublicId">The server-issued public session identifier from the access token.</param>
+    /// <param name="revokedAt">The UTC revocation timestamp.</param>
+    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
+    /// <returns>A task that completes after all field-level revocation updates are staged.</returns>
+    public async Task StageActiveRevocationsByUserAndSessionPublicIdAsync(
+        long userId,
+        Guid sessionPublicId,
+        DateTime revokedAt,
+        CancellationToken cancellationToken = default)
+    {
+        // Capture one timestamp for the active-token filter used by this revocation batch.
+        var now = DateTime.UtcNow;
+
+        // Load ids only, then stage field-level updates without materializing full token rows.
+        var refreshTokenIds = await _authenticationDbContext.RefreshTokens
+            .AsNoTracking()
+            .Where(x => x.UserId == userId
+                        && x.SessionPublicId == sessionPublicId
+                        && !x.IsDeleted
+                        && !x.RevokedAt.HasValue
+                        && x.ExpiresAt > now)
+            .Select(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+        foreach (var refreshTokenId in refreshTokenIds)
+        {
+            // Stage each token through the same revocation helper to keep modified columns consistent.
+            await StageRevocationAsync(refreshTokenId, revokedAt);
+        }
     }
 }

@@ -199,7 +199,7 @@ public sealed class HavenAuthResetValidatorTests
         return new HavenAuthResetValidator(
             cachingService,
             dapperService,
-            Options.Create(new AuthenticationTokenValidationOptions { RefreshTokenDays = 7 }),
+            OptionsFactory.Create(new AuthenticationTokenValidationOptions { RefreshTokenDays = 7 }),
             Mock.Of<ILogger<HavenAuthResetValidator>>());
     }
 }

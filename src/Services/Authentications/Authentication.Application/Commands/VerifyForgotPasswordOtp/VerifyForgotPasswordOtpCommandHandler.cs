@@ -1,16 +1,102 @@
 namespace Authentication.Application.Commands.VerifyForgotPasswordOtp;
 
-public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgotPasswordOtpCommand, ResponseDto<string>>
+/// <summary>
+/// Handles forgot-password OTP verification requests.
+/// </summary>
+public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgotPasswordOtpCommand, ResponseDto<OperationStatusResponseDto>>
 {
-    private readonly IAuthenticationService _authenticationService;
+    private readonly ICachingService _cachingService;
+    private readonly ILogger<VerifyForgotPasswordOtpCommandHandler> _logger;
 
-    public VerifyForgotPasswordOtpCommandHandler(IAuthenticationService authenticationService)
+    /// <summary>
+    /// Creates the forgot-password OTP verification handler with OTP cache and reset-session cache services.
+    /// </summary>
+    /// <param name="cachingService">The cache service used for OTP and reset-session state.</param>
+    /// <param name="logger">The logger used for OTP verification flow tracking.</param>
+    public VerifyForgotPasswordOtpCommandHandler(
+        ICachingService cachingService,
+        ILogger<VerifyForgotPasswordOtpCommandHandler> logger)
     {
-        _authenticationService = authenticationService;
+        _cachingService = cachingService;
+        _logger = logger;
     }
 
-    public Task<ResponseDto<string>> Handle(VerifyForgotPasswordOtpCommand request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Handles forgot-password OTP verification and opens a reset session.
+    /// </summary>
+    /// <param name="request">The forgot-password OTP verification payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The standardized response that wraps the OTP-verification success message.</returns>
+    public async ValueTask<ResponseDto<OperationStatusResponseDto>> Handle(
+        VerifyForgotPasswordOtpCommand request,
+        CancellationToken cancellationToken)
     {
-        return _authenticationService.VerifyForgotPasswordOtpAsync(request, cancellationToken);
+        // Mapster normalizes the email before OTP and reset-session keys are resolved.
+        var verifyRequest = request.Adapt<VerifyForgotPasswordOtpRequestDto>();
+        var normalizedEmail = verifyRequest.Email;
+        _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_STEP1_REQUEST_NORMALIZED);
+
+        await VerifyOtpAsync(FORGOT_PASSWORD_PURPOSE, normalizedEmail, verifyRequest.Otp, cancellationToken);
+        _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_STEP2_OTP_VERIFIED);
+
+        // A short reset session lets the password-change endpoint proceed without keeping the OTP valid.
+        await _cachingService.SetAbsoluteAsync(
+            AuthenticationFlowHelper.BuildResetSessionKey(normalizedEmail),
+            new ResetSessionCacheResponseDto { CreatedAt = DateTime.UtcNow },
+            TimeSpan.FromMinutes(RESET_SESSION_TTL_MINUTES),
+            cancellationToken);
+        _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_STEP3_RESET_SESSION_CREATED);
+
+        return new ResponseDto<OperationStatusResponseDto>(
+            OperationStatusResponseHelper.Success(OTP_VERIFIED_SUCCESS_MESSAGE));
+    }
+
+    /// <summary>
+    /// Verifies the supplied OTP and consumes it when valid.
+    /// </summary>
+    /// <param name="purpose">The OTP purpose code.</param>
+    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="otp">The OTP supplied by the caller.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>A task that completes when the OTP is valid and consumed.</returns>
+    private async Task VerifyOtpAsync(
+        string purpose,
+        string normalizedEmail,
+        string otp,
+        CancellationToken cancellationToken)
+    {
+        var otpKey = AuthenticationFlowHelper.BuildOtpKey(purpose, normalizedEmail);
+        var otpEntry = await _cachingService.GetAsync<OtpCacheResponseDto>(otpKey, cancellationToken);
+        if (otpEntry is null || string.IsNullOrWhiteSpace(otpEntry.Code))
+        {
+            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+        }
+
+        var remainingTtl = otpEntry.ExpiresAtUtc - DateTime.UtcNow;
+        if (remainingTtl <= TimeSpan.Zero)
+        {
+            await _cachingService.RemoveAsync(otpKey, cancellationToken);
+            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+        }
+
+        if (!string.Equals(otpEntry.Code, otp, StringComparison.Ordinal))
+        {
+            // Persist remaining attempts until the OTP is consumed or locked out.
+            otpEntry.Attempts++;
+            if (otpEntry.Attempts >= OTP_MAX_VERIFY_ATTEMPTS)
+            {
+                await _cachingService.RemoveAsync(otpKey, cancellationToken);
+                _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_OTP_LOCKED);
+            }
+            else
+            {
+                await _cachingService.SetAbsoluteAsync(otpKey, otpEntry, remainingTtl, cancellationToken);
+                _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_OTP_ATTEMPT_RECORDED);
+            }
+
+            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+        }
+
+        await _cachingService.RemoveAsync(otpKey, cancellationToken);
     }
 }

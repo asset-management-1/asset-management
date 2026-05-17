@@ -1,5 +1,3 @@
-using Authentication.Domain.Entities;
-
 namespace Authentication.Application.Interfaces.Repositories;
 
 /// <summary>
@@ -8,17 +6,34 @@ namespace Authentication.Application.Interfaces.Repositories;
 public interface IRefreshTokenRepository : IGenericRepository<RefreshToken>
 {
     /// <summary>
-    /// Loads a refresh token together with user graph required for token refresh.
+    /// Loads a refresh token row together with user graph required for token refresh.
     /// </summary>
-    Task<RefreshToken> GetForLoginAsync(string refreshTokenHash, CancellationToken cancellationToken = default);
+    Task<RefreshToken> GetForRefreshAsync(string refreshTokenHash, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads a refresh token owned by a user.
+    /// Loads the client-session refresh token for one user and client instance.
     /// </summary>
-    Task<RefreshToken> GetByUserAndHashAsync(long userId, string refreshTokenHash, CancellationToken cancellationToken = default);
+    Task<RefreshToken> GetClientSessionByUserAndDeviceIdAsync(
+        long userId,
+        string deviceId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads all active refresh tokens of a user.
+    /// Stages one refresh-token revocation without loading or modifying unrelated columns.
     /// </summary>
-    Task<List<RefreshToken>> GetActiveByUserIdAsync(long userId, CancellationToken cancellationToken = default);
+    Task StageRevocationAsync(long refreshTokenId, DateTime revokedAt, string replacedByTokenHash = null);
+
+    /// <summary>
+    /// Stages active refresh-token revocations for one user without loading full token rows.
+    /// </summary>
+    Task StageActiveRevocationsByUserIdAsync(long userId, DateTime revokedAt, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Stages active refresh-token revocations for one server-issued session without loading full token rows.
+    /// </summary>
+    Task StageActiveRevocationsByUserAndSessionPublicIdAsync(
+        long userId,
+        Guid sessionPublicId,
+        DateTime revokedAt,
+        CancellationToken cancellationToken = default);
 }

@@ -1,5 +1,4 @@
-﻿// Global using directives
-
+// Global using directives
 global using Be.Haven.Core.Extensions.DI;
 global using Be.Haven.Core.Interfaces.Services;
 global using Be.Haven.Core.Services;

@@ -1,19 +1,13 @@
 var builder = WebApplication.CreateBuilder(args);
 
-// =========================
-// 1) Configuration
-// =========================
 var env = builder.Environment.EnvironmentName;
 
-var configuration = new ConfigurationBuilder()
+IConfiguration configuration = new ConfigurationBuilder()
     .AddJsonFile(APPSETTING_JSON, optional: false, reloadOnChange: true)
     .AddJsonFile(string.Format(APPSETTING_DEVELOPMENT_JSON, env), optional: true, reloadOnChange: true)
     .AddEnvironmentVariables()
     .Build();
-
-// =========================
-// 2) Services
-// =========================
+configuration = await configuration.ApplySecretsAsync();
 
 // Observability
 builder.Services.AddConfiguredLogging(configuration);
@@ -21,9 +15,9 @@ builder.Services.AddConfiguredOpenTelemetry(configuration);
 builder.Services.AddConfiguredOptions(configuration);
 
 // Security / Auth
-builder.Services.AddAuthServices(configuration);
+builder.Services.AddAuthServices();
 
-// Caching / GCP
+// Caching / external infrastructure
 builder.Services.AddDistributedCache(configuration);
 builder.Services.AddGcpSecretManagerInfrastructure(configuration);
 
@@ -32,6 +26,7 @@ builder.Services.AddCoreInfrastructure();
 builder.Services.AddApiVersioningInfrastructure();
 builder.Services.AddInfrastructure(configuration);
 builder.Services.AddApplication();
+builder.Services.AddMediatorServices();
 
 // Health checks
 builder.Services.AddConfiguredHealthChecks();
@@ -66,8 +61,16 @@ builder.Services.AddControllers(o =>
        });
 
 // Swagger
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddConfiguredSwagger();
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddConfiguredSwagger();
+    builder.Services.AddSwaggerGen(options =>
+    {
+        // Authentication token endpoints need device-header examples in Swagger Try-it-out.
+        options.OperationFilter<ClientDeviceInfoSwaggerOperationFilter>();
+    });
+}
 
 // Kestrel
 builder.WebHost.ConfigureKestrel((context, options) =>
@@ -87,14 +90,15 @@ builder.WebHost.ConfigureKestrel((context, options) =>
 
 var app = builder.Build();
 
-// =========================
-// 3) Middleware pipeline
-// =========================
-
-// Configure the HTTP request pipeline.
-
 // Swagger
-app.UseSwaggerConfiguration();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwaggerConfiguration();
+}
+else
+{
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
 

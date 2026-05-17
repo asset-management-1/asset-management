@@ -1,5 +1,3 @@
-using Authentication.Domain.Entities;
-
 namespace Authentication.Application.Interfaces.Repositories;
 
 /// <summary>
@@ -16,4 +14,9 @@ public interface IExternalLoginRepository : IGenericRepository<ExternalLogin>
     /// Loads an external login mapping by user and provider.
     /// </summary>
     Task<ExternalLogin> GetByUserAndProviderAsync(long userId, string provider, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads a soft-deleted external login mapping by user and provider.
+    /// </summary>
+    Task<ExternalLogin> GetDeletedByUserAndProviderAsync(long userId, string provider, CancellationToken cancellationToken = default);
 }

@@ -1,1018 +1,696 @@
 namespace Authentication.Infrastructure.Services;
 
 /// <summary>
-/// Implements authentication workflows for local credentials, OTP verification,
-/// password recovery, external identity providers, and user profile retrieval.
+/// Provides infrastructure operations for local authentication flows.
 /// </summary>
 public class AuthenticationService : IAuthenticationService
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
-    private readonly IExternalLoginRepository _externalLoginRepository;
-    private readonly IMasterDataValueRepository _masterDataValueRepository;
-    private readonly IRoleRepository _roleRepository;
-    private readonly IPartyRepository _partyRepository;
-    private readonly IUserRoleRepository _userRoleRepository;
-    private readonly ICachingService _cachingService;
-    private readonly IAuthService _authService;
+    private readonly AuthenticationRepositoryDependencies _repositories;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IEmailService _emailService;
-    private readonly ILogger<AuthenticationService> _logger;
-    private readonly AuthOptions _authOptions;
-    private readonly ExternalAuthenticationOptions _externalAuthenticationOptions;
     private readonly IPasswordHasher<User> _passwordHasher;
+    private readonly ICachingService _cachingService;
+    private readonly AuthOptions _authOptions;
+    private readonly EmailOptions _emailOptions;
+    private readonly ILogger<AuthenticationService> _logger;
+    private readonly IClientDeviceContextAccessor _clientDeviceContextAccessor;
     private readonly JwtSecurityTokenHandler _jwtSecurityTokenHandler = new();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="AuthenticationService"/> class.
+    /// Creates the local authentication service with persistence, email, password hashing, and token options.
     /// </summary>
-    /// <param name="userRepository">The user repository.</param>
-    /// <param name="refreshTokenRepository">The refresh token repository.</param>
-    /// <param name="externalLoginRepository">The external login repository.</param>
-    /// <param name="masterDataValueRepository">The master data value repository.</param>
-    /// <param name="roleRepository">The role repository.</param>
-    /// <param name="partyRepository">The party repository.</param>
-    /// <param name="userRoleRepository">The user role repository.</param>
-    /// <param name="cachingService">The shared caching service backed by Redis.</param>
-    /// <param name="authService">The current request authentication accessor.</param>
-    /// <param name="unitOfWork">The unit of work for transactional persistence.</param>
-    /// <param name="emailService">The shared email service.</param>
-    /// <param name="passwordHasher">The Microsoft password hasher for local credentials.</param>
-    /// <param name="authOptions">The JWT settings.</param>
-    /// <param name="externalAuthenticationOptions">The external provider settings.</param>
-    /// <param name="logger">The logger.</param>
+    /// <param name="repositories">The grouped authentication repositories used by persistence operations.</param>
+    /// <param name="supportDependencies">The grouped support dependencies used by local authentication flows.</param>
+    /// <param name="clientDeviceContextAccessor">The accessor used to capture device metadata for token issuance.</param>
+    /// <param name="logger">The local authentication service logger.</param>
     public AuthenticationService(
-        IUserRepository userRepository,
-        IRefreshTokenRepository refreshTokenRepository,
-        IExternalLoginRepository externalLoginRepository,
-        IMasterDataValueRepository masterDataValueRepository,
-        IRoleRepository roleRepository,
-        IPartyRepository partyRepository,
-        IUserRoleRepository userRoleRepository,
-        ICachingService cachingService,
-        IAuthService authService,
-        IUnitOfWork unitOfWork,
-        IEmailService emailService,
-        IPasswordHasher<User> passwordHasher,
-        IOptions<AuthOptions> authOptions,
-        IOptions<ExternalAuthenticationOptions> externalAuthenticationOptions,
+        AuthenticationRepositoryDependencies repositories,
+        AuthenticationServiceSupportDependencies supportDependencies,
+        IClientDeviceContextAccessor clientDeviceContextAccessor,
         ILogger<AuthenticationService> logger)
     {
-        _userRepository = userRepository;
-        _refreshTokenRepository = refreshTokenRepository;
-        _externalLoginRepository = externalLoginRepository;
-        _masterDataValueRepository = masterDataValueRepository;
-        _roleRepository = roleRepository;
-        _partyRepository = partyRepository;
-        _userRoleRepository = userRoleRepository;
-        _cachingService = cachingService;
-        _authService = authService;
-        _unitOfWork = unitOfWork;
-        _emailService = emailService;
-        _passwordHasher = passwordHasher;
+        // Split repository and support dependency groups keep the service constructor within analyzer limits.
+        _repositories = repositories;
+        _unitOfWork = supportDependencies.UnitOfWork;
+        _emailService = supportDependencies.EmailService;
+        _passwordHasher = supportDependencies.PasswordHasher;
+        _cachingService = supportDependencies.CachingService;
+        _authOptions = supportDependencies.AuthOptions;
+        _emailOptions = supportDependencies.EmailOptions;
         _logger = logger;
-        _authOptions = authOptions.Value ?? new AuthOptions();
-        _externalAuthenticationOptions = externalAuthenticationOptions.Value ?? new ExternalAuthenticationOptions();
+        _clientDeviceContextAccessor = clientDeviceContextAccessor;
     }
 
     /// <summary>
-    /// Authenticates a user with local credentials and issues an access token with a refresh token.
+    /// Authenticates a local username/password login and issues a token pair.
     /// </summary>
-    public async Task<ResponseDto<LoginResponse>> LoginAsync(string userName, string password, CancellationToken cancellationToken = default)
+    /// <param name="request">The local login request payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The issued access and refresh token payload.</returns>
+    public async Task<LoginResponseDto> LoginAsync(
+        LoginRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        var normalizedUserName = NormalizeUserName(userName);
-        if (string.IsNullOrWhiteSpace(normalizedUserName) || string.IsNullOrWhiteSpace(password))
+        // Load the minimal password identity and validate local credentials before issuing tokens.
+        var user = await _repositories.UserRepository.GetUserForAuthenticationByUserNameAsync(
+            request.UserName,
+            cancellationToken);
+        if (!AuthenticationFlowHelper.CanLogin(user)
+            || string.IsNullOrWhiteSpace(user.PasswordHash)
+            || _passwordHasher.VerifyHashedPassword(
+                user,
+                user.PasswordHash,
+                request.Password) == PasswordVerificationResult.Failed)
         {
-            return new ResponseDto<LoginResponse>(AUTH_INVALID_CREDENTIALS, INVALID_USERNAME_OR_PASSWORD_MESSAGE);
+            throw new ApiException(
+                INVALID_USERNAME_OR_PASSWORD_MESSAGE,
+                AUTH_INVALID_CREDENTIALS,
+                StatusCodes.Status401Unauthorized);
         }
 
-        var user = await _userRepository.GetUserForAuthenticationByUserNameAsync(normalizedUserName, cancellationToken);
-        if (user is null || !CanLogin(user))
-        {
-            return new ResponseDto<LoginResponse>(AUTH_INVALID_CREDENTIALS, INVALID_USERNAME_OR_PASSWORD_MESSAGE);
-        }
+        // Stage login state and persist it together with the client-session refresh token.
+        await _repositories.UserRepository.StageLastLoginAtAsync(user.Id, DateTime.UtcNow);
 
-        var passwordResult = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
-        if (passwordResult == PasswordVerificationResult.Failed)
-        {
-            return new ResponseDto<LoginResponse>(AUTH_INVALID_CREDENTIALS, INVALID_USERNAME_OR_PASSWORD_MESSAGE);
-        }
+        var deviceContext = _clientDeviceContextAccessor.GetCurrent();
+        var sessionRefreshToken = await _repositories.RefreshTokenRepository.GetClientSessionByUserAndDeviceIdAsync(
+            user.Id,
+            deviceContext.DeviceId,
+            cancellationToken);
+        var isNewClientSession = sessionRefreshToken is null;
+        sessionRefreshToken ??= new RefreshToken();
+        var response = await IssueAsync(
+            new AuthSessionIssueRequestModel
+            {
+                User = user,
+                RawRefreshToken = AuthSessionHelper.GenerateRefreshToken(),
+                SessionRefreshToken = sessionRefreshToken,
+                DeviceContext = deviceContext,
+                RenewSessionPublicId = true,
+                AuthOptions = _authOptions,
+                JwtSecurityTokenHandler = _jwtSecurityTokenHandler
+            },
+            cancellationToken);
+        _logger.LogInformation(
+            isNewClientSession
+                ? InfrastructureLogConstants.SessionLogs.CLIENT_SESSION_CREATED
+                : InfrastructureLogConstants.SessionLogs.CLIENT_SESSION_REPLACED_BY_LOGIN,
+            sessionRefreshToken.SessionPublicId,
+            user.PublicId);
+        _logger.LogInformation(InfrastructureLogConstants.SessionLogs.LOCAL_LOGIN_COMPLETED);
 
-        user.LastLoginAt = DateTime.UtcNow;
-        return await CreateLoginResponseAsync(user, cancellationToken);
+        return response;
     }
 
     /// <summary>
-    /// Starts the register flow by validating uniqueness, storing pending data in Redis, and sending an OTP email.
+    /// Builds the pending registration payload after validating uniqueness and hashing the password.
     /// </summary>
-    public async Task<ResponseDto<string>> RegisterAsync(RegisterCommand command, CancellationToken cancellationToken = default)
+    /// <param name="request">The normalized registration request payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The pending registration payload to cache for email verification.</returns>
+    public async Task<PendingRegisterCacheRequestDto> BuildPendingRegisterAsync(
+        RegisterRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        var normalizedEmail = NormalizeEmail(command.Email);
-        var normalizedUserName = NormalizeUserName(command.UserName);
-
-        var uniquenessError = await CheckRegistrationUniquenessAsync(normalizedUserName, normalizedEmail, command.PhoneNumber, cancellationToken);
-        if (uniquenessError is not null)
-        {
-            return uniquenessError;
-        }
-
-        var partyType = await FindMasterDataValueAsync(PARTY_TYPE_TYPE, command.PartyType, cancellationToken);
-        if (partyType is null)
-        {
-            return new ResponseDto<string>(AUTH_FORBIDDEN_OPERATION, INVALID_PARTY_TYPE_MESSAGE);
-        }
-
-        var throttleError = await CheckOtpThrottleAsync(REGISTER_PURPOSE, normalizedEmail, REGISTER_OTP_LIMIT, cancellationToken);
-        if (throttleError is not null)
-        {
-            return throttleError;
-        }
-
-        var passwordHash = _passwordHasher.HashPassword(
-            new User { UserName = normalizedUserName, Email = normalizedEmail },
-            command.Password);
-
-        var pendingRegister = new PendingRegisterCacheEntry
-        {
-            UserName = normalizedUserName,
-            Email = normalizedEmail,
-            PhoneNumber = command.PhoneNumber.Trim(),
-            FullName = command.FullName.Trim(),
-            PartyType = command.PartyType.Trim(),
-            PasswordHash = passwordHash,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        var otpCode = GenerateOtp();
-        await SetOtpAsync(REGISTER_PURPOSE, normalizedEmail, otpCode, cancellationToken);
-        await SetCacheAsync(
-            GetPendingRegisterKey(normalizedEmail),
-            pendingRegister,
-            TimeSpan.FromMinutes(OTP_TTL_MINUTES),
+        // Validate uniqueness and target party type before the pending registration is cached.
+        await EnsureRegistrationCanStartAsync(
+            request.Adapt<RegistrationUniquenessRequestDto>(),
+            request.PartyType,
             cancellationToken);
 
-        var sent = await SendOtpEmailAsync(normalizedEmail, otpCode, EMAIL_SUBJECT_VERIFY_ACCOUNT, REGISTER_PURPOSE, cancellationToken);
+        // Hash the password before caching so the raw password never leaves the current request scope.
+        var passwordUser = request.Adapt<User>();
+        var pendingRegister = request.Adapt<PendingRegisterCacheRequestDto>();
+        pendingRegister.PasswordHash = _passwordHasher.HashPassword(passwordUser, request.Password);
+        pendingRegister.CreatedAt = DateTime.UtcNow;
+
+        return pendingRegister;
+    }
+
+    /// <summary>
+    /// Validates that a registration request can still create a unique account for the target party type.
+    /// </summary>
+    /// <param name="request">The normalized uniqueness values from the registration payload.</param>
+    /// <param name="partyType">The normalized party type master-data value.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>A task that completes when the registration can proceed.</returns>
+    private async Task EnsureRegistrationCanStartAsync(
+        RegistrationUniquenessRequestDto request,
+        string partyType,
+        CancellationToken cancellationToken)
+    {
+        // Check account uniqueness first so duplicate registrations stop before master-data lookup.
+        await EnsureRegistrationUniquenessAsync(request, cancellationToken);
+
+        // Resolve the target party type from master data to prevent unsupported context creation.
+        var partyTypeValue = await _repositories.MasterDataValueRepository.GetByTypeAndValueAsync(
+            PARTY_TYPE_TYPE,
+            partyType,
+            cancellationToken);
+        if (partyTypeValue is null)
+        {
+            throw new ApiException(INVALID_PARTY_TYPE_MESSAGE, AUTH_FORBIDDEN_OPERATION);
+        }
+    }
+
+    /// <summary>
+    /// Validates that username, email, and phone number can create a unique account.
+    /// </summary>
+    /// <param name="request">The normalized uniqueness values from the registration payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>A task that completes when uniqueness checks pass.</returns>
+    private async Task EnsureRegistrationUniquenessAsync(
+        RegistrationUniquenessRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        // Each uniqueness check maps to a database constraint the registration flow must respect.
+        if (await _repositories.UserRepository.UserNameExistsAsync(request.UserName, cancellationToken))
+        {
+            throw new ApiException(USERNAME_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+        }
+
+        if (await _repositories.UserRepository.EmailExistsAsync(request.Email, cancellationToken))
+        {
+            throw new ApiException(EMAIL_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+        }
+
+        if (await _repositories.UserRepository.PhoneNumberExistsAsync(request.PhoneNumber, cancellationToken))
+        {
+            throw new ApiException(PHONE_NUMBER_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+        }
+    }
+
+    /// <summary>
+    /// Determines whether a non-deleted user exists for the supplied email.
+    /// </summary>
+    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns><c>true</c> when a matching user exists; otherwise <c>false</c>.</returns>
+    public async Task<bool> UserExistsByEmailAsync(
+        string normalizedEmail,
+        CancellationToken cancellationToken = default)
+    {
+        // Use the repository's minimal email projection for forgot-password enumeration-safe checks.
+        return await _repositories.UserRepository.GetByEmailAsync(normalizedEmail, cancellationToken) is not null;
+    }
+
+    /// <summary>
+    /// Completes account creation from the pending register payload.
+    /// </summary>
+    /// <param name="pendingRegister">The verified pending registration payload from cache.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The registration completion result.</returns>
+    public async Task<OperationStatusResponseDto> CompleteRegistrationAsync(
+        PendingRegisterCacheRequestDto pendingRegister,
+        CancellationToken cancellationToken = default)
+    {
+        // Re-check uniqueness at verify time to protect against races while the OTP was pending.
+        await EnsureRegistrationUniquenessAsync(
+            pendingRegister.Adapt<RegistrationUniquenessRequestDto>(),
+            cancellationToken);
+
+        // Resolve all creation statuses and context type in one master-data batch.
+        var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(
+            [
+                new MasterDataValueLookupModel(PARTY_TYPE_TYPE, pendingRegister.PartyType),
+                new MasterDataValueLookupModel(PARTY_STATUS_TYPE, ACTIVE_STATUS),
+                new MasterDataValueLookupModel(USER_STATUS_TYPE, ACTIVE_STATUS)
+            ],
+            cancellationToken);
+        var partyType = MasterDataLookupHelper.GetRequired(
+            masterDataValues,
+            new MasterDataRequiredLookupModel(
+                PARTY_TYPE_TYPE,
+                pendingRegister.PartyType,
+                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                AUTH_USER_STATUS_NOT_FOUND));
+        var partyStatus = MasterDataLookupHelper.GetRequired(
+            masterDataValues,
+            new MasterDataRequiredLookupModel(
+                PARTY_STATUS_TYPE,
+                ACTIVE_STATUS,
+                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                AUTH_USER_STATUS_NOT_FOUND));
+        var userStatus = MasterDataLookupHelper.GetRequired(
+            masterDataValues,
+            new MasterDataRequiredLookupModel(
+                USER_STATUS_TYPE,
+                ACTIVE_STATUS,
+                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                AUTH_USER_STATUS_NOT_FOUND));
+
+        var provision = pendingRegister.Adapt<RegisterAccountProvisionRequestDto>();
+        provision.PartyTypeId = partyType.Id;
+        provision.PartyStatusId = partyStatus.Id;
+        provision.UserStatusId = userStatus.Id;
+
+        // The created user is captured for a completion log after the transaction succeeds.
+        User createdUser = null;
+
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                // Register creates the identity graph atomically: Party + User + UserParty.
+                var party = provision.Adapt<Party>();
+                var user = provision.Adapt<User>();
+                user.CurrentParty = party;
+
+                await _repositories.PartyRepository.AddAsync(party, ct);
+                await _repositories.UserRepository.AddAsync(user, ct);
+                await _repositories.UserPartyRepository.AddAsync(new UserParty { User = user, Party = party }, ct);
+                createdUser = user;
+            },
+            cancellationToken);
+
+        _logger.LogInformation(
+            InfrastructureLogConstants.SessionLogs.REGISTER_COMPLETED,
+            createdUser?.PublicId);
+
+        return OperationStatusResponseHelper.Success(REGISTRATION_COMPLETED_SUCCESS_MESSAGE);
+    }
+
+    /// <summary>
+    /// Sends one OTP email.
+    /// </summary>
+    /// <param name="request">The OTP email payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The OTP email send result.</returns>
+    public async Task<OtpEmailResponseDto> SendOtpEmailAsync(
+        OtpEmailRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        // Send the OTP through the shared email service without logging the OTP value.
+        var sent = await _emailService.SendEmailAsync(
+            new EmailRequest
+            {
+                RequestData = new RequestData
+                {
+                    Subject = request.Subject,
+                    Body = string.Format(OTP_EMAIL_HTML_TEMPLATE, request.OtpCode),
+                    To =
+                    [
+                        new EmailAddressRequest { Email = request.Email }
+                    ]
+                }
+            },
+            cancellationToken);
+
         if (!sent)
         {
-            await RemoveCacheAsync(GetOtpKey(REGISTER_PURPOSE, normalizedEmail), cancellationToken);
-            await RemoveCacheAsync(GetPendingRegisterKey(normalizedEmail), cancellationToken);
-            return new ResponseDto<string>(AUTH_FORBIDDEN_OPERATION, OTP_SEND_FAILED_MESSAGE);
+            // Log only the OTP purpose so no recipient or code leaks into infrastructure logs.
+            _logger.LogWarning(
+                InfrastructureLogConstants.EmailLogs.OTP_SEND_FAILED,
+                request.Purpose);
         }
 
-        await SetCooldownAsync(REGISTER_PURPOSE, normalizedEmail, cancellationToken);
-        _logger.LogInformation(LOG_REGISTER_OTP_SENT);
-        return new ResponseDto<string>(OTP_SENT_MESSAGE);
+        return sent.Adapt<OtpEmailResponseDto>();
     }
 
     /// <summary>
-    /// Completes registration after the email OTP is verified successfully.
+    /// Sends a security notification to the old email when a change-email request starts.
     /// </summary>
-    public async Task<ResponseDto<string>> VerifyRegisterEmailAsync(VerifyRegisterEmailCommand command, CancellationToken cancellationToken = default)
+    /// <param name="request">The security notification payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The email send result.</returns>
+    public async Task<OtpEmailResponseDto> SendChangeEmailSecurityNotificationAsync(
+        ChangeEmailSecurityNotificationRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        var normalizedEmail = NormalizeEmail(command.Email);
-        var otpVerification = await VerifyOtpAsync(REGISTER_PURPOSE, normalizedEmail, command.Otp, cancellationToken);
-        if (!otpVerification.Success)
+        // Accounts without an old email cannot receive a security notification.
+        if (string.IsNullOrWhiteSpace(request.OldEmail))
         {
-            return otpVerification;
+            _logger.LogInformation(InfrastructureLogConstants.EmailLogs.CHANGE_EMAIL_SECURITY_NOTIFICATION_SKIPPED);
+            return false.Adapt<OtpEmailResponseDto>();
         }
 
-        var pendingRegister = await GetCacheAsync<PendingRegisterCacheEntry>(GetPendingRegisterKey(normalizedEmail), cancellationToken);
-        if (pendingRegister is null)
-        {
-            return new ResponseDto<string>(AUTH_PENDING_REGISTER_NOT_FOUND, REGISTRATION_SESSION_EXPIRED_MESSAGE);
-        }
-
-        var uniquenessError = await CheckRegistrationUniquenessAsync(
-            pendingRegister.UserName,
-            pendingRegister.Email,
-            pendingRegister.PhoneNumber,
+        // Prefer the configured support mailbox so suspicious change-email attempts can be reported.
+        var supportEmail = string.IsNullOrWhiteSpace(_emailOptions.SystemSupportEmail)
+            ? _emailOptions.FromEmail
+            : _emailOptions.SystemSupportEmail;
+        var sent = await _emailService.SendEmailAsync(
+            new EmailRequest
+            {
+                RequestData = new RequestData
+                {
+                    Subject = ApplicationConstants.EMAIL_SUBJECT_CHANGE_EMAIL_SECURITY,
+                    Body = string.Format(
+                        CHANGE_EMAIL_SECURITY_EMAIL_HTML_TEMPLATE,
+                        request.OldEmail,
+                        request.NewEmail,
+                        supportEmail),
+                    To =
+                    [
+                        new EmailAddressRequest { Email = request.OldEmail }
+                    ]
+                }
+            },
             cancellationToken);
-        if (uniquenessError is not null)
+
+        if (!sent)
         {
-            return uniquenessError;
+            // Notification failure is logged but does not block ownership verification of the new email.
+            _logger.LogWarning(InfrastructureLogConstants.EmailLogs.CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED);
         }
 
-        var partyType = await FindMasterDataValueAsync(PARTY_TYPE_TYPE, pendingRegister.PartyType, cancellationToken);
-        var activeStatus = await FindMasterDataValueAsync(STATUS_TYPE, ACTIVE_STATUS, cancellationToken);
-        if (partyType is null || activeStatus is null)
+        return sent.Adapt<OtpEmailResponseDto>();
+    }
+
+    /// <summary>
+    /// Exchanges a refresh token for a new login token pair.
+    /// </summary>
+    /// <param name="request">The refresh-token request payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The rotated access and refresh token payload.</returns>
+    public async Task<LoginResponseDto> RefreshTokenAsync(
+        RefreshTokenRequestDto request,
+        CancellationToken cancellationToken = default)
+    {
+        // A missing refresh token cannot be rotated into a new session.
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
         {
-            return new ResponseDto<string>(AUTH_USER_STATUS_NOT_FOUND, REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE);
+            throw new ApiException(
+                INVALID_REFRESH_TOKEN_MESSAGE,
+                AUTH_INVALID_REFRESH_TOKEN,
+                StatusCodes.Status401Unauthorized);
         }
 
-        var role = await FindRoleForPartyTypeAsync(pendingRegister.PartyType, cancellationToken);
-        if (role is null)
+        // Resolve the active client session and user login state from the hashed refresh token.
+        var refreshTokenHash = AuthSessionHelper.HashRefreshToken(request.RefreshToken);
+        var existingToken = await _repositories.RefreshTokenRepository.GetForRefreshAsync(
+            refreshTokenHash,
+            cancellationToken);
+        if (existingToken is null
+            || !existingToken.SessionPublicId.HasValue
+            || existingToken.RevokedAt.HasValue
+            || existingToken.ExpiresAt <= DateTime.UtcNow
+            || !AuthenticationFlowHelper.CanLogin(existingToken.User))
         {
-            return new ResponseDto<string>(AUTH_FORBIDDEN_OPERATION, DEFAULT_ROLE_NOT_FOUND_MESSAGE);
+            throw new ApiException(
+                INVALID_REFRESH_TOKEN_MESSAGE,
+                AUTH_INVALID_REFRESH_TOKEN,
+                StatusCodes.Status401Unauthorized);
         }
 
-        var party = new Party
+        if (!string.Equals(existingToken.TokenHash, refreshTokenHash, StringComparison.Ordinal))
         {
-            PartyTypeId = partyType.Id,
-            DisplayName = pendingRegister.FullName,
-            LegalName = pendingRegister.FullName,
-            PrimaryEmail = pendingRegister.Email,
-            PrimaryPhone = pendingRegister.PhoneNumber,
-            StatusId = activeStatus.Id
-        };
+            // Reusing the immediately previous refresh token revokes the current client session and rejects the request.
+            existingToken.RevokedAt = DateTime.UtcNow;
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _logger.LogWarning(
+                InfrastructureLogConstants.SessionLogs.REFRESH_TOKEN_REUSE_REJECTED,
+                existingToken.User.PublicId,
+                existingToken.SessionPublicId);
+            throw new ApiException(
+                INVALID_REFRESH_TOKEN_MESSAGE,
+                AUTH_INVALID_REFRESH_TOKEN,
+                StatusCodes.Status401Unauthorized);
+        }
 
-        var user = new User
-        {
-            UserName = pendingRegister.UserName,
-            Email = pendingRegister.Email,
-            PhoneNumber = pendingRegister.PhoneNumber,
-            PasswordHash = pendingRegister.PasswordHash,
-            EmailConfirmed = true,
-            FullName = pendingRegister.FullName,
-            StatusId = activeStatus.Id,
-            LockoutEnabled = true
-        };
-
-        await _unitOfWork.ExecuteInTransactionAsync(async ct =>
-        {
-            await _partyRepository.AddAsync(party, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            user.PartyId = party.Id;
-
-            await _userRepository.AddAsync(user, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            await _userRoleRepository.AddAsync(new UserRole
+        // Refresh rotates the token hash in place and keeps the same server-issued session id.
+        var replacementRefreshToken = AuthSessionHelper.GenerateRefreshToken();
+        var deviceContext = _clientDeviceContextAccessor.GetCurrent();
+        var response = await IssueAsync(
+            new AuthSessionIssueRequestModel
             {
-                UserId = user.Id,
-                RoleId = role.Id
-            }, ct);
-        }, cancellationToken);
+                User = existingToken.User,
+                RawRefreshToken = replacementRefreshToken,
+                SessionRefreshToken = existingToken,
+                DeviceContext = deviceContext,
+                RenewSessionPublicId = false,
+                AuthOptions = _authOptions,
+                JwtSecurityTokenHandler = _jwtSecurityTokenHandler
+            },
+            cancellationToken);
+        _logger.LogInformation(
+            InfrastructureLogConstants.SessionLogs.CLIENT_SESSION_REFRESHED,
+            existingToken.SessionPublicId,
+            existingToken.User.PublicId);
+        _logger.LogInformation(InfrastructureLogConstants.SessionLogs.REFRESH_TOKEN_ROTATED);
 
-        await RemoveCacheAsync(GetPendingRegisterKey(normalizedEmail), cancellationToken);
-        await RemoveCacheAsync(GetOtpKey(REGISTER_PURPOSE, normalizedEmail), cancellationToken);
-
-        _logger.LogInformation(LOG_REGISTER_COMPLETED, user.PublicId);
-        return new ResponseDto<string>(REGISTRATION_COMPLETED_SUCCESS_MESSAGE);
+        return response;
     }
 
     /// <summary>
-    /// Re-issues an access token and rotates the refresh token when the supplied refresh token is valid.
+    /// Revokes refresh token state for logout.
     /// </summary>
-    public async Task<ResponseDto<LoginResponse>> RefreshTokenAsync(string refreshToken, CancellationToken cancellationToken = default)
+    /// <param name="currentUserPublicId">The current authenticated user's public identifier.</param>
+    /// <param name="currentSessionPublicId">The current authenticated session's public identifier.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The logout result.</returns>
+    public async Task<OperationStatusResponseDto> LogoutAsync(
+        Guid currentUserPublicId,
+        Guid currentSessionPublicId,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(refreshToken))
-        {
-            return new ResponseDto<LoginResponse>(AUTH_INVALID_REFRESH_TOKEN, INVALID_REFRESH_TOKEN_MESSAGE);
-        }
+        // Resolve the public user id to the internal user id used by refresh-token rows.
+        var user = await _repositories.UserRepository.GetByPublicIdAsync(currentUserPublicId, cancellationToken)
+                   ?? throw new HttpStatusCodeException(
+                       ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                       UNAUTHORIZED,
+                       StatusCodes.Status401Unauthorized);
 
-        var refreshTokenHash = HashToken(refreshToken);
-        var existingToken = await _refreshTokenRepository.GetForLoginAsync(refreshTokenHash, cancellationToken);
+        // Logout always revokes only the trusted current session from the access token.
+        await RevokeSessionAndRefreshTokensAsync(
+            user.Id,
+            currentSessionPublicId,
+            cancellationToken);
+        _logger.LogInformation(
+            InfrastructureLogConstants.SessionLogs.CLIENT_SESSION_REVOKED,
+            currentSessionPublicId,
+            currentUserPublicId);
 
-        if (existingToken is null || existingToken.RevokedAt.HasValue || existingToken.ExpiresAt <= DateTime.UtcNow || !CanLogin(existingToken.User))
-        {
-            return new ResponseDto<LoginResponse>(AUTH_INVALID_REFRESH_TOKEN, INVALID_REFRESH_TOKEN_MESSAGE);
-        }
-
-        var rawRefreshToken = GenerateRefreshToken();
-        existingToken.RevokedAt = DateTime.UtcNow;
-        existingToken.ReplacedByTokenHash = HashToken(rawRefreshToken);
-
-        return new ResponseDto<LoginResponse>(await BuildLoginResponseAsync(existingToken.User, rawRefreshToken, cancellationToken));
+        return OperationStatusResponseHelper.Success(LOGOUT_SUCCESS_MESSAGE);
     }
 
     /// <summary>
-    /// Revokes either one refresh token or all refresh tokens of the specified user.
+    /// Changes a password after forgot-password verification.
     /// </summary>
-    public async Task<ResponseDto<string>> LogoutAsync(Guid userPublicId, string refreshToken, bool logoutAllSessions, CancellationToken cancellationToken = default)
+    /// <param name="request">The forgot-password change-password payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The password-change result.</returns>
+    public async Task<OperationStatusResponseDto> ChangeForgotPasswordAsync(
+        ChangeForgotPasswordRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        var user = await _userRepository.GetByPublicIdAsync(userPublicId, cancellationToken);
+        // Load password state from the verified reset-session email.
+        var user = await _repositories.UserRepository.GetPasswordIdentityByEmailAsync(request.Email, cancellationToken);
         if (user is null)
         {
-            return new ResponseDto<string>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
+            throw new ApiException(RESET_SESSION_INVALID_MESSAGE, AUTH_RESET_SESSION_INVALID);
         }
 
-        if (logoutAllSessions)
-        {
-            await RevokeAllRefreshTokensAsync(user.Id, cancellationToken);
-            _logger.LogInformation(LOG_LOGOUT_ALL_REVOKED, user.PublicId);
-            return new ResponseDto<string>(LOGOUT_SUCCESS_MESSAGE);
-        }
+        // Forgot-password completion rotates the password and invalidates every existing session.
+        var authResetAt = DateTime.UtcNow;
+        await ResetPasswordAuthStateAndRevokeClientSessionsAsync(
+            user,
+            _passwordHasher.HashPassword(user, request.NewPassword),
+            authResetAt,
+            cancellationToken);
 
-        var refreshTokenHash = HashToken(refreshToken);
-        var existingToken = await _refreshTokenRepository.GetByUserAndHashAsync(user.Id, refreshTokenHash, cancellationToken);
+        _logger.LogInformation(
+            InfrastructureLogConstants.PasswordLogs.FORGOT_PASSWORD_CHANGED,
+            user.PublicId);
 
-        if (existingToken is null)
-        {
-            return new ResponseDto<string>(AUTH_INVALID_REFRESH_TOKEN, INVALID_REFRESH_TOKEN_MESSAGE);
-        }
-
-        existingToken.RevokedAt = DateTime.UtcNow;
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation(LOG_LOGOUT_REFRESH_TOKEN_REVOKED, user.PublicId);
-        return new ResponseDto<string>(LOGOUT_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(PASSWORD_CHANGED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
-    /// Authenticates the user by an external identity provider token.
+    /// Changes the current authenticated user's password.
     /// </summary>
-    public async Task<ResponseDto<LoginResponse>> LoginByThirdPartyAsync(ThirdPartyLoginCommand command, CancellationToken cancellationToken = default)
+    /// <param name="currentUserPublicId">The current authenticated user's public identifier.</param>
+    /// <param name="request">The authenticated change-password payload.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The password-change result.</returns>
+    public async Task<OperationStatusResponseDto> ChangePasswordAsync(
+        Guid currentUserPublicId,
+        ChangePasswordRequestDto request,
+        CancellationToken cancellationToken = default)
     {
-        var provider = GetProvider(command.Provider);
-        if (provider is null)
+        // Load current password state from the authenticated public user id.
+        var user = await _repositories.UserRepository.GetPasswordIdentityByPublicIdAsync(currentUserPublicId, cancellationToken)
+                   ?? throw new HttpStatusCodeException(
+                       ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                       UNAUTHORIZED,
+                       StatusCodes.Status401Unauthorized);
+        if (string.IsNullOrWhiteSpace(user.PasswordHash)
+            || _passwordHasher.VerifyHashedPassword(
+                user,
+                user.PasswordHash,
+                request.CurrentPassword) == PasswordVerificationResult.Failed)
         {
-            return new ResponseDto<LoginResponse>(AUTH_EXTERNAL_PROVIDER_INVALID, INVALID_EXTERNAL_PROVIDER_MESSAGE);
+            throw new ApiException(CURRENT_PASSWORD_INVALID_MESSAGE, AUTH_INVALID_CREDENTIALS);
         }
 
-        var profile = await ValidateExternalTokenAsync(provider, command.ExternalToken, cancellationToken);
-        if (profile is null)
-        {
-            return new ResponseDto<LoginResponse>(AUTH_EXTERNAL_PROVIDER_INVALID, INVALID_EXTERNAL_TOKEN_MESSAGE);
-        }
+        // Authenticated password change rotates the password and invalidates every existing session.
+        var authResetAt = DateTime.UtcNow;
+        await ResetPasswordAuthStateAndRevokeClientSessionsAsync(
+            user,
+            _passwordHasher.HashPassword(user, request.NewPassword),
+            authResetAt,
+            cancellationToken);
 
-        var existingMapping = await _externalLoginRepository.GetByProviderAsync(provider.Name, profile.ProviderUserId, cancellationToken);
+        _logger.LogInformation(
+            InfrastructureLogConstants.PasswordLogs.PASSWORD_CHANGED,
+            currentUserPublicId);
 
-        if (existingMapping is not null)
-        {
-            if (!CanLogin(existingMapping.User))
-            {
-                return new ResponseDto<LoginResponse>(AUTH_ACCOUNT_INACTIVE, ACCOUNT_INACTIVE_MESSAGE);
-            }
-
-            existingMapping.User.LastLoginAt = DateTime.UtcNow;
-            return await CreateLoginResponseAsync(existingMapping.User, cancellationToken);
-        }
-
-        var normalizedEmail = NormalizeEmail(profile.Email);
-        if (!string.IsNullOrWhiteSpace(normalizedEmail))
-        {
-            var existingUser = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
-            if (existingUser is not null)
-            {
-                return new ResponseDto<LoginResponse>(
-                    AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT,
-                    ACCOUNT_ALREADY_EXISTS_LINK_MESSAGE);
-            }
-        }
-
-        var createdUser = await CreateExternalUserAsync(provider, profile, cancellationToken);
-        createdUser.LastLoginAt = DateTime.UtcNow;
-        return await CreateLoginResponseAsync(createdUser, cancellationToken);
+        return OperationStatusResponseHelper.Success(PASSWORD_CHANGED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
-    /// Sends an OTP email for the forgot-password flow without revealing account existence.
+    /// Issues a Haven access token and persists the matching client-session refresh token.
     /// </summary>
-    public async Task<ResponseDto<string>> ForgotPasswordAsync(ForgotPasswordCommand command, CancellationToken cancellationToken = default)
+    /// <param name="request">The grouped auth-session issue request.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The login response containing the access and refresh token pair.</returns>
+    private async Task<LoginResponseDto> IssueAsync(
+        AuthSessionIssueRequestModel request,
+        CancellationToken cancellationToken = default)
     {
-        var normalizedEmail = NormalizeEmail(command.Email);
-        var throttleError = await CheckOtpThrottleAsync(FORGOT_PASSWORD_PURPOSE, normalizedEmail, FORGOT_PASSWORD_OTP_LIMIT, cancellationToken);
-        if (throttleError is not null)
-        {
-            return new ResponseDto<string>(FORGOT_PASSWORD_SUCCESS_MESSAGE);
-        }
+        // Prepare the JWT response and refresh token through the shared auth-session helper.
+        var issueModel = AuthSessionHelper.BuildIssueModel(request);
 
-        var user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
-        if (user is null)
+        if (issueModel.RefreshToken.Id == 0)
         {
-            await SetCooldownAsync(FORGOT_PASSWORD_PURPOSE, normalizedEmail, cancellationToken);
-            return new ResponseDto<string>(FORGOT_PASSWORD_SUCCESS_MESSAGE);
-        }
-
-        var otpCode = GenerateOtp();
-        await SetOtpAsync(FORGOT_PASSWORD_PURPOSE, normalizedEmail, otpCode, cancellationToken);
-        var sent = await SendOtpEmailAsync(normalizedEmail, otpCode, EMAIL_SUBJECT_RESET_PASSWORD, FORGOT_PASSWORD_PURPOSE, cancellationToken);
-        if (sent)
-        {
-            await SetCooldownAsync(FORGOT_PASSWORD_PURPOSE, normalizedEmail, cancellationToken);
-            _logger.LogInformation(LOG_FORGOT_PASSWORD_OTP_SENT);
+            // First login for this client instance creates the single persistent row.
+            await _repositories.RefreshTokenRepository.AddAsync(
+                issueModel.RefreshToken,
+                cancellationToken);
         }
         else
         {
-            await RemoveCacheAsync(GetOtpKey(FORGOT_PASSWORD_PURPOSE, normalizedEmail), cancellationToken);
-            _logger.LogWarning(LOG_FORGOT_PASSWORD_OTP_SEND_FAILED);
+            // Repeat login or refresh mutates the existing row instead of appending a new one.
+            await _repositories.RefreshTokenRepository.UpdateAsync(issueModel.RefreshToken);
         }
 
-        return new ResponseDto<string>(FORGOT_PASSWORD_SUCCESS_MESSAGE);
-    }
-
-    /// <summary>
-    /// Verifies the forgot-password OTP and creates a short-lived reset session in Redis.
-    /// </summary>
-    public async Task<ResponseDto<string>> VerifyForgotPasswordOtpAsync(VerifyForgotPasswordOtpCommand command, CancellationToken cancellationToken = default)
-    {
-        var normalizedEmail = NormalizeEmail(command.Email);
-        var otpVerification = await VerifyOtpAsync(FORGOT_PASSWORD_PURPOSE, normalizedEmail, command.Otp, cancellationToken);
-        if (!otpVerification.Success)
-        {
-            return otpVerification;
-        }
-
-        await SetCacheAsync(
-            GetResetSessionKey(normalizedEmail),
-            new ResetSessionCacheEntry { CreatedAt = DateTime.UtcNow },
-            TimeSpan.FromMinutes(RESET_SESSION_TTL_MINUTES),
-            cancellationToken);
-        _logger.LogInformation(LOG_FORGOT_PASSWORD_OTP_VERIFIED);
-        return new ResponseDto<string>(OTP_VERIFIED_SUCCESS_MESSAGE);
-    }
-
-    /// <summary>
-    /// Changes the password after a successful forgot-password OTP verification.
-    /// </summary>
-    public async Task<ResponseDto<string>> ChangeForgotPasswordAsync(ChangeForgotPasswordCommand command, CancellationToken cancellationToken = default)
-    {
-        var normalizedEmail = NormalizeEmail(command.Email);
-        var resetSession = await GetCacheAsync<ResetSessionCacheEntry>(GetResetSessionKey(normalizedEmail), cancellationToken);
-        if (resetSession is null)
-        {
-            return new ResponseDto<string>(AUTH_RESET_SESSION_INVALID, RESET_SESSION_INVALID_MESSAGE);
-        }
-
-        var user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
-        if (user is null)
-        {
-            return new ResponseDto<string>(AUTH_RESET_SESSION_INVALID, RESET_SESSION_INVALID_MESSAGE);
-        }
-
-        user.PasswordHash = _passwordHasher.HashPassword(user, command.NewPassword);
-        user.UpdatedAt = DateTime.UtcNow;
-        await RevokeAllRefreshTokensAsync(user.Id, cancellationToken, false);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        await RemoveCacheAsync(GetResetSessionKey(normalizedEmail), cancellationToken);
+        await TrySeedAuthResetMarkerAsync(request.User.PublicId, request.User.AuthResetAt, cancellationToken);
 
-        _logger.LogInformation(LOG_FORGOT_PASSWORD_CHANGED, user.PublicId);
-        return new ResponseDto<string>(PASSWORD_CHANGED_SUCCESS_MESSAGE);
+        return issueModel.LoginResponse;
     }
 
     /// <summary>
-    /// Changes the password for the current authenticated user and revokes existing refresh tokens.
+    /// Updates password state, resets authentication state, and revokes every active session.
     /// </summary>
-    public async Task<ResponseDto<string>> ChangePasswordAsync(ChangePasswordCommand command, CancellationToken cancellationToken = default)
+    /// <param name="user">The password identity being changed.</param>
+    /// <param name="passwordHash">The new password hash to persist.</param>
+    /// <param name="authResetAt">The UTC auth reset timestamp.</param>
+    /// <param name="cancellationToken">The token used to cancel the reset operation.</param>
+    /// <returns>A task that completes when password, reset state, and refresh-token revocations are persisted.</returns>
+    private async Task ResetPasswordAuthStateAndRevokeClientSessionsAsync(
+        User user,
+        string passwordHash,
+        DateTime authResetAt,
+        CancellationToken cancellationToken)
     {
-        _authService.EnsureAuthenticated();
-        if (!Guid.TryParse(_authService.UserId(), out var userPublicId))
-        {
-            return new ResponseDto<string>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
-        }
+        // Write Redis first so already-issued access tokens are invalidated before password persistence.
+        await WriteAuthResetMarkerAsync(user.PublicId, authResetAt, cancellationToken);
 
-        var user = await _userRepository.GetByPublicIdAsync(userPublicId, cancellationToken);
-        if (user is null)
-        {
-            return new ResponseDto<string>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
-        }
+        // Stage password and reset timestamp together so access-token validity follows credential changes.
+        await _repositories.UserRepository.StagePasswordHashChangeAsync(
+            user.Id,
+            passwordHash,
+            authResetAt,
+            authResetAt);
 
-        var verification = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, command.CurrentPassword);
-        if (verification == PasswordVerificationResult.Failed)
-        {
-            return new ResponseDto<string>(AUTH_INVALID_CREDENTIALS, CURRENT_PASSWORD_INVALID_MESSAGE);
-        }
-
-        user.PasswordHash = _passwordHasher.HashPassword(user, command.NewPassword);
-        user.UpdatedAt = DateTime.UtcNow;
-        await RevokeAllRefreshTokensAsync(user.Id, cancellationToken, false);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        _logger.LogInformation(LOG_PASSWORD_CHANGED, user.PublicId);
-        return new ResponseDto<string>(PASSWORD_CHANGED_SUCCESS_MESSAGE);
-    }
-
-    /// <summary>
-    /// Links an external provider to the current authenticated user.
-    /// </summary>
-    public async Task<ResponseDto<string>> LinkExternalProviderAsync(LinkExternalProviderCommand command, CancellationToken cancellationToken = default)
-    {
-        _authService.EnsureAuthenticated();
-        if (!Guid.TryParse(_authService.UserId(), out var userPublicId))
-        {
-            return new ResponseDto<string>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
-        }
-
-        var user = await _userRepository.GetByPublicIdAsync(userPublicId, cancellationToken);
-        if (user is null)
-        {
-            return new ResponseDto<string>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
-        }
-
-        var provider = GetProvider(command.Provider);
-        if (provider is null)
-        {
-            return new ResponseDto<string>(AUTH_EXTERNAL_PROVIDER_INVALID, INVALID_EXTERNAL_PROVIDER_MESSAGE);
-        }
-
-        var profile = await ValidateExternalTokenAsync(provider, command.ExternalToken, cancellationToken);
-        if (profile is null)
-        {
-            return new ResponseDto<string>(AUTH_EXTERNAL_PROVIDER_INVALID, INVALID_EXTERNAL_TOKEN_MESSAGE);
-        }
-
-        var existingMapping = await _externalLoginRepository.GetByProviderAsync(provider.Name, profile.ProviderUserId, cancellationToken);
-
-        if (existingMapping is not null && existingMapping.UserId != user.Id)
-        {
-            return new ResponseDto<string>(AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT, EXTERNAL_PROVIDER_LINK_CONFLICT_MESSAGE);
-        }
-
-        if (existingMapping is null)
-        {
-            await _externalLoginRepository.AddAsync(new ExternalLogin
-            {
-                UserId = user.Id,
-                LoginProvider = provider.Name,
-                ProviderKey = profile.ProviderUserId
-            }, cancellationToken);
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-
-        _logger.LogInformation(LOG_EXTERNAL_PROVIDER_LINKED, provider.Name, user.PublicId);
-        return new ResponseDto<string>(EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
-    }
-
-    /// <summary>
-    /// Loads the current authenticated user profile, role list, permissions, and external providers.
-    /// </summary>
-    public async Task<ResponseDto<UserInfoResponse>> GetUserInfoAsync(CancellationToken cancellationToken = default)
-    {
-        _authService.EnsureAuthenticated();
-        if (!Guid.TryParse(_authService.UserId(), out var userPublicId))
-        {
-            return new ResponseDto<UserInfoResponse>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
-        }
-
-        var user = await _userRepository.GetUserInfoByPublicIdAsync(userPublicId, cancellationToken);
-
-        if (user is null)
-        {
-            return new ResponseDto<UserInfoResponse>(AUTH_UNAUTHORIZED, UNAUTHORIZED_REQUEST_MESSAGE);
-        }
-
-        var response = new UserInfoResponse
-        {
-            UserName = user.UserName,
-            Email = user.Email,
-            PhoneNumber = user.PhoneNumber,
-            DisplayName = user.Party?.DisplayName
-        };
-
-        response.Roles = user.UserRoles
-            .Where(x => x.Role is not null && !x.Role.IsDeleted)
-            .Select(x => string.IsNullOrWhiteSpace(x.Role.Code) ? x.Role.Name : x.Role.Code)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        response.Permissions = user.UserRoles
-            .Where(x => x.Role is not null && !x.Role.IsDeleted)
-            .SelectMany(x => x.Role.RolePermissions)
-            .Where(x => x.Permission is not null && !x.Permission.IsDeleted)
-            .Select(x => string.IsNullOrWhiteSpace(x.Permission.Code) ? x.Permission.Name : x.Permission.Code)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        response.ExternalProviders = user.ExternalLogins
-            .GroupBy(x => x.LoginProvider, StringComparer.OrdinalIgnoreCase)
-            .Select(x => new ExternalProviderDto { Provider = x.Key })
-            .ToList();
-
-        return new ResponseDto<UserInfoResponse>(response);
-    }
-
-    private async Task<User> CreateExternalUserAsync(ExternalProviderOptions provider, ExternalIdentityProfile profile, CancellationToken cancellationToken)
-    {
-        var activeStatus = await FindMasterDataValueAsync(STATUS_TYPE, ACTIVE_STATUS, cancellationToken)
-            ?? throw new InvalidOperationException(ACTIVE_STATUS_NOT_FOUND_MESSAGE);
-        var partyType = await FindMasterDataValueAsync(PARTY_TYPE_TYPE, provider.DefaultPartyType, cancellationToken)
-            ?? throw new InvalidOperationException(DEFAULT_PARTY_TYPE_NOT_FOUND_MESSAGE);
-        var role = await FindRoleForPartyTypeAsync(provider.DefaultPartyType, cancellationToken)
-            ?? throw new InvalidOperationException(DEFAULT_ROLE_NOT_FOUND_MESSAGE);
-
-        var fullName = string.IsNullOrWhiteSpace(profile.FullName) ? profile.Email ?? profile.ProviderUserId : profile.FullName.Trim();
-        var normalizedEmail = NormalizeEmail(profile.Email);
-
-        var party = new Party
-        {
-            PartyTypeId = partyType.Id,
-            DisplayName = fullName,
-            LegalName = fullName,
-            PrimaryEmail = normalizedEmail,
-            StatusId = activeStatus.Id
-        };
-
-        var user = new User
-        {
-            UserName = await GenerateUniqueUserNameAsync(normalizedEmail, fullName, cancellationToken),
-            Email = normalizedEmail,
-            FullName = fullName,
-            EmailConfirmed = string.IsNullOrWhiteSpace(normalizedEmail) || !provider.RequireVerifiedEmail || profile.EmailVerified,
-            StatusId = activeStatus.Id,
-            LockoutEnabled = true
-        };
-
-        await _unitOfWork.ExecuteInTransactionAsync(async ct =>
-        {
-            await _partyRepository.AddAsync(party, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            user.PartyId = party.Id;
-
-            await _userRepository.AddAsync(user, ct);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            await _externalLoginRepository.AddAsync(new ExternalLogin
-            {
-                UserId = user.Id,
-                LoginProvider = provider.Name,
-                ProviderKey = profile.ProviderUserId
-            }, ct);
-
-            await _userRoleRepository.AddAsync(new UserRole
-            {
-                UserId = user.Id,
-                RoleId = role.Id
-            }, ct);
-        }, cancellationToken);
-
-        return await _userRepository.GetUserForAuthenticationByIdAsync(user.Id, cancellationToken)
-            ?? throw new InvalidOperationException(EXTERNAL_USER_NOT_LOADED_MESSAGE);
-    }
-
-    private async Task<ResponseDto<string>> VerifyOtpAsync(string purpose, string normalizedEmail, string otp, CancellationToken cancellationToken)
-    {
-        var otpKey = GetOtpKey(purpose, normalizedEmail);
-        var otpEntry = await GetCacheAsync<OtpCacheEntry>(otpKey, cancellationToken);
-        if (otpEntry is null || string.IsNullOrWhiteSpace(otpEntry.Code))
-        {
-            return new ResponseDto<string>(AUTH_OTP_INVALID, OTP_INVALID_OR_EXPIRED_MESSAGE);
-        }
-
-        var remainingTtl = otpEntry.ExpiresAtUtc - DateTime.UtcNow;
-        if (remainingTtl <= TimeSpan.Zero)
-        {
-            await RemoveCacheAsync(otpKey, cancellationToken);
-            return new ResponseDto<string>(AUTH_OTP_INVALID, OTP_INVALID_OR_EXPIRED_MESSAGE);
-        }
-
-        if (!string.Equals(otpEntry.Code, otp?.Trim(), StringComparison.Ordinal))
-        {
-            otpEntry.Attempts++;
-            if (otpEntry.Attempts >= OTP_MAX_VERIFY_ATTEMPTS)
-            {
-                await RemoveCacheAsync(otpKey, cancellationToken);
-            }
-            else
-            {
-                await SetCacheAsync(otpKey, otpEntry, remainingTtl, cancellationToken);
-            }
-
-            return new ResponseDto<string>(AUTH_OTP_INVALID, OTP_INVALID_OR_EXPIRED_MESSAGE);
-        }
-
-        await RemoveCacheAsync(otpKey, cancellationToken);
-        return new ResponseDto<string>(OTP_VERIFIED_SUCCESS_MESSAGE);
-    }
-
-    private async Task<ResponseDto<string>> CheckRegistrationUniquenessAsync(string userName, string email, string phoneNumber, CancellationToken cancellationToken)
-    {
-        if (await _userRepository.UserNameExistsAsync(userName, cancellationToken))
-        {
-            return new ResponseDto<string>(AUTH_USER_ALREADY_EXISTS, USERNAME_ALREADY_EXISTS_MESSAGE);
-        }
-
-        if (await _userRepository.EmailExistsAsync(email, cancellationToken))
-        {
-            return new ResponseDto<string>(AUTH_USER_ALREADY_EXISTS, EMAIL_ALREADY_EXISTS_MESSAGE);
-        }
-
-        if (await _userRepository.PhoneNumberExistsAsync(phoneNumber.Trim(), cancellationToken))
-        {
-            return new ResponseDto<string>(AUTH_USER_ALREADY_EXISTS, PHONE_NUMBER_ALREADY_EXISTS_MESSAGE);
-        }
-
-        return null;
-    }
-
-    private async Task<ResponseDto<string>> CheckOtpThrottleAsync(string purpose, string normalizedEmail, int limit, CancellationToken cancellationToken)
-    {
-        var cooldownKey = GetCooldownKey(purpose, normalizedEmail);
-        if (!string.IsNullOrWhiteSpace(await GetCacheAsync<string>(cooldownKey, cancellationToken)))
-        {
-            return new ResponseDto<string>(AUTH_OTP_COOLDOWN, OTP_COOLDOWN_MESSAGE);
-        }
-
-        var limitKey = GetLimitKey(purpose, normalizedEmail);
-        var currentLimit = await GetCacheAsync<int?>(limitKey, cancellationToken) ?? 0;
-        currentLimit++;
-        if (currentLimit > limit)
-        {
-            return new ResponseDto<string>(AUTH_OTP_RATE_LIMIT, OTP_RATE_LIMIT_MESSAGE);
-        }
-
-        await SetCacheAsync(limitKey, currentLimit, TimeSpan.FromMinutes(OTP_LIMIT_TTL_MINUTES), cancellationToken);
-        return null;
-    }
-
-    private async Task SetCooldownAsync(string purpose, string normalizedEmail, CancellationToken cancellationToken)
-    {
-        await _cachingService.SetAbsoluteAsync(
-            GetCooldownKey(purpose, normalizedEmail),
-            OTP_COOLDOWN_VALUE,
-            TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
+        // Revoke every client session in the same save boundary as the password change.
+        await _repositories.RefreshTokenRepository.StageActiveRevocationsByUserIdAsync(
+            user.Id,
+            authResetAt,
             cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            InfrastructureLogConstants.SessionLogs.CLIENT_SESSIONS_REVOKED_BY_CREDENTIAL_CHANGE,
+            user.PublicId);
+
+        // Seed Redis again after the DB write so handler fast-path stays aligned with source of truth.
+        await TrySeedAuthResetMarkerAsync(user.PublicId, authResetAt, cancellationToken);
     }
 
-    private async Task<bool> SendOtpEmailAsync(string email, string otpCode, string subject, string purpose, CancellationToken cancellationToken)
+    /// <summary>
+    /// Writes the auth reset marker to cache as a required precondition for password resets.
+    /// </summary>
+    /// <param name="userPublicId">The public user identifier.</param>
+    /// <param name="authResetAt">The UTC auth reset timestamp.</param>
+    /// <param name="cancellationToken">The token used to cancel the cache write.</param>
+    /// <returns>A task that completes when the required cache write succeeds.</returns>
+    private async Task WriteAuthResetMarkerAsync(
+        Guid userPublicId,
+        DateTime authResetAt,
+        CancellationToken cancellationToken)
     {
-        var emailRequest = new EmailRequest
-        {
-            RequestData = new RequestData
-            {
-                Subject = subject,
-                Body = string.Format(OTP_EMAIL_HTML_TEMPLATE, otpCode),
-                To =
-                [
-                    new EmailAddressRequest { Email = email }
-                ]
-            }
-        };
-
-        var sent = await _emailService.SendEmailAsync(emailRequest);
-        if (sent)
-        {
-            return true;
-        }
-
-        _logger.LogWarning(LOG_SENDGRID_OTP_SEND_FAILED, purpose);
-        return false;
-    }
-
-    private async Task<ExternalIdentityProfile> ValidateExternalTokenAsync(ExternalProviderOptions provider, string externalToken, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(externalToken))
-        {
-            return null;
-        }
-
         try
         {
-            var metadataAddress = string.IsNullOrWhiteSpace(provider.MetadataAddress)
-                ? $"{provider.Authority.TrimEnd('/')}/.well-known/openid-configuration"
-                : provider.MetadataAddress;
-            var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
-                metadataAddress,
-                new OpenIdConnectConfigurationRetriever(),
-                new HttpDocumentRetriever { RequireHttps = metadataAddress.StartsWith("https://", StringComparison.OrdinalIgnoreCase) });
-            var configuration = await configurationManager.GetConfigurationAsync(cancellationToken);
-
-            var validationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKeys = configuration.SigningKeys,
-                ValidateIssuer = true,
-                ValidIssuers = provider.ValidIssuers.Count > 0 ? provider.ValidIssuers : [configuration.Issuer],
-                ValidateAudience = provider.Audiences.Count > 0,
-                ValidAudiences = provider.Audiences,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromMinutes(1)
-            };
-
-            var principal = _jwtSecurityTokenHandler.ValidateToken(externalToken, validationParameters, out _);
-            var email = principal.FindFirstValue(ClaimTypes.Email)
-                        ?? principal.FindFirstValue("email");
-            var fullName = principal.FindFirstValue(ClaimTypes.Name)
-                           ?? principal.FindFirstValue("name")
-                           ?? principal.FindFirstValue("given_name");
-            var providerUserId = principal.FindFirstValue(ClaimTypes.NameIdentifier)
-                                 ?? principal.FindFirstValue("sub");
-            var emailVerified = bool.TryParse(principal.FindFirstValue("email_verified"), out var verified) && verified;
-
-            if (string.IsNullOrWhiteSpace(providerUserId))
-            {
-                return null;
-            }
-
-            if (provider.RequireVerifiedEmail && !string.IsNullOrWhiteSpace(email) && !emailVerified)
-            {
-                return null;
-            }
-
-            return new ExternalIdentityProfile
-            {
-                ProviderUserId = providerUserId,
-                Email = email,
-                FullName = fullName,
-                EmailVerified = emailVerified || !provider.RequireVerifiedEmail
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, LOG_EXTERNAL_TOKEN_VALIDATION_FAILED, provider.Name);
-            return null;
-        }
-    }
-
-    private async Task<LoginResponse> BuildLoginResponseAsync(User user, string refreshToken, CancellationToken cancellationToken)
-    {
-        var issuedAt = DateTime.UtcNow;
-        var expiresAt = issuedAt.AddMinutes(_authOptions.AccessTokenMinutes);
-        var jwtId = Guid.NewGuid().ToString("N");
-
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.NameIdentifier, user.PublicId.ToString()),
-            new(ClaimTypes.Name, user.UserName ?? string.Empty),
-            new(JwtRegisteredClaimNames.Jti, jwtId)
-        };
-
-        if (!string.IsNullOrWhiteSpace(user.Email))
-        {
-            claims.Add(new Claim(ClaimTypes.Email, user.Email));
-        }
-
-        var permissionCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var userRole in user.UserRoles.Where(x => x.Role is not null && !x.Role.IsDeleted))
-        {
-            var roleValue = string.IsNullOrWhiteSpace(userRole.Role.Code) ? userRole.Role.Name : userRole.Role.Code;
-            if (!string.IsNullOrWhiteSpace(roleValue))
-            {
-                claims.Add(new Claim(ClaimTypes.Role, roleValue));
-            }
-
-            foreach (var rolePermission in userRole.Role.RolePermissions.Where(x => x.Permission is not null && !x.Permission.IsDeleted))
-            {
-                var permissionValue = string.IsNullOrWhiteSpace(rolePermission.Permission.Code)
-                    ? rolePermission.Permission.Name
-                    : rolePermission.Permission.Code;
-                if (!string.IsNullOrWhiteSpace(permissionValue) && permissionCodes.Add(permissionValue))
+            // Write Redis first so old access tokens stop being accepted before persistence completes.
+            await AuthResetCacheHelper.SetAsync(
+                _cachingService,
+                new AuthResetCacheWriteModel
                 {
-                    claims.Add(new Claim("permission", permissionValue));
-                }
-            }
+                    UserPublicId = userPublicId,
+                    AuthResetAt = authResetAt,
+                    RefreshTokenDays = _authOptions.RefreshTokenDays
+                },
+                cancellationToken);
         }
-
-        var credentials = new SigningCredentials(
-            new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_authOptions.SecretKey)),
-            SecurityAlgorithms.HmacSha256);
-
-        var jwt = new JwtSecurityToken(
-            issuer: _authOptions.Issuer,
-            audience: _authOptions.Audiences.FirstOrDefault(),
-            claims: claims,
-            notBefore: issuedAt,
-            expires: expiresAt,
-            signingCredentials: credentials);
-
-        await _refreshTokenRepository.AddAsync(new RefreshToken
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            UserId = user.Id,
-            TokenHash = HashToken(refreshToken),
-            JwtId = jwtId,
-            ExpiresAt = issuedAt.AddDays(_authOptions.RefreshTokenDays)
-        }, cancellationToken);
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return new LoginResponse
-        {
-            AccessToken = _jwtSecurityTokenHandler.WriteToken(jwt),
-            RefreshToken = refreshToken,
-            ExpiresIn = (int)TimeSpan.FromMinutes(_authOptions.AccessTokenMinutes).TotalSeconds,
-            TokenType = TOKEN_TYPE_BEARER
-        };
-    }
-
-    private async Task<ResponseDto<LoginResponse>> CreateLoginResponseAsync(User user, CancellationToken cancellationToken)
-    {
-        var rawRefreshToken = GenerateRefreshToken();
-        var response = await BuildLoginResponseAsync(user, rawRefreshToken, cancellationToken);
-        return new ResponseDto<LoginResponse>(response);
-    }
-
-    private async Task RevokeAllRefreshTokensAsync(long userId, CancellationToken cancellationToken, bool saveChanges = true)
-    {
-        var activeTokens = await _refreshTokenRepository.GetActiveByUserIdAsync(userId, cancellationToken);
-
-        foreach (var token in activeTokens)
-        {
-            token.RevokedAt = DateTime.UtcNow;
-        }
-
-        if (saveChanges)
-        {
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            _logger.LogError(ex, InfrastructureLogConstants.SessionLogs.AUTH_RESET_CACHE_WRITE_FAILED, userPublicId);
+            throw new HttpStatusCodeException(
+                AUTH_STATE_UNAVAILABLE,
+                SERVICE_UNAVAILABLE,
+                StatusCodes.Status503ServiceUnavailable);
         }
     }
 
-    private async Task<MasterDataValue> FindMasterDataValueAsync(string type, string value, CancellationToken cancellationToken)
+    /// <summary>
+    /// Seeds the auth reset marker after token issue or reset persistence.
+    /// </summary>
+    /// <param name="userPublicId">The public user identifier whose reset marker should be cached.</param>
+    /// <param name="authResetAt">The optional UTC auth reset marker.</param>
+    /// <param name="cancellationToken">The token used to cancel the cache write.</param>
+    /// <returns>A task that completes after best-effort cache seeding.</returns>
+    private async Task TrySeedAuthResetMarkerAsync(
+        Guid userPublicId,
+        DateTime? authResetAt,
+        CancellationToken cancellationToken)
     {
-        return await _masterDataValueRepository.GetByTypeAndValueAsync(type, value, cancellationToken);
-    }
-
-    private async Task<Role> FindRoleForPartyTypeAsync(string partyType, CancellationToken cancellationToken)
-    {
-        return await _roleRepository.GetByPartyTypeAsync(partyType, cancellationToken);
-    }
-
-    private async Task<string> GenerateUniqueUserNameAsync(string email, string fullName, CancellationToken cancellationToken)
-    {
-        var baseName = !string.IsNullOrWhiteSpace(email)
-            ? email.Split('@')[0]
-            : fullName.Replace(" ", string.Empty, StringComparison.Ordinal);
-        baseName = NormalizeUserName(baseName);
-
-        if (string.IsNullOrWhiteSpace(baseName))
+        try
         {
-            baseName = DEFAULT_EXTERNAL_USER_NAME;
+            // Token issue should not fail when only the cache seed is unavailable; handler can fall back to DB later.
+            await AuthResetCacheHelper.SetAsync(
+                _cachingService,
+                new AuthResetCacheWriteModel
+                {
+                    UserPublicId = userPublicId,
+                    AuthResetAt = authResetAt,
+                    RefreshTokenDays = _authOptions.RefreshTokenDays
+                },
+                cancellationToken);
         }
-
-        var candidate = baseName;
-        var suffix = 1;
-        while (await _userRepository.UserNameExistsAsync(candidate, cancellationToken))
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            suffix++;
-            candidate = $"{baseName}{suffix}";
+            _logger.LogWarning(ex, InfrastructureLogConstants.SessionLogs.AUTH_RESET_CACHE_SEED_FAILED, userPublicId);
         }
-
-        return candidate;
     }
 
-    private ExternalProviderOptions GetProvider(string provider)
+    /// <summary>
+    /// Revokes the current client session by its server-issued session id.
+    /// </summary>
+    /// <param name="userId">The internal user identifier.</param>
+    /// <param name="sessionPublicId">The current access token session identifier.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>A task that completes when the session revocation is saved.</returns>
+    private async Task RevokeSessionAndRefreshTokensAsync(
+        long userId,
+        Guid sessionPublicId,
+        CancellationToken cancellationToken)
     {
-        var normalizedProvider = provider?.Trim();
-        return _externalAuthenticationOptions.Providers
-            .FirstOrDefault(x => string.Equals(x.Name, normalizedProvider, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool CanLogin(User user)
-    {
-        return user is not null
-               && !user.IsDeleted
-               && user.Status is not null
-               && (string.Equals(user.Status.Code, ACTIVE_STATUS, StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(user.Status.Name, ACTIVE_STATUS, StringComparison.OrdinalIgnoreCase))
-               && user.EmailConfirmed;
-    }
-
-    private static string NormalizeEmail(string email)
-    {
-        return email?.Trim().ToLowerInvariant();
-    }
-
-    private static string NormalizeUserName(string userName)
-    {
-        return userName?.Trim();
-    }
-
-    private static string HashToken(string rawToken)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(rawToken));
-        return Convert.ToBase64String(bytes);
-    }
-
-    private static string GenerateRefreshToken()
-    {
-        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
-    }
-
-    private static string GenerateOtp()
-    {
-        var value = RandomNumberGenerator.GetInt32(0, 1_000_000);
-        return value.ToString($"D{OTP_LENGTH}");
-    }
-
-    private static string GetOtpKey(string purpose, string email) => string.Format(OTP_KEY_PATTERN, purpose, email);
-
-    private static string GetPendingRegisterKey(string email) => string.Format(PENDING_REGISTER_KEY_PATTERN, email);
-
-    private static string GetCooldownKey(string purpose, string email) => string.Format(OTP_COOLDOWN_KEY_PATTERN, purpose, email);
-
-    private static string GetLimitKey(string purpose, string email) => string.Format(OTP_LIMIT_KEY_PATTERN, purpose, email);
-
-    private static string GetResetSessionKey(string email) => string.Format(RESET_SESSION_KEY_PATTERN, email);
-
-    private Task SetOtpAsync(string purpose, string normalizedEmail, string otpCode, CancellationToken cancellationToken)
-    {
-        var otpEntry = new OtpCacheEntry
-        {
-            Code = otpCode,
-            Attempts = 0,
-            ExpiresAtUtc = DateTime.UtcNow.AddMinutes(OTP_TTL_MINUTES)
-        };
-
-        return SetCacheAsync(
-            GetOtpKey(purpose, normalizedEmail),
-            otpEntry,
-            TimeSpan.FromMinutes(OTP_TTL_MINUTES),
+        // Current-session logout marks only the active refresh-token row behind the trusted session id.
+        var revokedAt = DateTime.UtcNow;
+        await _repositories.RefreshTokenRepository.StageActiveRevocationsByUserAndSessionPublicIdAsync(
+            userId,
+            sessionPublicId,
+            revokedAt,
             cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task SetCacheAsync<T>(string key, T value, TimeSpan ttl, CancellationToken cancellationToken)
-    {
-        await _cachingService.SetAbsoluteAsync(key, value, ttl, cancellationToken);
-    }
-
-    private async Task<T> GetCacheAsync<T>(string key, CancellationToken cancellationToken)
-    {
-        return await _cachingService.GetAsync<T>(key, cancellationToken);
-    }
-
-    private async Task RemoveCacheAsync(string key, CancellationToken cancellationToken)
-    {
-        await _cachingService.RemoveAsync(key, cancellationToken);
-    }
 }

@@ -8,6 +8,7 @@ namespace Authentication.Api.Controllers;
 /// </example>
 [ApiController]
 [Authorize]
+[Produces(TEXT_JSON)]
 [Route("api/v{version:apiVersion}/[controller]")]
 public abstract class BaseApiController : ControllerBase
 {
