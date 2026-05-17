@@ -317,16 +317,9 @@ public sealed class SwaggerExampleOperationFilter : IOperationFilter
                 nameof(ISwaggerExampleProvider)));
         }
 
-        if (Activator.CreateInstance(providerType, nonPublic: true) is not ISwaggerExampleProvider provider)
-        {
-            throw new InvalidOperationException(string.Format(
-                CultureInfo.InvariantCulture,
-                SWAGGER_EXAMPLE_PROVIDER_CREATION_FAILED_FORMAT,
-                providerTypeName,
-                nameof(ISwaggerExampleProvider)));
-        }
+        var provider = (ISwaggerExampleProvider)Activator.CreateInstance(providerType, nonPublic: true);
 
-        return BuildExampleNode(provider.GetExample());
+        return BuildExampleNode(provider?.GetExample());
     }
 
     /// <summary>

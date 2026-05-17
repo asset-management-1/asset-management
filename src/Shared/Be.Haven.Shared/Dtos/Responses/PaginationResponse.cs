@@ -19,7 +19,6 @@ public class PaginationResponse<T> : BasePaginationResponse<T>
     /// </summary>
     public PaginationResponse()
     {
-
     }
 
     /// <summary>

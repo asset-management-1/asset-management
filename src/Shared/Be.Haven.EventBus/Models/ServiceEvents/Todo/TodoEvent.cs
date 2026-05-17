@@ -1,8 +1,8 @@
-﻿namespace Be.Haven.EventBus.Models.ServiceEvents.Todo;
+namespace Be.Haven.EventBus.Models.ServiceEvents.Todo;
 
 /// <summary>
 /// Represents a To-Do event message published to the EventBus.
-/// This class maps to the National Address To-Do Topic and Subscription.
+/// This class maps to the Haven To-Do Topic and Subscription.
 /// </summary>
 [Gcp(
     QueueNameConstants.TopicNames.NATION_ADDRESS_TODO_TOPIC,

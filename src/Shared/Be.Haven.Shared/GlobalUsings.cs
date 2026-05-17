@@ -1,5 +1,4 @@
 // Global using directives
-
 global using Be.Haven.Shared.Constants;
 global using Be.Haven.Shared.Enums;
 global using Dapper;

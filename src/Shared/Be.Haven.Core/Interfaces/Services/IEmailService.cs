@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Services;
+namespace Be.Haven.Core.Interfaces.Services;
 
 /// <summary>
 /// Defines the contract for an email service responsible for sending emails.

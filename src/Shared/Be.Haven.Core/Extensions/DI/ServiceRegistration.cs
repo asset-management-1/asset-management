@@ -13,6 +13,7 @@ public static class ServiceRegistration
         services.AddSingleton<IJsonSerializerService, JsonSerializerService>();
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IClientDeviceContextAccessor, ClientDeviceContextAccessor>();
         
         // Register Mapster configurations for object mapping across layers.
         RegisterMapperConfigurations();
@@ -167,8 +168,7 @@ public static class ServiceRegistration
     {
         serviceCollection.Configure<QueueInfoOptions>(configuration.GetSection(QUEUE_INFO_SETTINGS));
         serviceCollection.AddSingleton(sp => sp.GetRequiredService<IOptions<QueueInfoOptions>>().Value);
-        
-        // Registers IGcpPublisherService with its concrete implementation as a singleton
+        serviceCollection.AddSingleton<IGcpPubSubPublisherClientFactory, GcpPubSubPublisherClientFactoryService>();
         serviceCollection.AddSingleton<IGcpPublisherService, GcpPublisherService>();
     }
 
@@ -188,10 +188,9 @@ public static class ServiceRegistration
         {
             // Resolve the logger for the subscriber job from the DI container
             var logger = sp.GetRequiredService<ILogger<GcpSubscriberJob>>();
-            var configuration = sp.GetRequiredService<IConfiguration>();
 
             // Create an instance of the subscriber job with its dependencies injected
-            var job = ActivatorUtilities.CreateInstance<GcpSubscriberJob>(sp, logger, configuration);
+            var job = ActivatorUtilities.CreateInstance<GcpSubscriberJob>(sp, logger);
 
             // Apply custom handler configuration provided by the caller
             action(job);
@@ -485,19 +484,6 @@ public static class ServiceRegistration
             var opts = configuration.GetSection(QUARTZ_SETTINGS).Get<QuartzJobsOptions>()
                        ?? new QuartzJobsOptions();
 
-            // Local helper: safely get types from an assembly (handles partial load failures).
-            static IEnumerable<Type> SafeGetTypes(Assembly a)
-            {
-                try
-                {
-                    return a.GetTypes();
-                }
-                catch (ReflectionTypeLoadException ex)
-                {
-                    return ex.Types.Where(t => t is not null)!;
-                }
-            }
-
             // Scan all loaded (non-dynamic) assemblies to discover Quartz jobs.
             var assemblies = AppDomain.CurrentDomain
                 .GetAssemblies()
@@ -561,5 +547,22 @@ public static class ServiceRegistration
 
         // Hosted service that starts Quartz scheduler and waits for running jobs during shutdown.
         services.AddQuartzHostedService(o => o.WaitForJobsToComplete = true);
+    }
+
+    /// <summary>
+    /// Gets loadable types from an assembly while preserving partial type-load results.
+    /// </summary>
+    /// <param name="assembly">The assembly to inspect.</param>
+    /// <returns>All loadable types from the assembly.</returns>
+    private static IEnumerable<Type> SafeGetTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            return ex.Types.Where(type => type is not null)!;
+        }
     }
 }

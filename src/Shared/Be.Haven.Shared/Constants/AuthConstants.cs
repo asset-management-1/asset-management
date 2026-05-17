@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Constants;
+namespace Be.Haven.Shared.Constants;
 
 public static class AuthConstants
 {
@@ -23,7 +23,7 @@ public static class AuthConstants
     public const string NA_NBF = "na_nbf";
 
     /// <summary>
-    /// Identifier for the type or category of a National Address (NA) user, used for role-based or access-based differentiation.
+    /// Identifier for the type or category of a Haven user, used for role-based or access-based differentiation.
     /// </summary>
     public const string NA_USER_TYPE = "na_user_type";
 
@@ -146,7 +146,7 @@ public static class AuthConstants
     public const string NA_JTI = "jti";
 
     /// <summary>
-    /// Identifier representing an individual user in the context of National Address (NA) operations or role-based access systems.
+    /// Identifier representing an individual user in the context of Haven (NA) operations or role-based access systems.
     /// </summary>
     public const string INDIVIDUAL = "Individual";
 
@@ -164,6 +164,36 @@ public static class AuthConstants
         /// Haven-issued access-token timestamp in Unix milliseconds.
         /// </summary>
         public const string HAVEN_ISSUED_AT_MS = "haven_issued_at_ms";
+
+        /// <summary>
+        /// Server-issued public identifier for the authenticated client session.
+        /// </summary>
+        public const string SESSION_ID = "session_id";
+
+        /// <summary>
+        /// Client-supplied app/browser instance identifier recorded as session metadata.
+        /// </summary>
+        public const string DEVICE_ID = "device_id";
+
+        /// <summary>
+        /// Client-supplied device display name recorded as session metadata.
+        /// </summary>
+        public const string DEVICE_NAME = "device_name";
+
+        /// <summary>
+        /// Client-supplied device type recorded as session metadata.
+        /// </summary>
+        public const string DEVICE_TYPE = "device_type";
+
+        /// <summary>
+        /// Request user-agent value recorded as session metadata.
+        /// </summary>
+        public const string USER_AGENT = "user_agent";
+
+        /// <summary>
+        /// Remote IP address value recorded as session metadata.
+        /// </summary>
+        public const string IP_ADDRESS = "ip_address";
 
         /// <summary>
         /// OpenID Connect subject claim.
@@ -214,6 +244,94 @@ public static class AuthConstants
         /// Application permission claim key.
         /// </summary>
         public const string PERMISSION = "permission";
+    }
+
+    /// <summary>
+    /// Header names used by clients to submit non-authoritative device metadata.
+    /// </summary>
+    public static class ClientDeviceHeaders
+    {
+        /// <summary>
+        /// Header carrying a stable client-generated app/browser instance identifier.
+        /// </summary>
+        public const string DEVICE_ID = "X-Device-Id";
+
+        /// <summary>
+        /// Header carrying a client display name for the current device.
+        /// </summary>
+        public const string DEVICE_NAME = "X-Device-Name";
+
+        /// <summary>
+        /// Header carrying the client device category, such as mobile or web.
+        /// </summary>
+        public const string DEVICE_TYPE = "X-Device-Type";
+
+        /// <summary>
+        /// Standard HTTP header carrying the user-agent string.
+        /// </summary>
+        public const string USER_AGENT = "User-Agent";
+    }
+
+    /// <summary>
+    /// Maximum lengths for stored and tokenized client device metadata.
+    /// </summary>
+    public static class ClientDeviceMetadataLimits
+    {
+        /// <summary>
+        /// Maximum stored length for a client instance identifier.
+        /// </summary>
+        public const int DEVICE_ID_MAX_LENGTH = 150;
+
+        /// <summary>
+        /// Maximum stored length for a client device display name.
+        /// </summary>
+        public const int DEVICE_NAME_MAX_LENGTH = 150;
+
+        /// <summary>
+        /// Maximum stored length for a client device type.
+        /// </summary>
+        public const int DEVICE_TYPE_MAX_LENGTH = 50;
+
+        /// <summary>
+        /// Maximum stored length for a user-agent value.
+        /// </summary>
+        public const int USER_AGENT_MAX_LENGTH = 512;
+
+        /// <summary>
+        /// Maximum stored length for a remote IP address value.
+        /// </summary>
+        public const int IP_ADDRESS_MAX_LENGTH = 64;
+    }
+
+    /// <summary>
+    /// Fallback values used when client device metadata is omitted.
+    /// </summary>
+    public static class ClientDeviceFallbacks
+    {
+        /// <summary>
+        /// Fallback device identifier when optional metadata reads do not include a client instance id.
+        /// </summary>
+        public const string DEVICE_ID = "unknown-device";
+
+        /// <summary>
+        /// Fallback device display name when the client does not send one.
+        /// </summary>
+        public const string DEVICE_NAME = "Unknown device";
+
+        /// <summary>
+        /// Fallback device type when the client does not send one.
+        /// </summary>
+        public const string DEVICE_TYPE = "unknown";
+
+        /// <summary>
+        /// Fallback user-agent value when the request does not contain one.
+        /// </summary>
+        public const string USER_AGENT = "unknown";
+
+        /// <summary>
+        /// Fallback remote IP value when the request context cannot provide one.
+        /// </summary>
+        public const string IP_ADDRESS = "unknown";
     }
 
     /// <summary>

@@ -192,6 +192,7 @@ public static class StringExtension
 
             // Check if the source string matches the pattern
             return regex.IsMatch(source);
+
             // Use Regex to check if the source string matches the pattern
         }
         catch (ArgumentException)

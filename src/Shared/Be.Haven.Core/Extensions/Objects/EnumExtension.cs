@@ -81,6 +81,18 @@ public static class EnumExtension
     }
 
     /// <summary>
+    /// Converts an enum member into the uppercase master-data code used by persisted lookup values.
+    /// </summary>
+    /// <typeparam name="TEnum">Enum type.</typeparam>
+    /// <param name="value">Enum value.</param>
+    /// <returns>The uppercase enum member name, or <c>null</c> when <paramref name="value"/> is not defined.</returns>
+    public static string ToMasterDataCode<TEnum>(this TEnum value) where TEnum : struct, Enum
+    {
+        // Guard undefined numeric enum values before deriving lookup codes from enum names.
+        return Enum.IsDefined(value) ? value.ToString().ToUpperInvariant() : null;
+    }
+
+    /// <summary>
     /// Builds a dictionary for UI/dropdowns: key = int value, value = description (or name).
     /// </summary>
     /// <typeparam name="TEnum">Enum type.</typeparam>

@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Requests;
+namespace Be.Haven.Shared.Dtos.Requests;
 
 /// <summary>
 /// Represents a request model used to retrieve an image

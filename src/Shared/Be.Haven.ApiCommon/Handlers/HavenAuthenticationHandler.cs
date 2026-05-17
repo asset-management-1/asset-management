@@ -7,6 +7,7 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
 {
     private readonly AuthenticationTokenValidationOptions _authOptions;
     private readonly IAuthResetValidator _authResetValidator;
+    private readonly IClientSessionValidator _clientSessionValidator;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HavenAuthenticationHandler"/> class.
@@ -16,17 +17,20 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
     /// <param name="encoder">Encodes outbound content when required by the base authentication handler.</param>
     /// <param name="authOptions">Provides the shared Haven JWT validation settings.</param>
     /// <param name="authResetValidator">Validates access-token issue time against the latest user auth reset marker.</param>
+    /// <param name="clientSessionValidator">Validates access-token session state against active refresh-token sessions.</param>
     public HavenAuthenticationHandler(
         IOptionsMonitor<AuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
         IOptions<AuthenticationTokenValidationOptions> authOptions,
-        IAuthResetValidator authResetValidator)
+        IAuthResetValidator authResetValidator,
+        IClientSessionValidator clientSessionValidator)
         : base(options, logger, encoder)
     {
         // Keep shared JWT settings and reset validation dependency local to the handler instance.
         _authOptions = authOptions.Value;
         _authResetValidator = authResetValidator;
+        _clientSessionValidator = clientSessionValidator;
     }
 
     /// <summary>
@@ -64,7 +68,10 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
             // Token validation stays inside the handler so downstream code only sees an authenticated principal.
             var principal = Validate(token);
 
-            // Auth reset validation rejects old access tokens after password reset or logout-all.
+            // Server-issued session validation rejects missing, revoked, deleted, or wrong-user sessions.
+            await ValidateSessionAsync(principal, Context.RequestAborted);
+
+            // Auth reset validation rejects old access tokens after credential reset flows.
             await ValidateAuthResetAsync(principal, Context.RequestAborted);
             Logger.LogInformation(HavenAuthenticationLogs.LOG_AUTH_SUCCEEDED, principal.FindFirstValue(ClaimTypes.NameIdentifier));
 
@@ -222,12 +229,12 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
             TokenHelper.EnsureClaim(identity, ClaimTypes.Email, currentUserEmail);
         }
 
-        foreach (var roleClaim in identity.FindAll(TokenClaimTypes.ROLE))
+        foreach (var roleClaim in identity.FindAll(TokenClaimTypes.ROLE).ToList())
         {
             TokenHelper.EnsureClaim(identity, ClaimTypes.Role, roleClaim.Value);
         }
 
-        foreach (var rolesClaim in identity.FindAll(TokenClaimTypes.ROLES))
+        foreach (var rolesClaim in identity.FindAll(TokenClaimTypes.ROLES).ToList())
         {
             foreach (var roleValue in rolesClaim.Value.Split(
                          [',', ';', ' '],
@@ -238,6 +245,39 @@ public class HavenAuthenticationHandler : AuthenticationHandler<AuthenticationSc
         }
 
         return principal;
+    }
+
+    /// <summary>
+    /// Validates the required server-issued session claim against the session source of truth.
+    /// </summary>
+    /// <param name="principal">The validated principal returned by the JWT token handler.</param>
+    /// <param name="cancellationToken">The token used to cancel the session lookup.</param>
+    /// <returns>A task that completes when the session state check passes.</returns>
+    private async Task ValidateSessionAsync(
+        ClaimsPrincipal principal,
+        CancellationToken cancellationToken)
+    {
+        // The handler already normalized NameIdentifier, so session validation can trust this user claim shape.
+        var userIdClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var userPublicId))
+        {
+            throw new SecurityTokenException(AUTHENTICATION_FAIL);
+        }
+
+        var sessionIdClaim = principal.FindFirstValue(TokenClaimTypes.SESSION_ID);
+        if (!Guid.TryParse(sessionIdClaim, out var sessionPublicId))
+        {
+            Logger.LogWarning(HavenAuthenticationLogs.LOG_AUTH_REJECTED_SESSION_MISSING, userPublicId);
+            throw new SecurityTokenException(INVALID_TOKEN);
+        }
+
+        if (await _clientSessionValidator.IsSessionActiveAsync(userPublicId, sessionPublicId, cancellationToken))
+        {
+            return;
+        }
+
+        Logger.LogWarning(HavenAuthenticationLogs.LOG_AUTH_REJECTED_SESSION, userPublicId, sessionPublicId);
+        throw new SecurityTokenException(INVALID_TOKEN);
     }
 
     /// <summary>

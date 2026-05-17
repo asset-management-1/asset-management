@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Queries;
+namespace Be.Haven.Core.Interfaces.Queries;
 
 /// <summary>
 /// Interface for handling queries that return a <see cref="ResponseDto{TResponse}"/>.

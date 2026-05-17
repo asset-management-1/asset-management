@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Services.Gcp;
+namespace Be.Haven.Core.Services.Gcp;
 
 /// <summary>
 /// Provides Google Cloud Storage operations such as uploading objects,
@@ -8,6 +8,7 @@ public class GcpUploadService : IGcpUploadService
 {
     private readonly ILogger<GcpUploadService> _logger;
     private readonly StorageClient _storageClient;
+    private readonly Func<StorageClient, UrlSigner> _createUrlSigner;
 
     /// <summary>
     /// Initializes a new instance of <see cref="GcpUploadService"/>.
@@ -15,10 +16,12 @@ public class GcpUploadService : IGcpUploadService
     /// </summary>
     public GcpUploadService(
         StorageClient storageClient,
-        ILogger<GcpUploadService> logger)
+        ILogger<GcpUploadService> logger,
+        Func<StorageClient, UrlSigner> createUrlSigner = null)
     {
         _storageClient = storageClient;
         _logger = logger;
+        _createUrlSigner = createUrlSigner ?? (client => client.CreateUrlSigner());
     }
 
     /// <summary>
@@ -75,7 +78,7 @@ public class GcpUploadService : IGcpUploadService
     {
         try
         {
-            var urlSigner = _storageClient.CreateUrlSigner();
+            var urlSigner = _createUrlSigner(_storageClient);
             var signed = await urlSigner.SignAsync(
                 bucketName,
                 objectName,

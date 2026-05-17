@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Services.Gcp;
+namespace Be.Haven.Core.Interfaces.Services.Gcp;
 
 /// <summary>
 /// Defines operations for interacting with Google Cloud Storage (GCS), 

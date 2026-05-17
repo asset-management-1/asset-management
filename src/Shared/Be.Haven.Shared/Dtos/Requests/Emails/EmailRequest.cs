@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Requests.Emails;
+namespace Be.Haven.Shared.Dtos.Requests.Emails;
 
 /// <summary>
 /// Represents the root email request containing message details and API credentials.

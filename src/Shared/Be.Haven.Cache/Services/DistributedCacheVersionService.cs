@@ -33,12 +33,14 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
     /// <param name="cacheGroup">The logical cache group whose version should be read.</param>
     /// <param name="cacheScope">The optional cache scope within the logical group.</param>
     /// <param name="epoch">The epoch scope for the version counter. Pass a frozen epoch value (captured once) to avoid mismatch at UTC midnight.</param>
-    /// <returns>
-    /// Returns the current version as a long.
-    /// If the key does not exist (first use), returns <see cref="DEFAULT_VERSION"/> (1).
-    /// </returns>
+    /// <returns>The current version as a long, or <see cref="DEFAULT_VERSION"/> when the key is genuinely missing.</returns>
     public async Task<long> GetAsync(string cacheGroup, string cacheScope, string epoch)
     {
+        if (string.IsNullOrWhiteSpace(cacheGroup) || string.IsNullOrWhiteSpace(epoch))
+        {
+            throw new ArgumentException(CacheVersionLogs.CACHE_VERSION_INVALIDATION_ARGUMENTS_MISSING);
+        }
+
         var key = GetVersionKey(cacheGroup, cacheScope, epoch);
 
         try
@@ -55,24 +57,36 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
                 return DEFAULT_VERSION;
             }
 
-            // Defensive parse: avoid unexpected casting issues.
+            // Invalid version state makes cache-key selection unsafe, so let the caller bypass cache.
             if (!long.TryParse(v.ToString(), out var parsed))
             {
                 _logger.LogWarning(
                     CacheVersionLogs.LOG_CACHE_VERSION_INVALID_VALUE,
-                    epoch, key, v.ToString(), DEFAULT_VERSION);
+                    epoch, key, v.ToString());
 
-                return DEFAULT_VERSION;
+                throw new InvalidOperationException(string.Format(
+                    CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
+                    cacheGroup,
+                    cacheScope,
+                    epoch,
+                    DEFAULT_VERSION,
+                    v.ToString()));
             }
 
-            // Defensive: never allow non-positive versions.
+            // Non-positive versions are corrupted state, so bypass cached payloads instead of guessing.
             if (parsed <= 0)
             {
                 _logger.LogWarning(
                     CacheVersionLogs.LOG_CACHE_VERSION_NON_POSITIVE_VALUE,
-                    epoch, key, parsed, DEFAULT_VERSION);
+                    epoch, key, parsed);
 
-                return DEFAULT_VERSION;
+                throw new InvalidOperationException(string.Format(
+                    CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
+                    cacheGroup,
+                    cacheScope,
+                    epoch,
+                    DEFAULT_VERSION,
+                    parsed));
             }
 
             _logger.LogDebug(
@@ -83,13 +97,16 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
         }
         catch (Exception ex)
         {
-            // Fail-open: treat as default version if Redis read fails.
             _logger.LogWarning(
                 ex,
                 CacheVersionLogs.LOG_CACHE_VERSION_READ_FAILED,
-                epoch, key, DEFAULT_VERSION);
+                epoch, key);
 
-            return DEFAULT_VERSION;
+            throw new InvalidOperationException(string.Format(
+                CacheVersionLogs.CACHE_VERSION_READ_UNSAFE,
+                cacheGroup,
+                cacheScope,
+                epoch), ex);
         }
     }
 
@@ -104,35 +121,33 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
     /// </returns>
     public async Task<long> InvalidateAsync(string cacheGroup, string cacheScope, string epoch)
     {
-        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
-        
-        // If key doesn't exist, seed it to DEFAULT_VERSION (1) first,
-        // so the next INCR becomes 2 (i.e., version actually changes).
-        if (!await _db.KeyExistsAsync(key))
+        if (string.IsNullOrWhiteSpace(cacheGroup) || string.IsNullOrWhiteSpace(epoch))
         {
-            await _db.StringSetAsync(key, DEFAULT_VERSION);
+            throw new ArgumentException(CacheVersionLogs.CACHE_VERSION_INVALIDATION_ARGUMENTS_MISSING);
         }
+
+        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
+
+        // Seed only when absent so concurrent invalidations never reset an existing version.
+        var epochLifetime = CacheEpochTtlHelper.GetCurrentEpochLifetime();
+        await _db.StringSetAsync(key, DEFAULT_VERSION, epochLifetime, when: When.NotExists);
 
         var newVersion = await _db.StringIncrementAsync(key);
 
-        // Defensive normalization (should not happen, but keep it safe).
+        // Defensive guard: write invalidation is consistency-critical and must not fail open.
         if (newVersion <= 0)
         {
             _logger.LogWarning(
                 CacheVersionLogs.LOG_CACHE_VERSION_INCR_NON_POSITIVE,
-                epoch, key, newVersion, DEFAULT_VERSION);
+                epoch, key, newVersion);
 
-            newVersion = DEFAULT_VERSION;
-
-            // Best-effort normalize value back to DEFAULT_VERSION.
-            try
-            {
-                await _db.StringSetAsync(key, newVersion);
-            }
-            catch
-            {
-                // fail-open
-            }
+            throw new InvalidOperationException(string.Format(
+                CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
+                cacheGroup,
+                cacheScope,
+                epoch,
+                DEFAULT_VERSION,
+                newVersion));
         }
 
         _logger.LogInformation(
@@ -145,11 +160,11 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
             var ttl = await _db.KeyTimeToLiveAsync(key);
             if (ttl is null)
             {
-                var ok = await _db.KeyExpireAsync(key, VERSION_KEY_TTL);
+                var ok = await _db.KeyExpireAsync(key, epochLifetime);
 
                 _logger.LogDebug(
                     CacheVersionLogs.LOG_CACHE_VERSION_TTL_APPLIED,
-                    epoch, key, (int)VERSION_KEY_TTL.TotalSeconds, ok);
+                    epoch, key, epochLifetime.TotalSeconds, ok);
             }
         }
         catch (Exception ex)
@@ -158,7 +173,7 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
             _logger.LogWarning(
                 ex,
                 CacheVersionLogs.LOG_CACHE_VERSION_TTL_SET_FAILED,
-                epoch, key, (int)VERSION_KEY_TTL.TotalSeconds, newVersion);
+                epoch, key, epochLifetime.TotalSeconds, newVersion);
         }
 
         return newVersion;

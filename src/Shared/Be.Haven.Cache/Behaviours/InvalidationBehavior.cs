@@ -15,6 +15,7 @@ public class InvalidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
     private readonly ICacheVersionService _version;
     private readonly ILogger<InvalidationBehavior<TRequest, TResponse>> _logger;
     private readonly IEnumerable<ICacheInvalidationPolicy<TRequest>> _policies;
+    private readonly ICacheBypassService _cacheBypassService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="InvalidationBehavior{TRequest, TResponse}"/> class.
@@ -22,14 +23,17 @@ public class InvalidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
     /// <param name="version">The scoped cache version service.</param>
     /// <param name="logger">The cache invalidation behavior logger.</param>
     /// <param name="policies">The server-side invalidation policies for the current request type.</param>
+    /// <param name="cacheBypassService">The registry used to skip stale reads when invalidation cannot be guaranteed.</param>
     public InvalidationBehavior(
         ICacheVersionService version,
         ILogger<InvalidationBehavior<TRequest, TResponse>> logger,
-        IEnumerable<ICacheInvalidationPolicy<TRequest>> policies)
+        IEnumerable<ICacheInvalidationPolicy<TRequest>> policies,
+        ICacheBypassService cacheBypassService)
     {
         _version = version;
         _logger = logger;
         _policies = policies;
+        _cacheBypassService = cacheBypassService;
     }
 
     /// <summary>
@@ -61,30 +65,82 @@ public class InvalidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequ
             return response;
         }
 
-        try
+        var epoch = _version.GetEpoch();
+        foreach (var target in targets)
         {
-            var epoch = _version.GetEpoch();
-            foreach (var target in targets)
-            {
-                // Each target maintains its own version namespace, so only affected scoped caches miss after this request.
-                var newVersion = await _version.InvalidateAsync(target.CacheGroup, target.CacheScope, epoch);
-
-                _logger.LogInformation(
-                    CacheLogs.CACHE_VERSION_BUMPED,
-                    $"{target.CacheGroup}{(string.IsNullOrWhiteSpace(target.CacheScope) ? string.Empty : string.Format(CACHE_SCOPE_SEGMENT_FORMAT, target.CacheScope))}:{epoch}",
-                    newVersion);
-            }
-        }
-        catch (Exception ex)
-        {
-            // Fail-open: version bump failure should not fail the command.
-            // Worst case is stale cache until TTL expires.
-            _logger.LogWarning(
-                ex,
-                CacheLogs.CACHE_INVALIDATION_FAILED,
-                typeof(TRequest).Name);
+            await InvalidateTargetAsync(target, epoch, cancellationToken);
         }
 
         return response;
+    }
+
+    /// <summary>
+    /// Invalidates one cache target by advancing its version namespace.
+    /// </summary>
+    /// <param name="target">The logical cache target being invalidated.</param>
+    /// <param name="epoch">The captured cache epoch.</param>
+    /// <param name="cancellationToken">Propagates notification that the operation should be canceled.</param>
+    private async Task InvalidateTargetAsync(
+        CacheInvalidationTargetModel target,
+        string epoch,
+        CancellationToken cancellationToken)
+    {
+        long newVersion;
+        try
+        {
+            // Version bump is the correctness barrier; stale payloads under old versions can expire naturally.
+            newVersion = await _version.InvalidateAsync(target.CacheGroup, target.CacheScope, epoch);
+        }
+        catch (Exception ex)
+        {
+            await MarkBypassAfterInvalidationFailureAsync(target, ex, cancellationToken);
+            return;
+        }
+
+        if (newVersion <= DEFAULT_VERSION)
+        {
+            var invalidVersionException = new InvalidOperationException(string.Format(
+                CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
+                target.CacheGroup,
+                target.CacheScope,
+                epoch,
+                DEFAULT_VERSION,
+                newVersion));
+
+            await MarkBypassAfterInvalidationFailureAsync(target, invalidVersionException, cancellationToken);
+            return;
+        }
+
+        _logger.LogInformation(
+            CacheLogs.CACHE_VERSION_BUMPED,
+            target.CacheGroup,
+            target.CacheScope,
+            epoch,
+            newVersion);
+    }
+
+    /// <summary>
+    /// Logs an invalidation failure and marks critical targets for temporary cache bypass.
+    /// </summary>
+    /// <param name="target">The logical cache target being invalidated.</param>
+    /// <param name="exception">The invalidation failure.</param>
+    /// <param name="cancellationToken">Propagates notification that the operation should be canceled.</param>
+    private async Task MarkBypassAfterInvalidationFailureAsync(
+        CacheInvalidationTargetModel target,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogWarning(
+            exception,
+            CacheLogs.CACHE_TARGET_INVALIDATION_FAILED,
+            typeof(TRequest).Name,
+            target.CacheGroup,
+            target.CacheScope);
+
+        if (target.FailOnError)
+        {
+            // Bypass is fail-safe: future reads should hit the handler instead of a potentially stale payload.
+            await _cacheBypassService.MarkBypassAsync(target.CacheGroup, target.CacheScope, cancellationToken);
+        }
     }
 }

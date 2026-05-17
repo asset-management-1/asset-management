@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Commands;
+namespace Be.Haven.Core.Interfaces.Commands;
 
 /// <summary>
 /// Marker interface for commands that do not return a response.

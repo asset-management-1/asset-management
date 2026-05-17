@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Events;
+namespace Be.Haven.Core.Interfaces.Events;
 
 /// <summary>
 /// Defines the base contract for all message events published to or consumed from the EventBus.

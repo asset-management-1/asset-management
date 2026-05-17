@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Services.Gcp;
+namespace Be.Haven.Core.Interfaces.Services.Gcp;
 
 /// <summary>
 /// Defines a contract for publishing messages to Google Cloud Pub/Sub.

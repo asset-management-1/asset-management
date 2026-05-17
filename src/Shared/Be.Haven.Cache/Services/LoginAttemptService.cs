@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Cache.Services;
+namespace Be.Haven.Cache.Services;
 
 /// <summary>
 /// Provides a Redis-based implementation of <see cref="ILoginAttemptService"/>.

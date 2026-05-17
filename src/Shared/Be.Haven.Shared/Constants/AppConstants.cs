@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Constants;
+namespace Be.Haven.Shared.Constants;
 
 public static class AppConstants
 {
@@ -32,7 +32,7 @@ public static class AppConstants
         public const int MAX_WRITE_CACHED_RETRIES = 5;
         
         /// <summary>
-        /// Constant representing the authentication scheme for National Address Bearer tokens.
+        /// Constant representing the authentication scheme for Haven Bearer tokens.
         /// </summary>
         public const string HAVEN_BEARER = "HavenBearer";
 
@@ -45,6 +45,11 @@ public static class AppConstants
         /// Prefix used for constructing version-specific cache keys.
         /// </summary>
         public const string VERSION_KEY_PREFIX = "ver:";
+
+        /// <summary>
+        /// Prefix used for constructing cache-bypass marker keys.
+        /// </summary>
+        public const string BYPASS_KEY_PREFIX = "bypass:";
 
         /// <summary>
         /// Format used to build a user-scoped cache namespace.
@@ -288,11 +293,11 @@ public static class AppConstants
         public const int SQL_RETRY_COUNT = 5;
 
         /// <summary>
-        /// Specifies the time-to-live (TTL) duration, in hours, for cached database connection information.
-        /// This ensures that database connection details are refreshed periodically to maintain validity.
+        /// Specifies the time-to-live duration, in hours, for cached database connection information.
+        /// This infrastructure/config cache is separate from mediator read-model cache data.
         /// </summary>
         public const int DB_CONNECTION_CACHE_TTL_HOURS = 4;
-        
+
         /// <summary>
         /// Specifies the delay, in seconds, between retry attempts for SQL operations.
         /// </summary>
@@ -379,6 +384,11 @@ public static class AppConstants
         /// SendGrid Key environment variable.
         /// </summary>
         public const string SENDGRID_API_KEY = "SENDGRID_API_KEY";
+
+        /// <summary>
+        /// SendGrid attachment disposition value used to show files as normal email attachments.
+        /// </summary>
+        public const string EMAIL_ATTACHMENT_DISPOSITION = "attachment";
 
         /// <summary>
         /// Application/json environment variable.

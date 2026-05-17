@@ -8,12 +8,21 @@ public class DistributedLockService : IDistributedLockService
     /// Provides a service for managing distributed locks, enabling concurrent applications
     /// to coordinate resource access through distributed locking mechanisms.
     /// </summary>
-    public DistributedLockService(IConnectionMultiplexer mux)
-    {
-        _factory = RedLockFactory.Create(new List<RedLockMultiplexer>
+    public DistributedLockService(IConnectionMultiplexer mux) : this(
+        RedLockFactory.Create(new List<RedLockMultiplexer>
         {
             new(mux)
-        });
+        }))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DistributedLockService"/> class using a lock factory.
+    /// </summary>
+    /// <param name="factory">The distributed lock factory.</param>
+    public DistributedLockService(IDistributedLockFactory factory)
+    {
+        _factory = factory;
     }
 
     /// <summary>

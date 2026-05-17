@@ -2,23 +2,7 @@ namespace Be.Haven.Cache.Services;
 
 public sealed class InMemoryCacheVersionService : ICacheVersionService
 {
-    private readonly IDistributedCache _cache;
-    private readonly ILogger<InMemoryCacheVersionService> _logger;
-
-    /// <summary>
-    /// Creates a new <see cref="InMemoryCacheVersionService"/>.
-    /// </summary>
-    /// <param name="cache">
-    /// The distributed cache abstraction. In memory mode this is provided by <c>AddDistributedMemoryCache</c>.
-    /// </param>
-    /// <param name="logger">Logger instance.</param>
-    public InMemoryCacheVersionService(
-        IDistributedCache cache,
-        ILogger<InMemoryCacheVersionService> logger)
-    {
-        _cache = cache;
-        _logger = logger;
-    }
+    private static readonly ConcurrentDictionary<string, CacheVersionStateModel> VersionsByKey = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Returns the current epoch identifier used to scope the version counter.
@@ -28,85 +12,71 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
 
     /// <summary>
     /// Retrieves the current cache version for a given cache group, scope, and epoch.
-    /// Returns <see cref="DEFAULT_VERSION"/> (1) if:
-    /// - key is missing,
-    /// - stored value is invalid,
-    /// - or cache read fails.
+    /// Missing keys return <see cref="DEFAULT_VERSION"/>; unsafe cache reads throw so callers can bypass cache.
     /// </summary>
-    public async Task<long> GetAsync(string cacheGroup, string cacheScope, string epoch)
+    public Task<long> GetAsync(string cacheGroup, string cacheScope, string epoch)
     {
         if (string.IsNullOrWhiteSpace(cacheGroup) || string.IsNullOrWhiteSpace(epoch))
-            return DEFAULT_VERSION;
+        {
+            throw new ArgumentException(CacheVersionLogs.CACHE_VERSION_INVALIDATION_ARGUMENTS_MISSING);
+        }
 
         var key = GetVersionKey(cacheGroup, cacheScope, epoch);
 
-        try
+        if (!VersionsByKey.TryGetValue(key, out var state))
         {
-            var s = await _cache.GetStringAsync(key);
-
-            if (string.IsNullOrWhiteSpace(s))
-                return DEFAULT_VERSION;
-
-            if (!long.TryParse(s, out var v) || v <= 0)
-                return DEFAULT_VERSION;
-
-            return v;
+            return Task.FromResult(DEFAULT_VERSION);
         }
-        catch (Exception ex)
+
+        if (state.ExpiresAtUtc <= DateTimeOffset.UtcNow)
         {
-            // Fail-open: treat as default version if cache read fails.
-            _logger.LogWarning(ex,
-                InMemoryCacheVersionLogs.LOG_IN_MEMORY_CACHE_VERSION_READ_FAILED,
-                epoch, key);
-
-            return DEFAULT_VERSION;
+            // Expired version state is removed lazily so the next read starts from the default version.
+            VersionsByKey.TryRemove(key, out _);
+            return Task.FromResult(DEFAULT_VERSION);
         }
+
+        if (state.Version <= 0)
+        {
+            throw new InvalidOperationException(string.Format(
+                CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
+                cacheGroup,
+                cacheScope,
+                epoch,
+                DEFAULT_VERSION,
+                state.Version));
+        }
+
+        return Task.FromResult(state.Version);
     }
 
     /// <summary>
     /// Bumps (increments) the cache version for a given cache group, scope, and epoch.
     /// </summary>
-    /// <returns>The new version if write succeeds; otherwise <see cref="DEFAULT_VERSION"/>.</returns>
-    public async Task<long> InvalidateAsync(string cacheGroup, string cacheScope, string epoch)
+    /// <returns>The advanced version when the write succeeds.</returns>
+    public Task<long> InvalidateAsync(string cacheGroup, string cacheScope, string epoch)
     {
         if (string.IsNullOrWhiteSpace(cacheGroup) || string.IsNullOrWhiteSpace(epoch))
-            return DEFAULT_VERSION;
-
-        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
-
-        for (var attempt = 1; attempt <= MAX_WRITE_CACHED_RETRIES; attempt++)
         {
-            try
-            {
-                // Read current directly to avoid calling GetAsync
-                var s = await _cache.GetStringAsync(key);
-
-                var current = long.TryParse(s, out var v) && v > 0
-                    ? v
-                    : DEFAULT_VERSION;
-
-                var next = current + 1;
-
-                await _cache.SetStringAsync(
-                    key,
-                    next.ToString(),
-                    new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = VERSION_KEY_TTL
-                    });
-
-                return next;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(
-                    ex,
-                    InMemoryCacheVersionLogs.LOG_IN_MEMORY_CACHE_VERSION_WRITE_FAILED,
-                    attempt, MAX_WRITE_CACHED_RETRIES, epoch, key);
-            }
+            throw new ArgumentException(CacheVersionLogs.CACHE_VERSION_INVALIDATION_ARGUMENTS_MISSING);
         }
 
-        return DEFAULT_VERSION;
+        var key = GetVersionKey(cacheGroup, cacheScope, epoch);
+        var now = DateTimeOffset.UtcNow;
+        var versionKeyTtl = CacheEpochTtlHelper.GetCurrentEpochLifetime();
+        var newState = VersionsByKey.AddOrUpdate(
+            key,
+            _ => new CacheVersionStateModel(DEFAULT_VERSION + 1, now.Add(versionKeyTtl)),
+            (_, current) =>
+            {
+                // Expired counters restart from the default version; active counters advance atomically.
+                var currentVersion = current.ExpiresAtUtc <= now
+                    ? DEFAULT_VERSION
+                    : current.Version;
+
+                return new CacheVersionStateModel(currentVersion + 1, now.Add(versionKeyTtl));
+            });
+
+        return Task.FromResult(newState.Version);
     }
 
     /// <summary>

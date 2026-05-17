@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Requests;
+namespace Be.Haven.Shared.Dtos.Requests;
 
 /// <summary>
 /// Represents an upload request to Google Cloud Storage.

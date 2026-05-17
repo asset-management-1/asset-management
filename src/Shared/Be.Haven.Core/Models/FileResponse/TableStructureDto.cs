@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Models.FileResponse;
+namespace Be.Haven.Core.Models.FileResponse;
 
 /// <summary>
 /// Represents a table structure used for exporting or displaying tabular data.

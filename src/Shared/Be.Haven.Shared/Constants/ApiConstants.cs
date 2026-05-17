@@ -36,7 +36,7 @@ public static class ApiConstants
     
     /// <summary>
     /// Contains constant values used for configuring Swagger documentation 
-    /// in the National Address Portal API.
+    /// in the Haven Portal API.
     /// </summary>
     public static class SwaggerConstants
     {
@@ -48,7 +48,7 @@ public static class ApiConstants
         /// <summary>
         /// The display name of the Swagger endpoint.
         /// </summary>
-        public const string ENDPOINT_NAME = "National Address Portal API v{0}";
+        public const string ENDPOINT_NAME = "Haven Portal API v{0}";
 
         /// <summary>
         /// The route prefix for serving the Swagger UI.
@@ -64,12 +64,12 @@ public static class ApiConstants
         /// <summary>
         /// The title displayed in the Swagger UI and documentation.
         /// </summary>
-        public const string TITLE = "National Address Portal API";
+        public const string TITLE = "Haven Portal API";
 
         /// <summary>
         /// A short description of the API for Swagger documentation.
         /// </summary>
-        public const string DESCRIPTION = "API documentation for the National Address Portal application.";
+        public const string DESCRIPTION = "API documentation for the Haven Portal application.";
 
         /// <summary>
         /// Instructions for authenticating in Swagger UI using Bearer tokens.

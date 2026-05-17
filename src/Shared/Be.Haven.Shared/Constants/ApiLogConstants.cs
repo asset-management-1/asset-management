@@ -124,6 +124,18 @@ public static class ApiLogConstants
             "Haven token validation rejected: token issued before latest auth reset. UserId={UserId}";
 
         /// <summary>
+        /// Logged when Haven token validation fails because the session claim is missing or malformed.
+        /// </summary>
+        public const string LOG_AUTH_REJECTED_SESSION_MISSING =
+            "Haven token validation rejected: missing or invalid session id. UserId={UserId}";
+
+        /// <summary>
+        /// Logged when Haven token validation fails because the server session is not active for the user.
+        /// </summary>
+        public const string LOG_AUTH_REJECTED_SESSION =
+            "Haven token validation rejected: session is not active. UserId={UserId}, SessionId={SessionId}";
+
+        /// <summary>
         /// Logged when Haven token validation fails for any other reason.
         /// </summary>
         public const string LOG_AUTH_REJECTED = "Haven token validation rejected. ErrorType={ErrorType}, Error={Error}";
@@ -145,6 +157,12 @@ public static class ApiLogConstants
         /// </summary>
         public const string LOG_AUTH_RESET_CACHE_SEED_FAILED =
             "Haven auth reset validation cache seed failed for user {UserPublicId}.";
+
+        /// <summary>
+        /// Logged when client-session validation lookup fails in the database.
+        /// </summary>
+        public const string LOG_CLIENT_SESSION_DB_LOOKUP_FAILED =
+            "Haven client-session validation database lookup failed for user {UserPublicId} and session {SessionPublicId}.";
 
         /// <summary>
         /// Logged when a 401 challenge response is written by the Haven authentication handler.

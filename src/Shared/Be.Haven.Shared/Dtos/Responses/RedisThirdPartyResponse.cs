@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Responses;
+namespace Be.Haven.Shared.Dtos.Responses;
 
 /// <summary>
 /// Represents the response data received from a third-party Redis service.

@@ -18,6 +18,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     private readonly ILogger<CachingBehavior<TRequest, TResponse>> _logger;
     private readonly ICacheVersionService _version;
     private readonly IAuthService _authService;
+    private readonly ICacheBypassService _cacheBypassService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="CachingBehavior{TRequest, TResponse}"/> class.
@@ -28,13 +29,15 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     /// <param name="cacheOption">The configured cache lifetime options.</param>
     /// <param name="version">The scoped cache version service.</param>
     /// <param name="authService">The authenticated-principal accessor used for current-user scoped caches.</param>
+    /// <param name="cacheBypassService">The registry used to skip cache scopes with uncertain invalidation state.</param>
     public CachingBehavior(
         IDistributedCache cache,
         ILogger<CachingBehavior<TRequest, TResponse>> logger,
         IJsonSerializerService serializer,
         IOptions<CacheOptions> cacheOption,
         ICacheVersionService version,
-        IAuthService authService)
+        IAuthService authService,
+        ICacheBypassService cacheBypassService)
     {
         _cache = cache;
         _logger = logger;
@@ -42,6 +45,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         _cacheOptions = cacheOption.Value;
         _version = version;
         _authService = authService;
+        _cacheBypassService = cacheBypassService;
     }
 
     /// <summary>
@@ -53,7 +57,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
     /// </summary>
     /// <param name="message">
     /// Represents the incoming request for which caching behavior is being applied. The request may
-    /// include specific caching parameters such as whether to bypass the cache or define expiration settings.
+    /// include cache-control metadata such as an explicit expiration requested by the caller.
     /// </param>
     /// <param name="next">
     /// A delegate to the next handler in the pipeline. Invoked when a cache miss occurs or when a cache is explicitly bypassed.
@@ -80,13 +84,38 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         // Epoch partitions versions by time window (e.g., day) to avoid unbounded counters.
         // Version changes (bumped by command pipeline) ensure we never serve stale query results.
         var cacheScope = ResolveCacheScope(message);
-        var epoch = _version.GetEpoch();
-        var ver = await _version.GetAsync(message.CacheKey, cacheScope, epoch);
+        if (await _cacheBypassService.ShouldBypassAsync(message.CacheKey, cacheScope, cancellationToken))
+        {
+            _logger.LogWarning(CacheLogs.CACHE_SCOPE_BYPASSED_AFTER_INVALIDATION_FAILURE, message.CacheKey, cacheScope);
+            return await next(message, cancellationToken);
+        }
 
-        var key = BuildKey(message, cacheScope, epoch, ver);
+        var epoch = _version.GetEpoch();
+        long ver;
+        try
+        {
+            ver = await _version.GetAsync(message.CacheKey, cacheScope, epoch);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, CacheLogs.CACHE_VERSION_READ_BYPASSED, typeof(TRequest).Name, message.CacheKey, cacheScope);
+            return await next(message, cancellationToken);
+        }
+
+        var key = CacheKeyHelper.BuildKey(message, cacheScope, epoch, ver);
 
         // 1) Cache read
-        var cached = await _cache.GetAsync(key, cancellationToken);
+        byte[] cached;
+        try
+        {
+            cached = await _cache.GetAsync(key, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, CacheLogs.CACHE_READ_BYPASSED, typeof(TRequest).Name, key);
+            return await next(message, cancellationToken);
+        }
+
         if (cached is not null)
         {
             _logger.LogInformation(
@@ -104,71 +133,32 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         var response = await next(message, cancellationToken);
 
         // 3) Cache write
-        // Requests can override the default absolute cache lifetime when the read model needs a shorter or longer TTL.
-        var ttl = message.AbsoluteExpiration
-                  ?? TimeSpan.FromSeconds(_cacheOptions.AbsoluteExpiration);
+        // FE/request-provided TTL is allowed; otherwise cache data uses CacheSettings:AbsoluteExpiration.
+        var ttl = message.AbsoluteExpiration is { } requestedTtl && requestedTtl > TimeSpan.Zero
+            ? requestedTtl
+            : TimeSpan.FromSeconds(_cacheOptions.AbsoluteExpiration);
 
-        await _cache.SetAsync(
-            key,
-            Encoding.UTF8.GetBytes(_serializer.Serialize(response)),
-            new DistributedCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = ttl
-            },
-            cancellationToken);
+        try
+        {
+            await _cache.SetAsync(
+                key,
+                Encoding.UTF8.GetBytes(_serializer.Serialize(response)),
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = ttl
+                },
+                cancellationToken);
 
-        _logger.LogInformation(
-            ADDED_TO_CACHE,
-            key);
+            _logger.LogInformation(
+                ADDED_TO_CACHE,
+                key);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, CacheLogs.CACHE_WRITE_SKIPPED, typeof(TRequest).Name, key);
+        }
 
         return response;
-    }
-
-    /// <summary>
-    /// Builds a deterministic cache key for the given request.
-    ///
-    /// Format:
-    /// "{request.CacheKey}:{request.CacheScope?}:e{epoch}:v{ver}:{paramsHash}"
-    ///
-    /// - request.CacheKey is the logical "group" (e.g., "invoice:list:factoryA:2026").
-    /// - epoch groups counters by time window (e.g., daily).
-    /// - ver is an incrementing version for invalidation (bumped after successful commands).
-    /// - paramsHash is a stable hash of request parameters (sorted key=value pairs).
-    /// </summary>
-    /// <param name="request">The request object that implements <see cref="ICacheableMediatorQueryService"/>
-    /// and contains the parameters for the cache key.</param>
-    /// <param name="cacheScope">The resolved cache scope segment.</param>
-    /// <param name="epoch">A string representing the epoch value, used to partition the cache by time window.</param>
-    /// <param name="ver">A numeric value representing the version, used to ensure consistency and avoid serving stale data.</param>
-    /// <returns>A hashed and formatted string that uniquely identifies the cache entry for the provided request.</returns>
-    private static string BuildKey(TRequest request, string cacheScope, string epoch, long ver)
-    {
-        var dictionary = request.AsDictionary();
-
-        // Build a stable, deterministic "key=value|key=value" string:
-        // - Excludes cache-control parameters.
-        // - Sorts by key to avoid nondeterminism due to dictionary ordering.
-        var raw = string.Join(PIPE_SEPARATOR,
-            dictionary.Where(x => x.Value is not null
-                         && x.Key is not CACHEKEY
-                         && x.Key is not BYPASSCACHE
-                         && x.Key is not ABSOLUTEEXPIRATION)
-                .OrderBy(x => x.Key, StringComparer.Ordinal)
-                .Select(x => $"{x.Key}={x.Value}")
-        );
-
-        // Hash the parameter string to:
-        // - keep Redis keys short,
-        // - reduce PII exposure in key names,
-        // - avoid very long keys for large requests.
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(raw)))
-                  .ToLowerInvariant()[..32]; // 16 bytes hex -> short and sufficient for cache keys
-
-        var scopeSegment = string.IsNullOrWhiteSpace(cacheScope)
-            ? string.Empty
-            : string.Format(CACHE_SCOPE_SEGMENT_FORMAT, cacheScope);
-
-        return $"{request.CacheKey}{scopeSegment}:e{epoch}:v{ver}:{hash}";
     }
 
     /// <summary>
@@ -191,7 +181,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
 
             _logger.LogDebug(CacheLogs.LOG_CACHE_CURRENT_USER_SCOPE_RESOLVED, typeof(TRequest).Name);
 
-            return CacheScopes.User(currentUserPublicId.Value);
+            return currentUserPublicId.Value.ToUserCacheScope();
         }
 
         return request.CacheScope ?? string.Empty;

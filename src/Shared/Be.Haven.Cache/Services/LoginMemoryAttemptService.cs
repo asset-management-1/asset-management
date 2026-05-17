@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Cache.Services;
+namespace Be.Haven.Cache.Services;
 
 /// <summary>
 /// Provides an in-memory implementation of <see cref="ILoginAttemptService"/>.
@@ -12,9 +12,9 @@ public class LoginMemoryAttemptService : ILoginAttemptService
 
     /// <summary>
     /// Stores the login attempt state for each user in memory.
-    /// Key = username, Value = <see cref="AttemptState"/> representing the user's attempt info.
+    /// Key = username, Value = <see cref="LoginAttemptStateModel"/> representing the user's attempt info.
     /// </summary>
-    private static readonly ConcurrentDictionary<string, AttemptState> _attempts = new();
+    private static readonly ConcurrentDictionary<string, LoginAttemptStateModel> _attempts = new();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LoginMemoryAttemptService"/> class.
@@ -27,16 +27,6 @@ public class LoginMemoryAttemptService : ILoginAttemptService
     {
         _logger = logger;
         _options = options.Value;
-    }
-
-    /// <summary>
-    /// Represents the in-memory tracking state of login attempts for a single user.
-    /// </summary>
-    private sealed class AttemptState
-    {
-        public int FailedCount { get; set; } // Number of failed login attempts
-        public DateTime FirstFailedUtc { get; set; } // Timestamp of the first failed attempt
-        public DateTime? LockUntilUtc { get; set; } // If locked, when the lock expires
     }
 
     /// <summary>
@@ -108,7 +98,7 @@ public class LoginMemoryAttemptService : ILoginAttemptService
         var now = DateTime.UtcNow;
 
         // Retrieve or create attempt state for the user
-        var state = _attempts.GetOrAdd(userName, _ => new AttemptState
+        var state = _attempts.GetOrAdd(userName, _ => new LoginAttemptStateModel
         {
             FailedCount = 0,
             FirstFailedUtc = now,

@@ -19,8 +19,8 @@ public interface ICacheableMediatorQueryService : IMessage
     string CacheScope { get; }
 
     /// <summary>
-    /// Gets the absolute cache lifetime for the cache entry.
-    /// Returns null when the default cache lifetime should be used.
+    /// Gets the optional cache lifetime requested by the caller.
+    /// Returns <c>null</c> when <c>CacheSettings:AbsoluteExpiration</c> should be used.
     /// </summary>
     TimeSpan? AbsoluteExpiration { get; }
 }

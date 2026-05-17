@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos;
+namespace Be.Haven.Shared.Dtos;
 
 /// <summary>
 /// Represents a response with a generic data type.

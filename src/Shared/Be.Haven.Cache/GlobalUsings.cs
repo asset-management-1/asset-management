@@ -1,9 +1,9 @@
 // Global using directives
-
 global using Be.Haven.Cache.Interfaces;
 global using Be.Haven.Cache.Models;
 global using Be.Haven.Cache.Services;
 global using Be.Haven.Cache.Helpers;
+global using Be.Haven.Cache.Extensions;
 global using Be.Haven.Core.Exceptions;
 global using Be.Haven.Core.Extensions.Objects;
 global using Be.Haven.Core.Interfaces.Services;

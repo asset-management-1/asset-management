@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Services;
+namespace Be.Haven.Core.Services;
 
 /// <summary>
 /// Provides functionality for uploading files to the GCP upload service.

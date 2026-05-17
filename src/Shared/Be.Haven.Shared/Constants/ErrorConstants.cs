@@ -1,6 +1,5 @@
-﻿namespace Be.Haven.Shared.Constants;
+namespace Be.Haven.Shared.Constants;
 
 public class ErrorConstants
 {
-    
 }

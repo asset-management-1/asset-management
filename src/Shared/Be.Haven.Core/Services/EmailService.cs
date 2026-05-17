@@ -7,7 +7,7 @@ public class EmailService : IEmailService
 {
     private readonly ILogger<EmailService> _logger;
     private readonly EmailOptions _emailOptions;
-    private readonly SendGridClient _sendGridClient;
+    private readonly ISendGridClient _sendGridClient;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EmailService"/> class.
@@ -17,10 +17,27 @@ public class EmailService : IEmailService
     public EmailService(
         ILogger<EmailService> logger,
         IOptions<EmailOptions> emailOptions)
+        : this(
+            logger,
+            emailOptions,
+            new SendGridClient(emailOptions.Value.ApiKey))
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EmailService"/> class with a SendGrid client boundary.
+    /// </summary>
+    /// <param name="logger">The logger used for operational events and failures.</param>
+    /// <param name="emailOptions">The configured email settings.</param>
+    /// <param name="sendGridClient">The SendGrid client used to send messages.</param>
+    public EmailService(
+        ILogger<EmailService> logger,
+        IOptions<EmailOptions> emailOptions,
+        ISendGridClient sendGridClient)
     {
         _logger = logger;
         _emailOptions = emailOptions.Value;
-        _sendGridClient = new SendGridClient(_emailOptions.ApiKey);
+        _sendGridClient = sendGridClient;
     }
 
     /// <summary>
@@ -33,6 +50,9 @@ public class EmailService : IEmailService
         EmailRequest request,
         CancellationToken cancellationToken = default)
     {
+        var statusCode = DEFAULT_TEXT;
+        var responseContent = DEFAULT_TEXT;
+
         try
         {
             // Validate required SendGrid configuration before creating and sending the email message.
@@ -90,12 +110,13 @@ public class EmailService : IEmailService
                         attachment.FileName,
                         attachment.Base64,
                         attachment.ContentType,
-                        "attachment");
+                        EMAIL_ATTACHMENT_DISPOSITION);
                 }
             }
 
             // Propagate request cancellation to SendGrid instead of letting email sends outlive the caller.
             var response = await _sendGridClient.SendEmailAsync(message, cancellationToken);
+            statusCode = ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture);
 
             if (response.IsSuccessStatusCode)
             {
@@ -103,12 +124,17 @@ public class EmailService : IEmailService
                 return true;
             }
 
-            _logger.LogWarning(EmailLogs.SEND_FAILED, response.StatusCode);
+            // SendGrid failure bodies explain rejected requests, so log the masked content for diagnostics.
+            responseContent = await HttpResponseContentHelper.ReadMaskedContentAsync(
+                response.Body,
+                cancellationToken);
+
+            _logger.LogWarning(EmailLogs.SEND_FAILED, statusCode, responseContent);
             return false;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogError(ex, EmailLogs.SEND_EXCEPTION);
+            _logger.LogError(ex, EmailLogs.SEND_EXCEPTION, statusCode, responseContent);
             return false;
         }
     }

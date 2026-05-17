@@ -25,18 +25,16 @@ public static class OpenTelemetryHelper
         var clientPrefixes = filter.ClientFilterPrefixes ?? [];
         var ignoredHosts = filter.ClientIgnoredHosts ?? [];
 
-        builder
-            // -------- TRACES --------
-            .WithTracing(b =>
-            {
-                b.AddSource(BACKGROUND_JOBS); 
-                b.AddQuartzInstrumentation();
-                b.SetResourceBuilder(resource);
-                AddAspNetCore(b, otel, serverPrefixes);
-                AddHttpClient(b, otel, clientPrefixes, ignoredHosts);
-                AddTraceExporters(b, otel.TracingSettings);
-            });
-        // // -------- METRICS --------
+        // Configure tracing instrumentation and exporters for the current service.
+        builder.WithTracing(b =>
+        {
+            b.AddSource(BACKGROUND_JOBS);
+            b.AddQuartzInstrumentation();
+            b.SetResourceBuilder(resource);
+            AddAspNetCore(b, otel, serverPrefixes);
+            AddHttpClient(b, otel, clientPrefixes, ignoredHosts);
+            AddTraceExporters(b, otel.TracingSettings);
+        });
         // .WithMetrics(m =>
         // {
         //     m.SetResourceBuilder(resource);
@@ -69,11 +67,7 @@ public static class OpenTelemetryHelper
         b.AddAspNetCoreInstrumentation(o =>
         {
             o.RecordException = otel.InstrumentationSettings.AspNetCore.RecordException;
-            o.Filter = ctx =>
-            {
-                var path = ctx.Request.Path.Value ?? string.Empty;
-                return !StartsWithAny(path, serverPrefixes);
-            };
+            o.Filter = ctx => ShouldTraceServerRequest(ctx, serverPrefixes);
         });
     }
 
@@ -104,13 +98,7 @@ public static class OpenTelemetryHelper
         b.AddHttpClientInstrumentation(o =>
         {
             o.RecordException = otel.InstrumentationSettings.HttpClient.RecordException;
-            o.FilterHttpRequestMessage = req =>
-            {
-                if (IsIgnoredHost(req.RequestUri, ignoredHosts)) return false;
-
-                var path = req.RequestUri?.AbsolutePath ?? string.Empty;
-                return !StartsWithAny(path, clientPrefixes);
-            };
+            o.FilterHttpRequestMessage = req => ShouldTraceHttpRequest(req, clientPrefixes, ignoredHosts);
         });
     }
 
@@ -130,18 +118,40 @@ public static class OpenTelemetryHelper
     }
 
     /// <summary>
-    /// Adds metric exporters to the provided MeterProviderBuilder based on the tracing configuration settings.
+    /// Determines whether an incoming HTTP request should be traced.
     /// </summary>
-    /// <param name="m">
-    /// The MeterProviderBuilder used to configure metrics collection.
-    /// </param>
-    /// <param name="tracing">
-    /// The OpenTelemetryTracingOptions containing settings for exporting metrics.
-    /// </param>
-    private static void AddMetricExporters(MeterProviderBuilder m, OpenTelemetryTracingOptions tracing)
+    /// <param name="context">The current ASP.NET Core HTTP context.</param>
+    /// <param name="serverPrefixes">The path prefixes excluded from tracing.</param>
+    /// <returns><c>true</c> when the request should be traced; otherwise <c>false</c>.</returns>
+    private static bool ShouldTraceServerRequest(
+        HttpContext context,
+        string[] serverPrefixes)
     {
-        if (tracing.ExportToConsole) m.AddConsoleExporter();
-        if (tracing.ExportToOtlp) m.AddOtlpExporter();
+        var path = context.Request.Path.Value ?? string.Empty;
+
+        return !StartsWithAny(path, serverPrefixes);
+    }
+
+    /// <summary>
+    /// Determines whether an outgoing HTTP request should be traced.
+    /// </summary>
+    /// <param name="request">The outgoing HTTP request.</param>
+    /// <param name="clientPrefixes">The path prefixes excluded from tracing.</param>
+    /// <param name="ignoredHosts">The hosts excluded from tracing.</param>
+    /// <returns><c>true</c> when the request should be traced; otherwise <c>false</c>.</returns>
+    private static bool ShouldTraceHttpRequest(
+        HttpRequestMessage request,
+        string[] clientPrefixes,
+        string[] ignoredHosts)
+    {
+        if (IsIgnoredHost(request.RequestUri, ignoredHosts))
+        {
+            return false;
+        }
+
+        var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+
+        return !StartsWithAny(path, clientPrefixes);
     }
 
     /// <summary>

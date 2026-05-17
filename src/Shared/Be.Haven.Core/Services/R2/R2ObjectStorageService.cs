@@ -38,10 +38,15 @@ public class R2ObjectStorageService : IObjectStorageService
         // Validate R2 configuration before creating a signed S3-compatible request.
         EnsureConfigured();
 
+        var statusCode = DEFAULT_TEXT;
+        var responseContent = DEFAULT_TEXT;
+        ObjectUploadResponseModel upload;
+
         try
         {
             // Copy once so the exact bytes can be hashed and then replayed to R2.
             await using var payload = await CopyToMemoryAsync(request.Content, cancellationToken);
+            var fileSize = payload.Length;
             var checksum = Convert.ToHexString(SHA256.HashData(payload.ToArray())).ToLowerInvariant();
             payload.Position = 0;
 
@@ -69,15 +74,24 @@ public class R2ObjectStorageService : IObjectStorageService
             using var response = await _thirdPartyApiService.HandleDynamicHttpRequest(
                 thirdPartyRequest,
                 cancellationToken);
-            response.EnsureSuccessStatusCode();
+            statusCode = ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture);
+            if (!response.IsSuccessStatusCode)
+            {
+                // Read the masked provider body before throwing so R2 diagnostics are not lost.
+                responseContent = await HttpResponseContentHelper.ReadMaskedContentAsync(
+                    response.Content,
+                    cancellationToken);
+
+                throw new HttpRequestException(R2_UPLOAD_FAILED_MESSAGE, null, response.StatusCode);
+            }
 
             // Return only metadata that callers need to persist, not file content.
-            var upload = new ObjectUploadResponseModel
+            upload = new ObjectUploadResponseModel
             {
                 BucketName = _options.BucketName,
                 ObjectKey = request.ObjectKey,
                 ContentType = contentType,
-                FileSize = payload.Length,
+                FileSize = fileSize,
                 Checksum = checksum
             };
 
@@ -85,17 +99,19 @@ public class R2ObjectStorageService : IObjectStorageService
                 R2StorageLogs.R2_UPLOAD_COMPLETED,
                 upload.BucketName,
                 upload.FileSize);
-
-            return upload;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogError(
                 ex,
                 R2StorageLogs.R2_UPLOAD_FAILED,
-                _options.BucketName);
+                _options.BucketName,
+                statusCode,
+                responseContent);
             throw new ArgumentException(R2_UPLOAD_FAILED_MESSAGE, ex);
         }
+
+        return upload;
     }
 
     /// <summary>
@@ -117,6 +133,9 @@ public class R2ObjectStorageService : IObjectStorageService
             throw new ArgumentException(R2_OBJECT_KEY_REQUIRED_MESSAGE, nameof(objectKey));
         }
 
+        var statusCode = DEFAULT_TEXT;
+        var responseContent = DEFAULT_TEXT;
+
         try
         {
             // Build the signed DELETE request for the private object key.
@@ -132,6 +151,7 @@ public class R2ObjectStorageService : IObjectStorageService
             using var response = await _thirdPartyApiService.HandleDynamicHttpRequest(
                 thirdPartyRequest,
                 cancellationToken);
+            statusCode = ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture);
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
                 // Cleanup is idempotent; already-missing objects are treated as deleted.
@@ -140,9 +160,16 @@ public class R2ObjectStorageService : IObjectStorageService
 
             if (!response.IsSuccessStatusCode)
             {
+                // R2 error bodies explain delete authorization or bucket issues without exposing the object key.
+                responseContent = await HttpResponseContentHelper.ReadMaskedContentAsync(
+                    response.Content,
+                    cancellationToken);
+
                 _logger.LogWarning(
                     R2StorageLogs.R2_DELETE_FAILED,
-                    _options.BucketName);
+                    _options.BucketName,
+                    statusCode,
+                    responseContent);
 
                 return false;
             }
@@ -158,7 +185,9 @@ public class R2ObjectStorageService : IObjectStorageService
             _logger.LogWarning(
                 ex,
                 R2StorageLogs.R2_DELETE_FAILED,
-                _options.BucketName);
+                _options.BucketName,
+                statusCode,
+                responseContent);
 
             return false;
         }

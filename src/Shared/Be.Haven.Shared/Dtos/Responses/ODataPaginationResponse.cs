@@ -23,7 +23,6 @@ public class ODataPaginationResponse<T> : BasePaginationResponse<T>
     /// </summary>
     public ODataPaginationResponse()
     {
-
     }
 
     /// <summary>

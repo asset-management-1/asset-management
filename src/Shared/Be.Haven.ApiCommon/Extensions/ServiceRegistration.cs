@@ -11,6 +11,7 @@ public static class ServiceRegistration
         // Use the same bearer scheme across services so [Authorize] resolves the shared handler consistently.
         services.AddHttpContextAccessor();
         services.TryAddScoped<IAuthResetValidator, HavenAuthResetValidator>();
+        services.TryAddScoped<IClientSessionValidator, HavenClientSessionValidator>();
         services.AddAuthentication(options =>
                 {
                     options.DefaultAuthenticateScheme = BEARER;
@@ -130,7 +131,7 @@ public static class ServiceRegistration
         var otel = options.OpenTelemetrySettings;
 
         if (!otel.TracingSettings.Enabled) return;
-        var env = Environment.GetEnvironmentVariable(ASPNETCORE_ENVIRONMENT);
+        var env = Environment.GetEnvironmentVariable(ASPNETCORE_ENVIRONMENT) ?? string.Empty;
         var resource = ResourceBuilder.CreateEmpty()
                                       .AddEnvironmentVariableDetector()
                                       .AddAttributes(new Dictionary<string, object>
@@ -158,9 +159,7 @@ public static class ServiceRegistration
         var opts = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
         var logging = opts.LoggingSettings;
         
-        // =====================================================================
         // Build Serilog pipeline programmatically (equivalent to appsettings.json)
-        // =====================================================================
         var loggerConfig = new LoggerConfiguration()
                            .MinimumLevel.Information()
                            .MinimumLevel.Override(LOGGER_MICROSOFT_ENTITY_FRAMEWORK_DATABASE_COMMAND, LogEventLevel.Warning)
@@ -182,11 +181,10 @@ public static class ServiceRegistration
         // Build logger
         var logger = loggerConfig.CreateLogger();
         Log.Logger = logger;
+
         services.AddSingleton(_ => new DiagnosticContext(Log.Logger));
         
-        // --------------------------------------------------------------
         // Replace default .NET logging with Serilog
-        // --------------------------------------------------------------
         services.AddLogging(lb =>
         {
             lb.ClearProviders(); // Remove default providers (Console, Debug, etc.)
@@ -204,12 +202,16 @@ public static class ServiceRegistration
         {
             // Specify the default API Version as 1.0
             config.DefaultApiVersion = new ApiVersion(1, 0);
+
             // If the client hasn't specified the API version in the request, use the default API version number 
             config.AssumeDefaultVersionWhenUnspecified = true;
+
             // Advertise the API versions supported for the particular endpoint
             config.ReportApiVersions = true;
+
             // Reads the API version from the URL segment (e.g., /api/v1.0/...), requires {version:apiVersion} in route templates
             config.ApiVersionReader = new UrlSegmentApiVersionReader();
+
             // If the client doesn't specify a version, selects the highest implemented API version
             config.ApiVersionSelector = new CurrentImplementationApiVersionSelector(config);
         }).AddApiExplorer(options =>

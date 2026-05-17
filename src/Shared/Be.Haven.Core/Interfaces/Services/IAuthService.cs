@@ -60,6 +60,12 @@ public interface IAuthService
     Guid? UserId();
 
     /// <summary>
+    /// Gets the authenticated session public identifier from the normalized session claim.
+    /// </summary>
+    /// <returns>The current session public identifier, or <c>null</c> when the request is anonymous or invalid.</returns>
+    Guid? SessionId();
+
+    /// <summary>
     /// Retrieves the account identifier associated with the current user or context.
     /// </summary>
     /// <returns>The account identifier as a string.</returns>

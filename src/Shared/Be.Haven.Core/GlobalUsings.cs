@@ -1,5 +1,4 @@
 // Global using directives
-
 global using Asp.Versioning;
 global using Be.Haven.Core.Exceptions;
 global using Be.Haven.Core.Extensions.Configurations;
@@ -14,6 +13,7 @@ global using Be.Haven.Core.Interfaces.Services;
 global using Be.Haven.Core.Interfaces.Services.Gcp;
 global using Be.Haven.Core.Jobs;
 global using Be.Haven.Core.Models;
+global using Be.Haven.Core.Models.ClientDevices;
 global using Be.Haven.Core.Models.FileResponse;
 global using Be.Haven.Core.Models.ObjectStorage;
 global using Be.Haven.Core.Repositories;

@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Queries;
+namespace Be.Haven.Core.Interfaces.Queries;
 
 /// <summary>
 /// Represents the base query parameters used for paginated and searchable requests.

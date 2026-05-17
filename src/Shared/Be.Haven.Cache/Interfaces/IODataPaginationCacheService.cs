@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Cache.Interfaces;
+namespace Be.Haven.Cache.Interfaces;
 
 /// <summary>
 /// Provides caching utilities for handling OData pagination (nextLink, previousLink, top values) per user.

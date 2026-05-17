@@ -1,5 +1,4 @@
 // Global using directives
-
 global using System.Diagnostics;
 global using System.IdentityModel.Tokens.Jwt;
 global using System.Globalization;
@@ -21,6 +20,7 @@ global using Be.Haven.ApiCommon.Handlers;
 global using Be.Haven.ApiCommon.Interfaces;
 global using Be.Haven.ApiCommon.Middlewares;
 global using Be.Haven.ApiCommon.Models.AuthReset;
+global using Be.Haven.ApiCommon.Models.AuthSessions;
 global using Be.Haven.ApiCommon.Options.Swagger;
 global using Be.Haven.ApiCommon.Services;
 global using Be.Haven.ApiCommon.Swagger;

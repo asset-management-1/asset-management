@@ -13,7 +13,23 @@ public static class SecretConfigurationExtensions
     /// <returns>The original configuration when Secret Manager is disabled; otherwise a configuration with loaded secret values overlaid.</returns>
     public static async Task<IConfiguration> ApplySecretsAsync(
         this IConfiguration configuration,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await ApplySecretsAsync(
+            configuration,
+            SecretManagerResourceHelper.BuildClient,
+            cancellationToken);
+
+    /// <summary>
+    /// Applies configured secret values by using the provided Secret Manager client factory.
+    /// </summary>
+    /// <param name="configuration">The base application configuration.</param>
+    /// <param name="buildClient">The factory that creates a Secret Manager client for the configured location.</param>
+    /// <param name="cancellationToken">The token used to cancel Secret Manager reads.</param>
+    /// <returns>The original configuration when Secret Manager is disabled; otherwise a configuration with loaded secret values overlaid.</returns>
+    private static async Task<IConfiguration> ApplySecretsAsync(
+        IConfiguration configuration,
+        Func<string, SecretManagerServiceClient> buildClient,
+        CancellationToken cancellationToken)
     {
         var gcpOptions = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
         if (!gcpOptions.SecretManagerSettings.IsUseSecret)
@@ -29,7 +45,7 @@ public static class SecretConfigurationExtensions
         }
 
         // Startup resolution happens once before DI options bind, so no sync-over-async is needed later.
-        var client = SecretManagerResourceHelper.BuildClient(gcpOptions.SecretManagerSettings.Location);
+        var client = buildClient(gcpOptions.SecretManagerSettings.Location);
         var resourcePrefix = SecretManagerResourceHelper.BuildResourcePrefix(
             gcpOptions.ProjectNumber,
             gcpOptions.SecretManagerSettings.Location);

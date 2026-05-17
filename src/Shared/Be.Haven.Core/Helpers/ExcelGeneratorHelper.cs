@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Helpers;
+namespace Be.Haven.Core.Helpers;
 
 /// <summary>
 /// Provides helper methods for generating Excel files dynamically.

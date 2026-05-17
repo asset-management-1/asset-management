@@ -106,14 +106,14 @@ public static class CoreLogConstants
         public const string LOG_CACHE_VERSION_KEY_NOT_FOUND = "CacheVersion: Version key not found. Epoch={Epoch}, Key={Key}. Returning default {DefaultVersion}.";
 
         /// <summary>
-        /// Version value in Redis is not a valid long.
+        /// Version value in cache is not a valid long.
         /// </summary>
-        public const string LOG_CACHE_VERSION_INVALID_VALUE = "CacheVersion: Invalid version value. Epoch={Epoch}, Key={Key}, RawValue={RawValue}. Returning default {DefaultVersion}.";
+        public const string LOG_CACHE_VERSION_INVALID_VALUE = "CacheVersion: Invalid version value. Epoch={Epoch}, Key={Key}, RawValue={RawValue}.";
 
         /// <summary>
-        /// Version value in Redis is non-positive (defensive case).
+        /// Version value in cache is non-positive (defensive case).
         /// </summary>
-        public const string LOG_CACHE_VERSION_NON_POSITIVE_VALUE = "CacheVersion: Non-positive version value. Epoch={Epoch}, Key={Key}, Version={Version}. Returning default {DefaultVersion}.";
+        public const string LOG_CACHE_VERSION_NON_POSITIVE_VALUE = "CacheVersion: Non-positive version value. Epoch={Epoch}, Key={Key}, Version={Version}.";
 
         /// <summary>
         /// Successfully retrieved current version.
@@ -121,9 +121,9 @@ public static class CoreLogConstants
         public const string LOG_CACHE_VERSION_RETRIEVED = "CacheVersion: Retrieved version. Epoch={Epoch}, Key={Key}, Version={Version}.";
 
         /// <summary>
-        /// Failed to read version from Redis (fail-open).
+        /// Failed to read version from cache; caller should bypass cached payloads.
         /// </summary>
-        public const string LOG_CACHE_VERSION_READ_FAILED = "CacheVersion: Failed to read version. Epoch={Epoch}, Key={Key}. Returning default {DefaultVersion}.";
+        public const string LOG_CACHE_VERSION_READ_FAILED = "CacheVersion: Failed to read version. Epoch={Epoch}, Key={Key}. Bypassing cached payloads.";
 
         /// <summary>
         /// Successfully bumped version (INCR).
@@ -133,7 +133,22 @@ public static class CoreLogConstants
         /// <summary>
         /// INCR returned non-positive version (defensive case), service will normalize.
         /// </summary>
-        public const string LOG_CACHE_VERSION_INCR_NON_POSITIVE = "CacheVersion: INCR returned non-positive version. Epoch={Epoch}, Key={Key}, NewVersion={NewVersion}. Normalizing to {DefaultVersion}.";
+        public const string LOG_CACHE_VERSION_INCR_NON_POSITIVE = "CacheVersion: INCR returned non-positive version. Epoch={Epoch}, Key={Key}, NewVersion={NewVersion}.";
+
+        /// <summary>
+        /// Cache version invalidation was asked to run without a valid group or epoch.
+        /// </summary>
+        public const string CACHE_VERSION_INVALIDATION_ARGUMENTS_MISSING = "Cache version invalidation requires a non-empty cache group and epoch.";
+
+        /// <summary>
+        /// Cache version invalidation did not advance beyond the previous version.
+        /// </summary>
+        public const string CACHE_VERSION_NOT_ADVANCED = "Cache version invalidation did not advance. CacheGroup={0}, CacheScope={1}, Epoch={2}, OldVersion={3}, NewVersion={4}.";
+
+        /// <summary>
+        /// Cache version cannot be read safely, so caller must bypass cached payloads.
+        /// </summary>
+        public const string CACHE_VERSION_READ_UNSAFE = "Cache version cannot be read safely. CacheGroup={0}, CacheScope={1}, Epoch={2}.";
 
         /// <summary>
         /// TTL was applied to the version key.
@@ -171,7 +186,50 @@ public static class CoreLogConstants
         /// <summary>
         /// Cache invalidation version was bumped after a successful write command.
         /// </summary>
-        public const string CACHE_VERSION_BUMPED = "Cache version bumped. Epoch={Epoch} NewVersion={NewVersion}";
+        public const string CACHE_VERSION_BUMPED =
+            "Cache version bumped. CacheGroup={CacheGroup}, CacheScope={CacheScope}, Epoch={Epoch}, NewVersion={NewVersion}.";
+
+        /// <summary>
+        /// Cache invalidation failed for one logical cache target.
+        /// </summary>
+        public const string CACHE_TARGET_INVALIDATION_FAILED =
+            "Cache target invalidation failed. RequestType={RequestType}, CacheGroup={CacheGroup}, CacheScope={CacheScope}.";
+
+        /// <summary>
+        /// Cached read was bypassed because the scope had a previous consistency-critical invalidation failure.
+        /// </summary>
+        public const string CACHE_SCOPE_BYPASSED_AFTER_INVALIDATION_FAILURE =
+            "Cache scope bypassed after invalidation failure. CacheGroup={CacheGroup}, CacheScope={CacheScope}.";
+
+        /// <summary>
+        /// Cache bypass marker write failed after a consistency-critical invalidation failure.
+        /// </summary>
+        public const string CACHE_BYPASS_MARK_FAILED =
+            "Cache bypass marker write failed. CacheGroup={CacheGroup}, CacheScope={CacheScope}.";
+
+        /// <summary>
+        /// Cache bypass marker read failed; caller will continue with normal cache safety checks.
+        /// </summary>
+        public const string CACHE_BYPASS_READ_FAILED =
+            "Cache bypass marker read failed. CacheGroup={CacheGroup}, CacheScope={CacheScope}.";
+
+        /// <summary>
+        /// Cached read was bypassed because the cache version could not be read safely.
+        /// </summary>
+        public const string CACHE_VERSION_READ_BYPASSED =
+            "Cache version read failed; bypassing cache. RequestType={RequestType}, CacheGroup={CacheGroup}, CacheScope={CacheScope}.";
+
+        /// <summary>
+        /// Cached payload read failed, so the handler result was loaded directly.
+        /// </summary>
+        public const string CACHE_READ_BYPASSED =
+            "Cache read failed; bypassing cache. RequestType={RequestType}, Key={Key}.";
+
+        /// <summary>
+        /// Cache write failed after a fresh handler result was produced.
+        /// </summary>
+        public const string CACHE_WRITE_SKIPPED =
+            "Cache write failed; returning fresh response without caching. RequestType={RequestType}, Key={Key}.";
 
         /// <summary>
         /// Current-user scoped cache could not resolve a principal and falls back to unscoped behavior.
@@ -199,7 +257,8 @@ public static class CoreLogConstants
         /// <summary>
         /// Logged when a private object upload fails without exposing the object key.
         /// </summary>
-        public const string R2_UPLOAD_FAILED = "Cloudflare R2 upload failed. BucketName={BucketName}.";
+        public const string R2_UPLOAD_FAILED =
+            "Cloudflare R2 upload failed. BucketName={BucketName}, StatusCode={StatusCode}, ResponseContent={ResponseContent}.";
 
         /// <summary>
         /// Logged after a private object delete completes without exposing the object key.
@@ -209,7 +268,8 @@ public static class CoreLogConstants
         /// <summary>
         /// Logged when a private object delete fails without exposing the object key.
         /// </summary>
-        public const string R2_DELETE_FAILED = "Cloudflare R2 delete failed. BucketName={BucketName}.";
+        public const string R2_DELETE_FAILED =
+            "Cloudflare R2 delete failed. BucketName={BucketName}, StatusCode={StatusCode}, ResponseContent={ResponseContent}.";
     }
     
     /// <summary>
@@ -248,7 +308,7 @@ public static class CoreLogConstants
     public static class InMemoryCacheVersionLogs
     {
         /// <summary>
-        /// Log when reading version from cache fails (fail-open to default version).
+        /// Log when reading version from cache fails and callers should bypass cached payloads.
         /// </summary>
         public const string LOG_IN_MEMORY_CACHE_VERSION_READ_FAILED = "CacheVersion(InMemory): Read failed. Epoch={Epoch}, Key={Key}";
 
@@ -256,6 +316,11 @@ public static class CoreLogConstants
         /// Log when writing version to cache fails and we retry (best-effort).
         /// </summary>
         public const string LOG_IN_MEMORY_CACHE_VERSION_WRITE_FAILED = "CacheVersion(InMemory): Write failed (attempt {Attempt}/{Max}). Epoch={Epoch}, Key={Key}";
+
+        /// <summary>
+        /// In-memory cache version write failed after all configured retry attempts.
+        /// </summary>
+        public const string IN_MEMORY_CACHE_VERSION_WRITE_EXHAUSTED = "CacheVersion(InMemory): Write failed after all retry attempts. Epoch={0}, Key={1}.";
     }
 
     /// <summary>
@@ -353,11 +418,13 @@ public static class CoreLogConstants
         /// <summary>
         /// Log message when SendGrid rejects or fails to process the email request.
         /// </summary>
-        public const string SEND_FAILED = "SendGrid email send failed with status code {StatusCode}.";
+        public const string SEND_FAILED =
+            "SendGrid email send failed. StatusCode={StatusCode}, ResponseContent={ResponseContent}.";
 
         /// <summary>
         /// Log message when an unexpected exception occurs while sending email.
         /// </summary>
-        public const string SEND_EXCEPTION = "Error occurred while sending email.";
+        public const string SEND_EXCEPTION =
+            "Error occurred while sending email. StatusCode={StatusCode}, ResponseContent={ResponseContent}.";
     }
 }

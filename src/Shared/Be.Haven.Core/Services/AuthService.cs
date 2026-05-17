@@ -115,6 +115,21 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
+    /// Gets the authenticated session public identifier from the normalized session claim.
+    /// </summary>
+    /// <returns>The current session public identifier, or <c>null</c> when the request is anonymous or invalid.</returns>
+    public Guid? SessionId()
+    {
+        if (!IsAuthenticated)
+        {
+            return null;
+        }
+
+        // The session id is server-issued in Haven tokens and is required for protected APIs.
+        return Guid.TryParse(Get(TokenClaimTypes.SESSION_ID), out var sessionPublicId) ? sessionPublicId : null;
+    }
+
+    /// <summary>
     /// Retrieves the account identifier associated with the current user from the authentication context.
     /// The account identifier is obtained by checking for a claim with the key defined in <c>HEADER_ACCOUNT_ID</c>
     /// or, if unavailable, a claim with the key "account_id".

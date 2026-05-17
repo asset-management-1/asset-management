@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Cache.Interfaces;
+namespace Be.Haven.Cache.Interfaces;
 
 public interface ILoginAttemptService
 {

@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Requests.Emails;
+namespace Be.Haven.Shared.Dtos.Requests.Emails;
 
 /// <summary>
 /// Represents an email address used in an email message 

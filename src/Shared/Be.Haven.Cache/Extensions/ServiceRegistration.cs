@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Cache.Extensions;
+namespace Be.Haven.Cache.Extensions;
 
 public static class ServiceRegistration
 {
@@ -11,7 +11,16 @@ public static class ServiceRegistration
     /// <exception cref="ArgumentException">
     /// Thrown when there is an issue configuring or connecting to the distributed cache (e.g., Redis).
     /// </exception>
-    public static void AddDistributedCache(this IServiceCollection services, IConfiguration configuration)
+    public static void AddDistributedCache(this IServiceCollection services, IConfiguration configuration) =>
+        AddDistributedCache(
+            services,
+            configuration,
+            options => ConnectionMultiplexer.Connect(options));
+
+    private static void AddDistributedCache(
+        IServiceCollection services,
+        IConfiguration configuration,
+        Func<ConfigurationOptions, IConnectionMultiplexer> connectRedis)
     {
         services.Configure<CacheOptions>(configuration.GetSection(CACHE_SETTING));
         services.Configure<LoginAttemptOptions>(configuration.GetSection(LOGIN_AT_TEMPT_SETTINGS));
@@ -21,10 +30,11 @@ public static class ServiceRegistration
         
         // Retrieve Redis configuration settings
         services.AddTransient<ICachingService, CachingService>(); // Add caching service to the service collection
-        
+
         if (cacheOption.IsMemory)
         {
             services.AddDistributedMemoryCache(); // Add in-memory cache if the setting is enabled
+            services.AddSingleton<ICacheBypassService, InMemoryCacheBypassService>();
             services.AddTransient<ILoginAttemptService, LoginMemoryAttemptService>();
             services.AddTransient<ICacheVersionService, InMemoryCacheVersionService>();
             return; // Exit the method
@@ -46,7 +56,7 @@ public static class ServiceRegistration
             };
             configurationOptions.EndPoints.Add(cacheOption.RedisSettings.Host, cacheOption.RedisSettings.Port); // Set Redis host and port
 
-            var connectionMultiplexer = ConnectionMultiplexer.Connect(configurationOptions);
+            var connectionMultiplexer = connectRedis(configurationOptions);
             if (!connectionMultiplexer.IsConnected)
             {
                 Console.WriteLine(FAILED_TO_CONNECT_TO_REDIS);
@@ -56,8 +66,8 @@ public static class ServiceRegistration
             services.AddSingleton<IConnectionMultiplexer>(connectionMultiplexer);
             services.AddSingleton<IDistributedLockService, DistributedLockService>();
             services.AddSingleton<ICacheVersionService, DistributedCacheVersionService>();
+            services.AddSingleton<ICacheBypassService, DistributedCacheBypassService>();
             services.AddTransient<ILoginAttemptService, LoginAttemptService>();
-            
             services.AddStackExchangeRedisCache(options =>
             {
                 options.ConfigurationOptions = configurationOptions; // Set Redis configuration options
@@ -71,5 +81,4 @@ public static class ServiceRegistration
             throw new ArgumentException(ERROR_DISTRIBUTED_CACHE, ex.Message);
         }
     }
-
 }

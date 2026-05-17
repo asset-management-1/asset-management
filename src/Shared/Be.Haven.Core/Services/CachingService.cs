@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Services;
+namespace Be.Haven.Core.Services;
 
 public class CachingService : ICachingService
 {

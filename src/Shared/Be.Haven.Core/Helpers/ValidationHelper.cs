@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Helpers;
+namespace Be.Haven.Core.Helpers;
 
 public static class ValidationHelper
 {

@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Caches;
+namespace Be.Haven.Core.Interfaces.Caches;
 
 public interface ICachingService
 {

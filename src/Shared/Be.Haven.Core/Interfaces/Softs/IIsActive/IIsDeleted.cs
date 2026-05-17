@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Interfaces.Softs.IIsActive;
+namespace Be.Haven.Core.Interfaces.Softs.IIsActive;
 
 /// <summary>
 /// Defines a contract for entities that support active/inactive status.

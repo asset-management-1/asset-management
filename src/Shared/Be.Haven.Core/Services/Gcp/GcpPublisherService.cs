@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Services.Gcp;
+namespace Be.Haven.Core.Services.Gcp;
 
 /// <summary>
 /// Publishes messages to Google Cloud Pub/Sub.
@@ -12,6 +12,7 @@ public class GcpPublisherService : IGcpPublisherService
     private readonly IJsonSerializerService _serializerService;
     private readonly string _gcpProjectId;
     private readonly IHttpContextAccessor _httpContextAccessor;
+    private readonly IGcpPubSubPublisherClientFactory _publisherClientFactory;
 
     /// <summary>
     /// Provides a service for publishing messages to a Google Cloud Platform (GCP) Pub/Sub topic.
@@ -22,12 +23,14 @@ public class GcpPublisherService : IGcpPublisherService
         IJsonSerializerService serializerService,
         IOptions<GcpOptions> gcpOption,
         QueueInfoOptions queueOptions, 
-        IHttpContextAccessor httpContextAccessor)
+        IHttpContextAccessor httpContextAccessor,
+        IGcpPubSubPublisherClientFactory publisherClientFactory)
     {
         _logger = logger;
         _serializerService = serializerService;
         _queueOptions = queueOptions;
         _httpContextAccessor = httpContextAccessor;
+        _publisherClientFactory = publisherClientFactory;
         _gcpProjectId = gcpOption.Value.ProjectId;
     }
 
@@ -57,6 +60,7 @@ public class GcpPublisherService : IGcpPublisherService
                 throw new InvalidOperationException(
                     string.Format(MISSING_GCP_ATTRIBUTE_SETTING_TOPICID, typeof(T).Name));
             }
+
             // Resolve correlation/trace id
             var correlationId =
                 _httpContextAccessor.HttpContext?.Items[X_CORRELATION_ID]?.ToString()
@@ -90,16 +94,7 @@ public class GcpPublisherService : IGcpPublisherService
                 pubSubMessage.Attributes[TRACE_ID] = act.TraceId.ToString();
             }
             
-            // Build a PublisherClient for the specified topic.
-            // EmulatorDetection = EmulatorOrProduction: use emulator if PUBSUB_EMULATOR_HOST is set, otherwise production.
-            // The cancellationToken lets you cancel client creation if needed.
-            var publisher = await new PublisherClientBuilder
-            {
-                TopicName = topicName,
-                EmulatorDetection = EmulatorDetection.EmulatorOrProduction,
-            }.BuildAsync(cancellationToken);
-
-            // Publish the message to Google Cloud Pub/Sub
+            var publisher = await _publisherClientFactory.CreateAsync(topicName, cancellationToken);
             var msgId = await publisher.PublishAsync(pubSubMessage);
 
             _logger.LogInformation(GPSPUBLISHER_PUBLISHASYNC_MESSAGE_PUBLISHED, msgId);

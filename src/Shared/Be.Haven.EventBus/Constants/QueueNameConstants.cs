@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.EventBus.Constants;
+namespace Be.Haven.EventBus.Constants;
 
 /// <summary>
 /// Holds all constant names for Queues, Topics, and Subscriptions used in the EventBus.
@@ -12,8 +12,8 @@ public static class QueueNameConstants
     public static class TopicNames
     {
         /// <summary>
-        /// The Topic name for events related to National Address To-Do items.
-        /// This Topic is used to publish To-Do messages from the National Address Portal.
+        /// The Topic name for events related to Haven To-Do items.
+        /// This Topic is used to publish To-Do messages from the Haven Portal.
         /// </summary>
         public const string NATION_ADDRESS_TODO_TOPIC = "nation-address-topic-todo";
     }

@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Models;
+namespace Be.Haven.Core.Models;
 
 /// <summary>
 /// Base entity for all domain models.

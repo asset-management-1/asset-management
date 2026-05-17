@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Requests;
+namespace Be.Haven.Shared.Dtos.Requests;
 
 /// <summary>
 /// Represents the data required to upload a file to GCP storage.

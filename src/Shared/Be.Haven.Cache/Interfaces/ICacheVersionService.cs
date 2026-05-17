@@ -20,6 +20,7 @@ public interface ICacheVersionService
     
     /// <summary>
     /// Increments the cache version for the current epoch, effectively invalidating stale cache keys.
+    /// Implementations must either return an advanced version or throw; write invalidation must not fail open.
     /// </summary>
     /// <param name="cacheGroup">The logical cache group being invalidated.</param>
     /// <param name="cacheScope">The optional cache scope within the logical group.</param>

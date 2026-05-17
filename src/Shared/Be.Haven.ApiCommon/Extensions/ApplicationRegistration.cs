@@ -27,7 +27,11 @@ public static class ApplicationRegistration
     public static void UseSwaggerConfiguration(this IApplicationBuilder app)
     {
         app.UseSwagger();
-        UseSwaggerOperationSearchScript(app);
+
+        // Keep the UI customization inside ApiCommon so each service gets the same Swagger search behavior.
+        app.Map(
+            OPERATION_SEARCH_SCRIPT_PATH,
+            branch => branch.Run(WriteSwaggerOperationSearchScriptAsync));
         app.UseSwaggerUI(options =>
         {
             options.EnableFilter(); // Render Swagger UI's filter input; the shared script upgrades it to API text search.
@@ -44,18 +48,6 @@ public static class ApplicationRegistration
             options.EnableDeepLinking();
             options.DisplayRequestDuration(); // Shows the duration of each request in Swagger UI.
         });
-    }
-
-    /// <summary>
-    /// Serves the shared Swagger operation-search script from this assembly.
-    /// </summary>
-    /// <param name="app">The application builder used to register the script endpoint.</param>
-    private static void UseSwaggerOperationSearchScript(IApplicationBuilder app)
-    {
-        // Keep the UI customization inside ApiCommon so each service gets the same Swagger search behavior.
-        app.Map(
-            OPERATION_SEARCH_SCRIPT_PATH,
-            branch => branch.Run(WriteSwaggerOperationSearchScriptAsync));
     }
 
     /// <summary>
@@ -77,13 +69,19 @@ public static class ApplicationRegistration
     private static string LoadSwaggerOperationSearchScript()
     {
         // Read from an embedded resource so API services do not need to copy or host their own Swagger UI asset.
+        return LoadSwaggerOperationSearchScript(OPERATION_SEARCH_SCRIPT_RESOURCE_NAME);
+    }
+
+    private static string LoadSwaggerOperationSearchScript(string resourceName)
+    {
+        // Read from an embedded resource so API services do not need to copy or host their own Swagger UI asset.
         var assembly = typeof(ApplicationRegistration).Assembly;
-        using var stream = assembly.GetManifestResourceStream(OPERATION_SEARCH_SCRIPT_RESOURCE_NAME);
+        using var stream = assembly.GetManifestResourceStream(resourceName);
         if (stream is null)
         {
             throw new InvalidOperationException(string.Format(
                 OPERATION_SEARCH_SCRIPT_RESOURCE_NOT_FOUND,
-                OPERATION_SEARCH_SCRIPT_RESOURCE_NAME));
+                resourceName));
         }
 
         using var reader = new StreamReader(stream, Encoding.UTF8);
@@ -112,38 +110,40 @@ public static class ApplicationRegistration
             },
 
             // Custom JSON response
-            ResponseWriter = async (context, report) =>
-            {
-                if (context.RequestAborted.IsCancellationRequested)
-                {
-                    return;
-                }
-                
-                context.Response.ContentType = TEXT_JSON;
-
-                var response = new
-                {
-                    status = report.Status.ToString(),
-                    totalDuration = report.TotalDuration.ToString(),
-                    checks = report.Entries.Select(entry => new
-                    {
-                        name = entry.Key,
-                        status = entry.Value.Status.ToString(),
-                        description = entry.Value.Description,
-                        exception = entry.Value.Exception?.Message,
-                        duration = entry.Value.Duration.ToString()
-                    })
-                };
-
-                await context.Response.WriteAsJsonAsync(
-                    response,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                        WriteIndented = true
-                    },
-                    context.RequestAborted);
-            }
+            ResponseWriter = WriteHealthCheckResponseAsync
         });
+    }
+
+    private static async Task WriteHealthCheckResponseAsync(HttpContext context, HealthReport report)
+    {
+        if (context.RequestAborted.IsCancellationRequested)
+        {
+            return;
+        }
+                
+        context.Response.ContentType = TEXT_JSON;
+
+        var response = new
+        {
+            status = report.Status.ToString(),
+            totalDuration = report.TotalDuration.ToString(),
+            checks = report.Entries.Select(entry => new
+            {
+                name = entry.Key,
+                status = entry.Value.Status.ToString(),
+                description = entry.Value.Description,
+                exception = entry.Value.Exception?.Message,
+                duration = entry.Value.Duration.ToString()
+            })
+        };
+
+        await context.Response.WriteAsJsonAsync(
+            response,
+            new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                WriteIndented = true
+            },
+            context.RequestAborted);
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Jobs;
+namespace Be.Haven.Core.Jobs;
 
 /// <summary>
 /// Background service that subscribes to Google Pub/Sub topics and dispatches
@@ -43,19 +43,34 @@ public class GcpSubscriberJob : BackgroundService
     private readonly QueueInfoOptions _queueOptions;
 
     /// <summary>
+    /// Factory used to create Pub/Sub subscriber clients for configured subscriptions.
+    /// </summary>
+    private readonly Func<SubscriptionName, CancellationToken, Task<SubscriberClient>> _subscriberFactory;
+
+    /// <summary>
     /// A background service responsible for managing subscriber clients for event processing in a Google Cloud Platform (GCP) environment.
     /// Handles initialization of subscribers and manages retry policies for transient failures.
     /// </summary>
+    /// <param name="serviceProvider">The root service provider used to create handler scopes.</param>
+    /// <param name="logger">The logger used for subscriber diagnostics.</param>
+    /// <param name="gcpOption">The configured GCP options.</param>
+    /// <param name="queueOptions">The configured Pub/Sub topic and subscription keys.</param>
+    /// <param name="subscriberFactory">Optional factory used to create subscriber clients.</param>
+    /// <param name="retryDelayFactory">Optional factory used to compute retry delays.</param>
     public GcpSubscriberJob(
         IServiceProvider serviceProvider,
         ILogger<GcpSubscriberJob> logger,
         IOptions<GcpOptions> gcpOption,
-        QueueInfoOptions queueOptions)
+        QueueInfoOptions queueOptions,
+        Func<SubscriptionName, CancellationToken, Task<SubscriberClient>> subscriberFactory = null,
+        Func<int, TimeSpan> retryDelayFactory = null)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _queueOptions = queueOptions;
         _gcpProjectId = gcpOption.Value.ProjectId;
+        _subscriberFactory = subscriberFactory ?? CreateSubscriberAsync;
+        retryDelayFactory ??= retryAttempt => TimeSpan.FromSeconds(Math.Pow(SECOND_RETRY_NUMBER, retryAttempt));
 
         // Configure an async retry policy:
         // - Handle all exceptions
@@ -65,7 +80,7 @@ public class GcpSubscriberJob : BackgroundService
             .Handle<Exception>()
             .WaitAndRetryAsync(
                 DEFAULT_RETRY_NUMBER,
-                retryAttempt => TimeSpan.FromSeconds(Math.Pow(SECOND_RETRY_NUMBER, retryAttempt)),
+                retryDelayFactory,
                 (exception, timeSpan, retryCount, _) =>
                 {
                     _logger.LogWarning(exception, HANDLE_EVENT_RETRY, retryCount, timeSpan);
@@ -104,18 +119,8 @@ public class GcpSubscriberJob : BackgroundService
                 // Build subscription name (topics/subscriptions are assumed to exist already).
                 var subscriptionName = SubscriptionName.FromProjectSubscription(_gcpProjectId, subscriptionId);
 
-                // Build the subscriber client for this subscription.
-                // FlowControlSettings: max 5 concurrent outstanding messages; unlimited bytes.
-                var subscriber = await new SubscriberClientBuilder
-                {
-                    SubscriptionName = subscriptionName,
-                    Settings = new SubscriberClient.Settings
-                    {
-                        FlowControlSettings = new FlowControlSettings(
-                            maxOutstandingElementCount: 10L,
-                            maxOutstandingByteCount: null)
-                    }
-                }.BuildAsync(stoppingToken);
+                // Build the subscriber client through the configured factory.
+                var subscriber = await _subscriberFactory(subscriptionName, stoppingToken);
 
                 await using var reg = stoppingToken.Register(() =>
                 {
@@ -174,6 +179,29 @@ public class GcpSubscriberJob : BackgroundService
             throw new ArgumentException(
                 string.Format(EVENT_TYPE_ALREADY_REGISTERED, eventName));
         }
+    }
+
+    /// <summary>
+    /// Creates the default Google Pub/Sub subscriber client for one subscription.
+    /// </summary>
+    /// <param name="subscriptionName">The Pub/Sub subscription name.</param>
+    /// <param name="cancellationToken">The token used to cancel client creation.</param>
+    /// <returns>The created subscriber client.</returns>
+    private static async Task<SubscriberClient> CreateSubscriberAsync(
+        SubscriptionName subscriptionName,
+        CancellationToken cancellationToken)
+    {
+        // Build the subscriber client with bounded outstanding messages and unlimited byte flow.
+        return await new SubscriberClientBuilder
+        {
+            SubscriptionName = subscriptionName,
+            Settings = new SubscriberClient.Settings
+            {
+                FlowControlSettings = new FlowControlSettings(
+                    maxOutstandingElementCount: 10L,
+                    maxOutstandingByteCount: null)
+            }
+        }.BuildAsync(cancellationToken);
     }
 
     /// <summary>

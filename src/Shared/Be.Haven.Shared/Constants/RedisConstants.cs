@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Constants;
+namespace Be.Haven.Shared.Constants;
 
 /// <summary>
 /// Contains constants for Redis configuration and messages.
@@ -6,15 +6,14 @@
 public static class RedisConstants
 {
     /// <summary>
-    /// The time-to-live (TTL) duration for the version key in the cache,
-    /// specifying how long the version key remains valid before expiration.
-    /// </summary>
-    public static readonly TimeSpan VERSION_KEY_TTL = TimeSpan.FromSeconds(60);
-    
-    /// <summary>
     /// Environment variable name used to configure cache-related settings for the application.
     /// </summary>
     public const string CACHE_SETTING = "CacheSettings";
+
+    /// <summary>
+    /// Default cache-aside payload absolute expiration in seconds when CacheSettings is missing or invalid.
+    /// </summary>
+    public const int DEFAULT_ABSOLUTE_EXPIRATION_SECONDS = 10;
 
     /// <summary>
     /// Identifier for determining if the cache is stored in memory.
@@ -45,16 +44,6 @@ public static class RedisConstants
     /// Redis database number environment variable.
     /// </summary>
     public const string REDIS_DB_NUMBER = "REDIS_DB_NUMBER";
-
-    /// <summary>
-    /// Redis minute timeout environment variable.
-    /// </summary>
-    public const int DEFAULT_TIME_CACHE = 60;
-
-    /// <summary>
-    /// Time cache environment variable.
-    /// </summary>
-    public const string TIME_CACHE = "TIME_CACHE";
 
     /// <summary>
     /// Contains message information constants.
@@ -144,21 +133,26 @@ public static class RedisConstants
         public const string BYPASSCACHE = "BypassCache";
 
         /// <summary>
-        /// Sliding expiration environment variable.
+        /// Absolute expiration cache-control property name used by cacheable mediator requests.
         /// </summary>
         public const string ABSOLUTEEXPIRATION = "AbsoluteExpiration";
 
         /// <summary>
-        /// The Redis key format for tracking failed login attempts.
-        /// Example: <c>Fail_johndoe</c>.
+        /// Cache scope property name used by cacheable mediator requests.
         /// </summary>
-        public const string FAIL_KEY_PREFIX = "Fail_{0}";
+        public const string CACHESCOPE = "CacheScope";
+
+        /// <summary>
+        /// The Redis key format for tracking failed login attempts.
+        /// Example: <c>auth:login-attempt:fail:johndoe</c>.
+        /// </summary>
+        public const string FAIL_KEY_PREFIX = "auth:login-attempt:fail:{0}";
 
         /// <summary>
         /// The Redis key format for representing a locked account.
-        /// Example: <c>Lock_johndoe</c>.
+        /// Example: <c>auth:login-attempt:lock:johndoe</c>.
         /// </summary>
-        public const string LOCK_KEY_PREFIX = "Lock_{0}";
+        public const string LOCK_KEY_PREFIX = "auth:login-attempt:lock:{0}";
 
         /// <summary>
         /// The value stored inside a lock key to indicate that the user is currently locked.

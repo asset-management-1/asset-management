@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Dtos.Requests.Emails;
+namespace Be.Haven.Shared.Dtos.Requests.Emails;
 
 /// <summary>
 /// Represents a file attachment included in an email message.

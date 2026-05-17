@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Shared.Enums;
+namespace Be.Haven.Shared.Enums;
 
 /// <summary>
 /// Specifies how a field should be treated when generating dynamic search filters.

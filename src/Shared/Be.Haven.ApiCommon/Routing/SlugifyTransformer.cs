@@ -2,7 +2,7 @@ namespace Be.Haven.ApiCommon.Routing;
 
 public sealed class SlugifyTransformer : IOutboundParameterTransformer
 {
-    // ---- Compiled regexes ----
+    // Compiled regexes
     private static readonly Regex AcronymBoundary = new(ACRONYM_BOUNDARY_PATTERN, REGEX_OPTS, REGEX_TIMEOUT);
 
     private static readonly Regex LowerUpperBoundary = new(LOWER_UPPER_BOUNDARY_PATTERN, REGEX_OPTS, REGEX_TIMEOUT);

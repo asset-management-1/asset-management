@@ -176,6 +176,7 @@ public abstract class BaseQuartzJob : IJob
                     ConfigKey,
                     Environment.MachineName);
             }
+
             // 8) App shutdown → cancellation is expected (not an error)
             catch (OperationCanceledException ex) when (ct.IsCancellationRequested)
             {
@@ -185,6 +186,7 @@ public abstract class BaseQuartzJob : IJob
                     ConfigKey,
                     Environment.MachineName);
             }
+
             // 9) Unexpected error → log + rethrow (Quartz will mark job failed)
             catch (Exception ex)
             {

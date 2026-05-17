@@ -5,12 +5,17 @@ namespace Be.Haven.Shared.Dtos.Options.Caching;
 /// </summary>
 public class CacheOptions
 {
+    private int _absoluteExpiration = RedisConstants.DEFAULT_ABSOLUTE_EXPIRATION_SECONDS;
+
     /// <summary>
-    /// Gets or sets the sliding expiration time, in seconds, for cached items.
-    /// This determines the duration of inactivity after which a cached item will expire.
-    /// Each access to the cached item resets its expiration timer.
+    /// Gets or sets the absolute expiration time, in seconds, for cache data payloads.
+    /// This is the single configured TTL source for cache-aside read data, defaulting to 10 seconds when not configured.
     /// </summary>
-    public int AbsoluteExpiration { get; set; }
+    public int AbsoluteExpiration
+    {
+        get => _absoluteExpiration;
+        set => _absoluteExpiration = value > 0 ? value : RedisConstants.DEFAULT_ABSOLUTE_EXPIRATION_SECONDS;
+    }
 
     /// <summary>
     /// Specifies whether the caching mechanism operates in memory.
@@ -23,9 +28,4 @@ public class CacheOptions
     /// This includes options related to the usage and behavior of a Redis server as the cache backend.
     /// </summary>
     public RedisOptions RedisSettings { get; set; }
-
-    /// <summary>
-    /// Gets or sets the cache expiration time in minutes.
-    /// </summary>
-    public int CacheExpirationInMinutes { get; set; }
 }

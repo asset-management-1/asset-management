@@ -86,6 +86,7 @@ public class ErrorHandlerMiddleware
                 ResponseTimestamp = DateTime.UtcNow
             }
         };
+
         // Map exception types to appropriate HTTP status codes and messages
         switch (error)
         {
@@ -172,6 +173,7 @@ public class ErrorHandlerMiddleware
                 break;
 
             default:
+
                 // Unexpected exceptions are logged with details but exposed with a generic client-safe message.
                 response.Error = new ErrorDto
                 {

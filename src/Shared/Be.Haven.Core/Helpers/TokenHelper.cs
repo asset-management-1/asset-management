@@ -1,5 +1,8 @@
-﻿namespace Be.Haven.Core.Helpers;
+namespace Be.Haven.Core.Helpers;
 
+/// <summary>
+/// Provides token time, claim, and log-safe token utilities.
+/// </summary>
 public static class TokenHelper
 {
     /// <summary>
@@ -63,8 +66,10 @@ public static class TokenHelper
     /// </returns>
     public static TimeSpan GetExpirationDateTimeNowSpan(DateTime tokenExpiration)
     {
+        // Subtract padding so callers refresh token-dependent work before the token boundary.
         var expirationTime = tokenExpiration - DateTime.Now;
         var safeExpirationTime = expirationTime - TimeSpan.FromSeconds(PADDING_SECONDS);
+
         return safeExpirationTime > TimeSpan.Zero ? safeExpirationTime : TimeSpan.FromSeconds(PADDING_SECONDS);
     }
     
@@ -78,11 +83,13 @@ public static class TokenHelper
     /// </returns>
     public static TimeSpan GetSafeTtlSpan(long? remainingSeconds)
     {
-        // normalize
+        // Missing or expired token lifetime falls back to the minimum safety padding.
         if (remainingSeconds is not > 0)
+        {
             return TimeSpan.FromSeconds(PADDING_SECONDS);
+        }
 
-        // subtract padding (avoid cutting too close to expiry)
+        // Subtract padding so cache entries expire before the token does.
         var safeSeconds = remainingSeconds.Value - PADDING_SECONDS;
         
         return safeSeconds > 0
@@ -98,10 +105,13 @@ public static class TokenHelper
     /// <returns>A new DateTime adjusted with padding subtracted.</returns>
     public static DateTime GetSafeTime(DateTime dateTime)
     {
+        // Move the deadline earlier so callers can perform pre-expiry checks safely.
         return dateTime - TimeSpan.FromSeconds(PADDING_SECONDS);
     }
 
-    /// <summary>Reads a Unix timestamp claim (ms or s) and returns it as UTC.</summary>
+    /// <summary>
+    /// Reads a Unix timestamp claim in milliseconds or seconds and returns it as UTC.
+    /// </summary>
     /// <param name="jwt">The JWT to read from.</param>
     /// <param name="claimType">Claim type key (e.g., "na_exp").</param>
     /// <param name="utc">Parsed UTC time when successful.</param>
@@ -109,8 +119,13 @@ public static class TokenHelper
     public static bool TryGetUnixTimeUtc(JwtSecurityToken jwt, string claimType, out DateTime utc)
     {
         utc = default;
+
+        // Missing or malformed timestamp claims are treated as parse failures.
         var raw = jwt?.Claims.FirstOrDefault(c => c.Type == claimType)?.Value;
-        if (string.IsNullOrWhiteSpace(raw) || !long.TryParse(raw, out var v)) return false;
+        if (string.IsNullOrWhiteSpace(raw) || !long.TryParse(raw, out var v))
+        {
+            return false;
+        }
 
         // Heuristic: > 10^12 => milliseconds; otherwise seconds.
         var dto = v > 1_000_000_000_000
@@ -121,7 +136,9 @@ public static class TokenHelper
         return true;
     }
 
-    /// <summary>Adds an alias claim from <paramref name="fromType"/> to <paramref name="toType"/> if missing.</summary>
+    /// <summary>
+    /// Adds an alias claim from <paramref name="fromType"/> to <paramref name="toType"/> when source data exists.
+    /// </summary>
     /// <param name="src">Source identity.</param>
     /// <param name="bag">Target claim collection to append to.</param>
     /// <param name="fromType">Existing claim type to copy.</param>
@@ -132,13 +149,17 @@ public static class TokenHelper
         string fromType,
         string toType)
     {
+        // Read the source claim once so alias replacement is skipped when the source is absent.
         var val = src.FindFirst(fromType)?.Value;
-        if (string.IsNullOrWhiteSpace(val)) return;
+        if (string.IsNullOrWhiteSpace(val))
+        {
+            return;
+        }
 
-        // remove existing toType from bag (if any)
+        // Remove the old alias before adding the normalized alias value.
         bag.RemoveAll(c => c.Type == toType);
 
-        // add new toType
+        // Add the alias claim expected by downstream auth code.
         bag.Add(new Claim(toType, val));
     }
 
@@ -150,6 +171,7 @@ public static class TokenHelper
     /// <param name="claimValue">The claim value to ensure on the identity.</param>
     public static void EnsureClaim(ClaimsIdentity identity, string claimType, string claimValue)
     {
+        // Avoid duplicating claim pairs when auth handlers run alias normalization repeatedly.
         if (identity.HasClaim(claimType, claimValue))
         {
             return;
@@ -162,11 +184,17 @@ public static class TokenHelper
     /// Returns a safe token prefix for logging.
     /// Never log full token; only prefix is enough for correlation/debugging.
     /// </summary>
+    /// <param name="token">The token value to reduce for log correlation.</param>
+    /// <returns>An empty string for blank tokens; otherwise a short token prefix.</returns>
     public static string SafeTokenPrefix(string token)
     {
+        // Blank tokens should not add noisy placeholders to logs.
         if (string.IsNullOrWhiteSpace(token))
+        {
             return string.Empty;
+        }
 
+        // Prefix-only logging supports correlation without exposing the full secret.
         return token.Length <= 12 ? token : token[..12];
     }
 }

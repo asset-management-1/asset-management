@@ -1,4 +1,4 @@
-﻿namespace Be.Haven.Core.Models.FileResponse;
+namespace Be.Haven.Core.Models.FileResponse;
 
 /// <summary>
 /// Represents a Data Transfer Object (DTO) used to encapsulate file download response data.

@@ -81,7 +81,8 @@ public class BaseParameterRequest
     public bool BypassCache { get; set; }
 
     /// <summary>
-    /// Gets or sets the absolute expiration time for the cache.
+    /// Gets or sets the optional cache lifetime requested by the caller.
+    /// When not provided, cache data uses <c>CacheSettings:AbsoluteExpiration</c>.
     /// </summary>
     public TimeSpan? AbsoluteExpiration { get; set; }
 }

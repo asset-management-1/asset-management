@@ -5,9 +5,7 @@ namespace Be.Haven.Core.Extensions.Validations;
 /// </summary>
 public static class BaseValidationRule
 {
-    // =====================================================================
     // Required
-    // =====================================================================
 
     /// <summary>
     /// Validates that a string is present and not whitespace.
@@ -72,9 +70,7 @@ public static class BaseValidationRule
         where TStruct : struct =>
         r.Must(v => !v.Equals(default(TStruct))).WithMessage(customMessage);
 
-    // =====================================================================
     // String helpers
-    // =====================================================================
 
     /// <summary>Validates a string has length ≤ <paramref name="max"/>.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -151,9 +147,7 @@ public static class BaseValidationRule
                 .WithMessage(customMessage);
     }
 
-    // =====================================================================
     // Collections
-    // =====================================================================
 
     /// <summary>Validates that a collection is not null and contains at least one element.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -172,9 +166,7 @@ public static class BaseValidationRule
                 .WithMessage(emptyMessage);
     }
 
-    // =====================================================================
     // Enums
-    // =====================================================================
 
     /// <summary>Validates that an enum value is defined within its enumeration.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -241,9 +233,7 @@ public static class BaseValidationRule
                .WithMessage(customMessage ?? ValidationMessage.ENUM_INVALID);
     }
     
-    // =====================================================================
     // Compare two properties (IComparable)
-    // =====================================================================
 
     /// <summary>Validates <c>{PropertyName} &gt; {ComparisonProperty}</c>.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -297,9 +287,7 @@ public static class BaseValidationRule
         where TProp : IComparable<TProp>, IComparable =>
         r.LessThanOrEqualTo(other).WithMessage(customMessage);
 
-    // =====================================================================
     // Range (IComparable)
-    // =====================================================================
 
     /// <summary>
     /// Validates the value lies within <c>[min, max]</c>. Throws when <paramref name="min"/> &gt; <paramref name="max"/>.
@@ -343,9 +331,7 @@ public static class BaseValidationRule
                 .WithState(_ => new { From = min, To = max });
     }
 
-    // =====================================================================
     // Numeric (INumber<T>) — group overloads together
-    // =====================================================================
 
     /// <summary>Validates a numeric value is greater than zero.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -475,11 +461,9 @@ public static class BaseValidationRule
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v <= max).WithMessage(customMessage).WithState(_ => max);
 
-    // =====================================================================
     // Date comparisons — overloads grouped by method name
-    // =====================================================================
 
-    // ----- Before -----
+    // Before
 
     /// <summary>Validates that <c>{PropertyName} &lt; {ComparisonProperty}</c> for <see cref="DateTime"/>.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -527,7 +511,7 @@ public static class BaseValidationRule
         return r.Must((o, a) => a < get(o)).WithMessage(customMessage);
     }
 
-    // ----- BeforeOrEqual -----
+    // BeforeOrEqual
 
     /// <summary>Validates that <c>{PropertyName} ≤ {ComparisonProperty}</c> for <see cref="DateTime"/>.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -575,7 +559,7 @@ public static class BaseValidationRule
         return r.Must((o, a) => a <= get(o)).WithMessage(customMessage);
     }
 
-    // ----- After -----
+    // After
 
     /// <summary>Validates that <c>{PropertyName} &gt; {ComparisonProperty}</c> for <see cref="DateTime"/>.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -623,7 +607,7 @@ public static class BaseValidationRule
         return r.Must((o, a) => a > get(o)).WithMessage(customMessage);
     }
 
-    // ----- AfterOrEqual -----
+    // AfterOrEqual
 
     /// <summary>Validates that <c>{PropertyName} ≥ {ComparisonProperty}</c> for <see cref="DateTime"/>.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -671,7 +655,7 @@ public static class BaseValidationRule
         return r.Must((o, a) => a >= get(o)).WithMessage(customMessage);
     }
 
-    // ----- EqualTo -----
+    // EqualTo
 
     /// <summary>Validates equality between two <see cref="DateTime"/> properties.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -718,7 +702,7 @@ public static class BaseValidationRule
         return r.Must((o, a) => a == get(o)).WithMessage(customMessage);
     }
 
-    // ----- NotEqualTo -----
+    // NotEqualTo
 
     /// <summary>Validates inequality between two <see cref="DateTime"/> properties.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>

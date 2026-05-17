@@ -11,5 +11,5 @@ public interface ICacheInvalidationPolicy<in TRequest>
     /// </summary>
     /// <param name="request">The successfully handled request.</param>
     /// <returns>The cache targets that should receive a version bump.</returns>
-    IReadOnlyCollection<CacheInvalidationTarget> GetTargets(TRequest request);
+    IReadOnlyCollection<CacheInvalidationTargetModel> GetTargets(TRequest request);
 }
