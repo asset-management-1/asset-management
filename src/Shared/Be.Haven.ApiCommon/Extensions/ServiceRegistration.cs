@@ -1,0 +1,246 @@
+namespace Be.Haven.ApiCommon.Extensions;
+
+public static class ServiceRegistration
+{
+    /// <summary>
+    /// Registers the shared Haven bearer-token authentication handler.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    public static void AddHavenAuthenticationServices(this IServiceCollection services)
+    {
+        // Use the same bearer scheme across services so [Authorize] resolves the shared handler consistently.
+        services.AddHttpContextAccessor();
+        services.TryAddScoped<IAuthResetValidator, HavenAuthResetValidator>();
+        services.TryAddScoped<IClientSessionValidator, HavenClientSessionValidator>();
+        services.AddAuthentication(options =>
+                {
+                    options.DefaultAuthenticateScheme = BEARER;
+                    options.DefaultChallengeScheme = BEARER;
+                    options.DefaultForbidScheme = BEARER;
+                })
+                .AddScheme<AuthenticationSchemeOptions, HavenAuthenticationHandler>(BEARER, _ => { });
+    }
+
+    /// <summary>
+    /// Binds and validates shared Haven token validation options.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    public static void AddHavenTokenValidationOptions(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Validate the shared auth handler options at startup so protected endpoints fail fast when config is unsafe.
+        services.AddOptions<AuthenticationTokenValidationOptions>()
+                .Bind(configuration.GetSection(AUTH_SETTINGS))
+                .Validate(IsValidHavenTokenValidationOptions, AUTH_OPTIONS_INVALID)
+                .ValidateOnStart();
+    }
+
+    /// <summary>
+    /// Determines whether shared Haven token validation options are safe for the current environment.
+    /// </summary>
+    /// <param name="options">The bound token validation options.</param>
+    /// <returns><c>true</c> when the options can validate Haven JWTs safely; otherwise <c>false</c>.</returns>
+    private static bool IsValidHavenTokenValidationOptions(AuthenticationTokenValidationOptions options)
+    {
+        // Issuer, audience, and secret are mandatory in every environment because the auth handler validates every token.
+        return options is not null
+               && !string.IsNullOrWhiteSpace(options.Issuer)
+               && options.Audiences is not null
+               && options.Audiences.Count > 0
+               && options.Audiences.Any(audience => !string.IsNullOrWhiteSpace(audience))
+               && !string.IsNullOrWhiteSpace(options.SecretKey);
+    }
+
+    /// <summary>
+    /// Configures Swagger/OpenAPI services for the application.
+    /// This includes adding versioning support, sorting endpoints alphabetically, grouping by versions,
+    /// and enabling annotations to enhance API documentation.
+    /// </summary>
+    /// <param name="services">The service collection to which Swagger services are added.</param>
+    public static void AddConfiguredSwagger(this IServiceCollection services)
+    {
+        services.AddSwaggerGen(options =>
+        {
+            // Configure JWT Bearer authentication for Swagger UI
+            options.AddSecurityDefinition(BEARER, new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = BEARER,
+                BearerFormat = JWT,
+                In = ParameterLocation.Header,
+                Name = AUTHORIZATION,
+                Description = AUTH_DESCRIPTION
+            });
+
+            // Apply Bearer auth globally
+            options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+            {
+                {
+                    new OpenApiSecuritySchemeReference(BEARER),
+                    new List<string>()
+                }
+            });
+
+            // Keep Swagger UI clean and consistent
+            options.OrderActionsBy(apiDesc => $"{apiDesc.HttpMethod} {apiDesc.RelativePath}");
+            
+            IncludeXmlCommentsFromOutput(options);
+            
+            // Enables Swagger annotations to enrich endpoint metadata in Swagger UI.
+            options.EnableAnnotations();
+
+            // Include only endpoints of the current API version
+            options.DocInclusionPredicate((docName, apiDesc) =>
+                apiDesc.GroupName == null || apiDesc.GroupName == docName);
+            
+            // Ensure consistent path parameter naming in Swagger.
+            options.OperationFilter<KebabCaseSwaggerFilter>();
+            options.OperationFilter<SwaggerExampleOperationFilter>();
+        });
+
+        // Auto-generate Swagger docs for all API versions (v1, v2, ...)
+        services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
+    }
+
+    /// <summary>
+    /// Includes XML documentation files generated by API, Application, and Shared assemblies.
+    /// </summary>
+    /// <param name="options">The Swagger generation options.</param>
+    private static void IncludeXmlCommentsFromOutput(SwaggerGenOptions options)
+    {
+        // Swagger runs from the API output folder, where referenced project XML files are copied by MSBuild.
+        foreach (var xmlPath in Directory.EnumerateFiles(AppContext.BaseDirectory, string.Format(XML_DOC_FILE_FORMAT, "*")))
+        {
+            options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+        }
+    }
+    
+    /// <summary>
+    /// Configures and adds OpenTelemetry services such as tracing, metrics, and logging
+    /// to the service collection based on provided configuration settings.
+    /// </summary>
+    /// <param name="services">The service collection to which OpenTelemetry services will be added.</param>
+    /// <param name="configuration">The application configuration that provides OpenTelemetry settings.</param>
+    public static void AddConfiguredOpenTelemetry(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        var options = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
+        var otel = options.OpenTelemetrySettings;
+
+        if (!otel.TracingSettings.Enabled) return;
+        var env = Environment.GetEnvironmentVariable(ASPNETCORE_ENVIRONMENT) ?? string.Empty;
+        var resource = ResourceBuilder.CreateEmpty()
+                                      .AddEnvironmentVariableDetector()
+                                      .AddAttributes(new Dictionary<string, object>
+                                      {
+                                          [OTL_SERVICE_ENVIRONMENT]   = env,
+                                          [OTL_INSTANCE_ENVIRONMENT]   = Environment.MachineName,
+                                          [OTL_DEPLOYMENT_ENVIRONMENT] = env
+                                      });
+        
+        var otelBuilder = services.AddOpenTelemetry();
+        OpenTelemetryHelper.Configure(otelBuilder, resource, otel);
+    }
+    
+    /// <summary>
+    /// Configures Serilog programmatically (instead of reading from appsettings),
+    /// applying the same settings defined in the Serilog section of the configuration file.
+    /// </summary>
+    /// <param name="services">The DI container.</param>
+    /// <param name="configuration">Application configuration.</param>
+    public static void AddConfiguredLogging(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Load GCP / OpenTelemetry settings if needed
+        var opts = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
+        var logging = opts.LoggingSettings;
+        
+        // Build Serilog pipeline programmatically (equivalent to appsettings.json)
+        var loggerConfig = new LoggerConfiguration()
+                           .MinimumLevel.Information()
+                           .MinimumLevel.Override(LOGGER_MICROSOFT_ENTITY_FRAMEWORK_DATABASE_COMMAND, LogEventLevel.Warning)
+                           .MinimumLevel.Override(LOGGER_MICROSOFT_ENTITY_FRAMEWORK, LogEventLevel.Warning)
+                           .MinimumLevel.Override(LOGGER_MICROSOFT_ASPNETCORE, LogEventLevel.Information)
+                           .MinimumLevel.Override(LOGGER_MICROSOFT_ASPNETCORE_HOSTING, LogEventLevel.Warning)
+                           .MinimumLevel.Override(LOGGER_MICROSOFT_ASPNETCORE_SERVER_KESTREL, LogEventLevel.Warning)
+                           .Enrich.FromLogContext()
+                           .Enrich.WithOpenTelemetryTraceId()
+                           .Enrich.WithOpenTelemetrySpanId();
+
+        if (logging.EnableConsole)
+        {
+            loggerConfig = loggerConfig.WriteTo.Console(
+                formatter: new MultiLineExceptionTextFormatter(logging.DefaultOutputTemplate),
+                standardErrorFromLevel: LogEventLevel.Error);
+        }
+
+        // Build logger
+        var logger = loggerConfig.CreateLogger();
+        Log.Logger = logger;
+
+        services.AddSingleton(_ => new DiagnosticContext(Log.Logger));
+        
+        // Replace default .NET logging with Serilog
+        services.AddLogging(lb =>
+        {
+            lb.ClearProviders(); // Remove default providers (Console, Debug, etc.)
+            lb.AddSerilog(logger, dispose: true); // Register Serilog as the logging pipeline
+        });
+    }
+    
+    /// <summary>
+    /// Configures and adds API versioning services to the service collection.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    public static void AddApiVersioningInfrastructure(this IServiceCollection services)
+    {
+        services.AddApiVersioning(config =>
+        {
+            // Specify the default API Version as 1.0
+            config.DefaultApiVersion = new ApiVersion(1, 0);
+
+            // If the client hasn't specified the API version in the request, use the default API version number 
+            config.AssumeDefaultVersionWhenUnspecified = true;
+
+            // Advertise the API versions supported for the particular endpoint
+            config.ReportApiVersions = true;
+
+            // Reads the API version from the URL segment (e.g., /api/v1.0/...), requires {version:apiVersion} in route templates
+            config.ApiVersionReader = new UrlSegmentApiVersionReader();
+
+            // If the client doesn't specify a version, selects the highest implemented API version
+            config.ApiVersionSelector = new CurrentImplementationApiVersionSelector(config);
+        }).AddApiExplorer(options =>
+        {
+            options.GroupNameFormat = "'v'VVV";        // v1, v2...
+            options.SubstituteApiVersionInUrl = true;  // thay {version} trong url
+        });
+    }
+    
+    /// <summary>
+    /// Registers health checks with a default "self" check and allows custom configuration
+    /// for additional health checks per service.
+    /// </summary>
+    /// <param name="services">The IServiceCollection to add health checks to.</param>
+    /// <param name="configure">
+    ///     An optional delegate that allows adding custom health checks 
+    ///     (e.g., Redis, SQL, external API) for the specific service.
+    /// </param>
+    public static void AddConfiguredHealthChecks(this IServiceCollection services,
+        Action<IHealthChecksBuilder> configure = null)
+    {
+        // Create the builder instance for health checks
+        var builder = services.AddHealthChecks();
+
+        // Always add a basic "self" check to verify the API is alive
+        builder.AddCheck(SELF, () => HealthCheckResult.Healthy());
+
+        // Apply any custom health checks provided via delegate
+        configure?.Invoke(builder);
+    }
+    
+}

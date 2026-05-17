@@ -1,0 +1,102 @@
+namespace Authentication.Api.Constants;
+
+/// <summary>
+/// Contains constant string values representing API route segments used in controllers.
+/// </summary>
+public static class ControllerRouteConstants
+{
+    /// <summary>
+    /// Route segment for the username-and-password login endpoint.
+    /// </summary>
+    public const string LOGIN = "login";
+
+    /// <summary>
+    /// Route segment for the logout endpoint.
+    /// </summary>
+    public const string LOGOUT = "logout";
+
+    /// <summary>
+    /// Route segment for the refresh-token endpoint.
+    /// </summary>
+    public const string REFRESH_TOKEN = "refresh-token";
+
+    /// <summary>
+    /// Route segment for the external-login endpoint.
+    /// </summary>
+    public const string EXTERNAL_LOGIN = "external-login";
+
+    /// <summary>
+    /// Route segment for the external-provider link endpoint.
+    /// </summary>
+    public const string EXTERNAL_LINK = "external-link";
+
+    /// <summary>
+    /// Route segment for the external-provider unlink endpoint.
+    /// </summary>
+    public const string EXTERNAL_UNLINK = "external-unlink";
+
+    /// <summary>
+    /// Route segment for the forgot-password OTP request endpoint.
+    /// </summary>
+    public const string FORGOT_PASSWORD = "forgot-password";
+
+    /// <summary>
+    /// Route segment for OTP-verification endpoints.
+    /// </summary>
+    public const string VERIFY_OTP = "verify-otp";
+
+    /// <summary>
+    /// Route segment for password-change endpoints.
+    /// </summary>
+    public const string CHANGE_PASSWORD = "change-password";
+
+    /// <summary>
+    /// Route segment for the current-user info endpoint.
+    /// </summary>
+    public const string USER_INFO = "user-info";
+
+    /// <summary>
+    /// Route segment for the change-email OTP request endpoint.
+    /// </summary>
+    public const string CHANGE_EMAIL = "change-email";
+
+    /// <summary>
+    /// Route segment for the change-email OTP verification endpoint.
+    /// </summary>
+    public const string CHANGE_EMAIL_VERIFY_OTP = "change-email/verify-otp";
+
+    /// <summary>
+    /// Route segment for the current-user KYC submission endpoint.
+    /// </summary>
+    public const string KYC = "kyc";
+
+    /// <summary>
+    /// Route segment for current tenant profile vehicles.
+    /// </summary>
+    public const string VEHICLES = "vehicles";
+
+    /// <summary>
+    /// Route template for a current tenant profile vehicle by public identifier.
+    /// </summary>
+    public const string VEHICLE_BY_PUBLIC_ID = "vehicles/{" + VEHICLE_PUBLIC_ID_ROUTE_PARAMETER + "}";
+
+    /// <summary>
+    /// Route parameter name for a vehicle public identifier.
+    /// </summary>
+    public const string VEHICLE_PUBLIC_ID_ROUTE_PARAMETER = "vehicle-public-id";
+
+    /// <summary>
+    /// Route segment for the party-context switch endpoint.
+    /// </summary>
+    public const string SWITCH_PARTY = "switch-party";
+
+    /// <summary>
+    /// Route segment for the register endpoint.
+    /// </summary>
+    public const string REGISTER = "register";
+
+    /// <summary>
+    /// Route segment for the register email-verification endpoint.
+    /// </summary>
+    public const string VERIFY_EMAIL = "verify-email";
+}
