@@ -429,3 +429,25 @@ appsettings.*.json
 
 # Keep base config
 !appsettings.json
+
+# Target workspace local AI/agent additions
+AGENTS.md
+CLAUDE.md
+.ai-team/
+.cursor/
+.cursor-plugin/
+.copilot/
+.gemini/
+.openai/
+.understand-anything/
+.understand-anything-plugin/
+cocoindex-output/
+cocoindex-cache/
+cocoindex-data/
+opendataloader-output/
+opendataloader-cache/
+ai-context-output/
+ai-context-cache/
+pdf-extraction-output/
+rag-index-output/
+vector-index-output/
