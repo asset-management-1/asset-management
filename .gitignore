@@ -451,3 +451,4 @@ ai-context-cache/
 pdf-extraction-output/
 rag-index-output/
 vector-index-output/
+*.bak
