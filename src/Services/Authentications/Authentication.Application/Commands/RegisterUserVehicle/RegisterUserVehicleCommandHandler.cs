@@ -41,7 +41,7 @@ public class RegisterUserVehicleCommandHandler : ICommandHandler<RegisterUserVeh
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
 
-        // Vehicle registration is a single profile write; tenant ownership and duplicate checks live in UserService.
+        // Vehicle registration is a single profile write; tenant ownership validation lives in UserService.
         var result = await _userService.RegisterVehicleAsync(
             request.Adapt<RegisterUserVehicleRequestDto>(),
             cancellationToken);

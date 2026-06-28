@@ -16,18 +16,6 @@ public interface IPartyVehicleRepository : IGenericRepository<PartyVehicle>
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Determines whether an active vehicle plate already exists under one tenant party.
-    /// </summary>
-    /// <param name="partyId">The tenant party internal identifier.</param>
-    /// <param name="normalizedLicensePlate">The normalized license plate to compare.</param>
-    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
-    /// <returns><c>true</c> when the active normalized plate exists; otherwise <c>false</c>.</returns>
-    Task<bool> ActivePlateExistsAsync(
-        long partyId,
-        string normalizedLicensePlate,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Loads a tracked vehicle by public id while enforcing tenant-party ownership.
     /// </summary>
     /// <param name="vehiclePublicId">The public vehicle identifier supplied by the API.</param>

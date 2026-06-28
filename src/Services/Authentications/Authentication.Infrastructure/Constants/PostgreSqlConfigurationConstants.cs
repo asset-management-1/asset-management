@@ -36,6 +36,11 @@ internal static class PostgreSqlConfigurationConstants
     public const string GENDER_ID_FILTER = "\"GenderId\" IS NOT NULL AND \"IsDeleted\" = false";
 
     /// <summary>
+    /// Filter used for active rows with a non-null unit reference.
+    /// </summary>
+    public const string UNIT_ID_FILTER = "\"UnitId\" IS NOT NULL AND \"IsDeleted\" = false";
+
+    /// <summary>
     /// Filter used for active rows with a non-null primary email.
     /// </summary>
     public const string PRIMARY_EMAIL_FILTER = "\"PrimaryEmail\" IS NOT NULL AND \"IsDeleted\" = false";

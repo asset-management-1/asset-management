@@ -16,7 +16,7 @@ public class RegisterUserVehicleCommand : ICommand<ResponseDto<UserVehicleRespon
     public string VehicleName { get; set; }
 
     /// <summary>
-    /// Gets or sets the vehicle license plate value.
+    /// Gets or sets the optional vehicle license plate value.
     /// </summary>
     public string LicensePlate { get; set; }
 

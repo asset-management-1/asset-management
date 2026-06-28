@@ -17,31 +17,28 @@ public class PartyVehicleConfiguration : IEntityTypeConfiguration<PartyVehicle>
 
         entity.HasIndex(e => e.PartyId, "IX_Core_PartyVehicles_PartyId").HasFilter(NOT_DELETED_FILTER);
 
-        entity.HasIndex(e => e.VehicleTypeId, "IX_Core_PartyVehicles_VehicleTypeId").HasFilter(NOT_DELETED_FILTER);
+        entity.HasIndex(e => e.UnitId, "IX_Core_PartyVehicles_UnitId").HasFilter(UNIT_ID_FILTER);
 
-        entity.HasIndex(e => e.PublicId, "UQ_Core_PartyVehicles_PublicId").IsUnique();
+        entity.HasIndex(e => e.VehicleTypeId, "IX_Core_PartyVehicles_VehicleTypeId").HasFilter(NOT_DELETED_FILTER);
 
         entity.HasIndex(
                 e => new
                 {
-                    e.PartyId,
-                    e.NormalizedLicensePlate
+                    e.UnitId,
+                    e.VehicleTypeId
                 },
-                "UX_Core_PartyVehicles_Party_NormalizedLicensePlate")
-            .IsUnique()
-            .HasFilter(NOT_DELETED_FILTER);
+                "IX_Core_PartyVehicles_Unit_VehicleType_Status")
+            .HasFilter(UNIT_ID_FILTER);
+
+        entity.HasIndex(e => e.PublicId, "UQ_Core_PartyVehicles_PublicId").IsUnique();
 
         entity.Property(e => e.CreatedAt).HasDefaultValueSql(CURRENT_TIMESTAMP_SQL);
 
         entity.Property(e => e.FrontImageUrl).HasMaxLength(2000);
 
-        entity.Property(e => e.LicensePlate)
-            .IsRequired()
-            .HasMaxLength(50);
+        entity.Property(e => e.LicensePlate).HasMaxLength(50);
 
-        entity.Property(e => e.NormalizedLicensePlate)
-            .IsRequired()
-            .HasMaxLength(50);
+        entity.Property(e => e.PlateImageUrl).HasMaxLength(2000);
 
         entity.Property(e => e.PublicId).HasDefaultValueSql(GENERATED_UUID_SQL);
 

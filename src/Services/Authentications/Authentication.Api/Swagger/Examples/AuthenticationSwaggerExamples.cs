@@ -293,8 +293,8 @@ public static class AuthenticationSwaggerExamples
                 issuedDate = AuthenticationSwaggerExampleConstants.EXAMPLE_ISSUED_DATE,
                 expiredDate = AuthenticationSwaggerExampleConstants.EXAMPLE_EXPIRED_DATE,
                 issuedBy = AuthenticationSwaggerExampleConstants.EXAMPLE_ISSUED_BY,
-                frontFile = "(binary front or primary identity document image)",
-                backFile = "(binary back identity document image, required for CCCD)"
+                frontFile = AuthenticationSwaggerExampleConstants.EXAMPLE_FRONT_IDENTITY_DOCUMENT_IMAGE,
+                backFile = AuthenticationSwaggerExampleConstants.EXAMPLE_BACK_IDENTITY_DOCUMENT_IMAGE
             };
         }
     }
@@ -337,14 +337,14 @@ public static class AuthenticationSwaggerExamples
         /// <returns>The vehicle-registration multipart request example.</returns>
         protected override object BuildExample()
         {
-            // Vehicle images are optional binary multipart file parts.
+            // Vehicle images and license plate are optional multipart form fields.
             return new
             {
                 vehicleType = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_TYPE,
                 vehicleName = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_NAME,
                 licensePlate = AuthenticationSwaggerExampleConstants.EXAMPLE_LICENSE_PLATE,
-                frontFile = "(binary front vehicle image)",
-                sideFile = "(binary side vehicle image)"
+                frontFile = AuthenticationSwaggerExampleConstants.EXAMPLE_FRONT_VEHICLE_IMAGE,
+                sideFile = AuthenticationSwaggerExampleConstants.EXAMPLE_SIDE_VEHICLE_IMAGE
             };
         }
     }
@@ -361,6 +361,7 @@ public static class AuthenticationSwaggerExamples
         protected override object BuildExample()
         {
             // File fields are intentionally excluded because Swagger cannot prefill binary file inputs.
+            // License plate is optional; this value only documents the expected format when supplied.
             return new
             {
                 vehicleType = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_TYPE,

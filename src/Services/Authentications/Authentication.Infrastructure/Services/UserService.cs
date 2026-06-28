@@ -120,25 +120,6 @@ public class UserService : IUserService
 
         // Tenant vehicle registration is scoped to the user's currently selected tenant party.
         var vehicleContext = await ResolveVehicleRegistrationContextAsync(user, request, cancellationToken);
-        var normalizedLicensePlate = request.LicensePlate.NormalizeAlphanumericCode();
-        if (string.IsNullOrWhiteSpace(normalizedLicensePlate))
-        {
-            throw new ApiException(INVALID_LICENSE_PLATE_MESSAGE, AUTH_VEHICLE_INVALID);
-        }
-
-        // The active plate check is tenant-party scoped, so another tenant may use the same plate independently.
-        if (await _partyVehicleRepository.ActivePlateExistsAsync(
-                vehicleContext.TenantPartyId,
-                normalizedLicensePlate,
-                cancellationToken))
-        {
-            _logger.LogWarning(
-                InfrastructureLogConstants.UserLogs.USER_VEHICLE_DUPLICATE_PLATE_BLOCKED,
-                user.PublicId);
-
-            throw new ApiException(VEHICLE_LICENSE_PLATE_ALREADY_EXISTS_MESSAGE, AUTH_VEHICLE_INVALID);
-        }
-
         // Vehicle type is profile metadata; parking fees remain a later billing policy per rental place.
         // Images are uploaded before the row is saved, so persisted image URLs always point to successful uploads.
         var uploadedImages = await UploadVehicleImagesAsync(user.PublicId, request, cancellationToken);
@@ -154,7 +135,6 @@ public class UserService : IUserService
             VehicleTypeId = vehicleContext.VehicleType.Id,
             VehicleName = request.VehicleName,
             LicensePlate = request.LicensePlate,
-            NormalizedLicensePlate = normalizedLicensePlate,
             FrontImageUrl = ObjectStorageHelper.BuildObjectUrl(
                 _r2StorageOptions.PublicBaseUrl,
                 uploadedImages.Front?.ObjectKey),
@@ -165,7 +145,7 @@ public class UserService : IUserService
 
         try
         {
-            // Persist the vehicle only after duplicate validation and optional image uploads succeed.
+            // Persist the vehicle only after tenant context validation and optional image uploads succeed.
             await _partyVehicleRepository.AddAsync(vehicle, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }

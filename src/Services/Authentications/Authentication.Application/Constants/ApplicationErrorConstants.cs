@@ -407,16 +407,6 @@ public static class ApplicationErrorConstants
     public const string UNSUPPORTED_VEHICLE_STATUS_VALUE_MESSAGE = "Unsupported vehicle status value '{0}'.";
 
     /// <summary>
-    /// Message returned when a tenant vehicle license plate is invalid.
-    /// </summary>
-    public const string INVALID_LICENSE_PLATE_MESSAGE = "Invalid license plate.";
-
-    /// <summary>
-    /// Message returned when a tenant vehicle license plate already exists.
-    /// </summary>
-    public const string VEHICLE_LICENSE_PLATE_ALREADY_EXISTS_MESSAGE = "License plate already exists.";
-
-    /// <summary>
     /// Message returned when a tenant vehicle cannot be found.
     /// </summary>
     public const string VEHICLE_NOT_FOUND_MESSAGE = "Vehicle was not found.";

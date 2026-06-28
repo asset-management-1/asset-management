@@ -278,12 +278,6 @@ public static class InfrastructureLogConstants
             "User vehicle registration started for user {UserPublicId}.";
 
         /// <summary>
-        /// Logged when tenant vehicle registration is blocked by an active duplicate plate.
-        /// </summary>
-        public const string USER_VEHICLE_DUPLICATE_PLATE_BLOCKED =
-            "User vehicle registration blocked by duplicate plate for user {UserPublicId}.";
-
-        /// <summary>
         /// Logged after a tenant profile vehicle is registered.
         /// </summary>
         public const string USER_VEHICLE_REGISTERED = "User vehicle registered for user {UserPublicId}.";

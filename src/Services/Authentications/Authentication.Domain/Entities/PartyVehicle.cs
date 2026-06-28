@@ -11,6 +11,11 @@ public class PartyVehicle : BaseEntity
     public long PartyId { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional room/unit this vehicle is currently attached to.
+    /// </summary>
+    public long? UnitId { get; set; }
+
+    /// <summary>
     /// Gets or sets the vehicle type master-data value id.
     /// </summary>
     public long VehicleTypeId { get; set; }
@@ -21,14 +26,14 @@ public class PartyVehicle : BaseEntity
     public string VehicleName { get; set; }
 
     /// <summary>
-    /// Gets or sets the license plate value as entered for display.
+    /// Gets or sets the optional license plate value as entered for display.
     /// </summary>
     public string LicensePlate { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized license plate used for tenant-scoped duplicate checks.
+    /// Gets or sets the public URL or object path for the optional plate image.
     /// </summary>
-    public string NormalizedLicensePlate { get; set; }
+    public string PlateImageUrl { get; set; }
 
     /// <summary>
     /// Gets or sets the public URL or object path for the vehicle front image.

@@ -47,9 +47,29 @@ public static class AuthenticationSwaggerExampleConstants
     public const string EXAMPLE_VEHICLE_NAME = "Honda SH 150i";
 
     /// <summary>
-    /// Example license plate shown in Swagger vehicle-registration examples.
+    /// Optional example license plate shown in Swagger vehicle-registration examples.
     /// </summary>
     public const string EXAMPLE_LICENSE_PLATE = "59-S2 123.45";
+
+    /// <summary>
+    /// Example placeholder for the optional front vehicle image multipart part.
+    /// </summary>
+    public const string EXAMPLE_FRONT_VEHICLE_IMAGE = "(binary front vehicle image)";
+
+    /// <summary>
+    /// Example placeholder for the optional side vehicle image multipart part.
+    /// </summary>
+    public const string EXAMPLE_SIDE_VEHICLE_IMAGE = "(binary side vehicle image)";
+
+    /// <summary>
+    /// Example placeholder for the required front or primary identity document image multipart part.
+    /// </summary>
+    public const string EXAMPLE_FRONT_IDENTITY_DOCUMENT_IMAGE = "(binary front or primary identity document image)";
+
+    /// <summary>
+    /// Example placeholder for the conditional back identity document image multipart part.
+    /// </summary>
+    public const string EXAMPLE_BACK_IDENTITY_DOCUMENT_IMAGE = "(binary back identity document image, required for CCCD)";
 
     /// <summary>
     /// Example identifier type shown in Swagger KYC examples.

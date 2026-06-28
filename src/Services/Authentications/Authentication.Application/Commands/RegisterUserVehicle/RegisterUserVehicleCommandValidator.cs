@@ -14,7 +14,7 @@ public class RegisterUserVehicleCommandValidator : AbstractValidator<RegisterUse
 
         RuleFor(x => x.VehicleName).Required().MaximumLength(255);
 
-        RuleFor(x => x.LicensePlate).Required().MaximumLength(50);
+        RuleFor(x => x.LicensePlate).MaximumLength(50);
 
         RuleFor(x => x.FrontFile)
             .Must(x => x is null || x.Length > 0)
