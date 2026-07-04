@@ -13,33 +13,6 @@ public interface IUserService
     Task<UserInfoResponseDto> GetUserInfoAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads vehicles registered under the current tenant profile.
-    /// </summary>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>The active vehicles registered under the current tenant party.</returns>
-    Task<IReadOnlyList<UserVehicleResponseDto>> GetVehiclesAsync(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Registers a vehicle under the current tenant profile.
-    /// </summary>
-    /// <param name="request">The tenant vehicle registration payload.</param>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>The registered vehicle response.</returns>
-    Task<UserVehicleResponseDto> RegisterVehicleAsync(
-        RegisterUserVehicleRequestDto request,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Soft deletes a vehicle from the current tenant profile.
-    /// </summary>
-    /// <param name="vehiclePublicId">The public vehicle identifier to remove.</param>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>The delete operation result.</returns>
-    Task<OperationStatusResponseDto> DeleteVehicleAsync(
-        Guid vehiclePublicId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Updates profile fields for the current authenticated user.
     /// </summary>
     /// <param name="request">The profile update payload.</param>

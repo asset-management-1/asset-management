@@ -111,11 +111,6 @@ public static class ApplicationErrorConstants
     public const string AUTH_KYC_UPLOAD_FAILED = "error_auth_kyc_upload_failed";
 
     /// <summary>
-    /// Error code returned when tenant vehicle input or state is invalid.
-    /// </summary>
-    public const string AUTH_VEHICLE_INVALID = "error_auth_vehicle_invalid";
-
-    /// <summary>
     /// Error code returned when profile avatar upload fails.
     /// </summary>
     public const string AUTH_PROFILE_UPLOAD_FAILED = "error_auth_profile_upload_failed";
@@ -124,16 +119,6 @@ public static class ApplicationErrorConstants
     /// Error code returned when profile update persistence fails after upload work succeeds.
     /// </summary>
     public const string AUTH_PROFILE_UPDATE_FAILED = "error_auth_profile_update_failed";
-
-    /// <summary>
-    /// Error code returned when a tenant vehicle cannot be found.
-    /// </summary>
-    public const string AUTH_VEHICLE_NOT_FOUND = "error_auth_vehicle_not_found";
-
-    /// <summary>
-    /// Error code returned when a tenant vehicle image upload fails.
-    /// </summary>
-    public const string AUTH_VEHICLE_UPLOAD_FAILED = "error_auth_vehicle_upload_failed";
 
     /// <summary>
     /// Error code returned when the user's email address has not been verified.
@@ -392,42 +377,7 @@ public static class ApplicationErrorConstants
     public const string TENANT_CONTEXT_REQUIRED_MESSAGE = "Tenant context is required.";
 
     /// <summary>
-    /// Message returned when a tenant vehicle type cannot be resolved.
-    /// </summary>
-    public const string INVALID_VEHICLE_TYPE_MESSAGE = "Invalid vehicle type.";
-
-    /// <summary>
     /// Message returned when a vehicle type code cannot be mapped to the public enum contract.
     /// </summary>
     public const string UNSUPPORTED_VEHICLE_TYPE_VALUE_MESSAGE = "Unsupported vehicle type value '{0}'.";
-
-    /// <summary>
-    /// Message returned when a vehicle status code cannot be mapped to the public enum contract.
-    /// </summary>
-    public const string UNSUPPORTED_VEHICLE_STATUS_VALUE_MESSAGE = "Unsupported vehicle status value '{0}'.";
-
-    /// <summary>
-    /// Message returned when a tenant vehicle cannot be found.
-    /// </summary>
-    public const string VEHICLE_NOT_FOUND_MESSAGE = "Vehicle was not found.";
-
-    /// <summary>
-    /// Message returned when a tenant vehicle image upload fails.
-    /// </summary>
-    public const string VEHICLE_UPLOAD_FAILED_MESSAGE = "Unable to upload vehicle image at this time.";
-
-    /// <summary>
-    /// Message returned when a tenant vehicle cannot be registered after upload or validation succeeds.
-    /// </summary>
-    public const string VEHICLE_REGISTRATION_FAILED_MESSAGE = "Unable to register vehicle at this time.";
-
-    /// <summary>
-    /// Message returned when an uploaded tenant vehicle image is empty.
-    /// </summary>
-    public const string VEHICLE_FILE_EMPTY_MESSAGE = "Vehicle image file is empty.";
-
-    /// <summary>
-    /// Success message returned after a tenant vehicle is removed.
-    /// </summary>
-    public const string VEHICLE_DELETED_SUCCESS_MESSAGE = "Vehicle deleted successfully.";
 }

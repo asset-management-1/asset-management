@@ -72,9 +72,5 @@ public class AuthenticationRequestMapping : IRegister
             .Map(dest => dest.RegisteredAddress, src => src.RegisteredAddress.NormalizeOptional())
             .Map(dest => dest.IssuedBy, src => src.IssuedBy.NormalizeOptional());
 
-        config.NewConfig<RegisterUserVehicleCommand, RegisterUserVehicleRequestDto>()
-            .Map(dest => dest.VehicleType, src => src.VehicleType.ToMasterDataCode())
-            .Map(dest => dest.VehicleName, src => src.VehicleName.NormalizeOptional())
-            .Map(dest => dest.LicensePlate, src => src.LicensePlate.NormalizeOptional());
     }
 }

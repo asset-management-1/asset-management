@@ -16,10 +16,10 @@ public interface IMasterDataValueRepository : IGenericRepository<MasterDataValue
     /// <summary>
     /// Loads multiple active master data values by type/value pairs in one database round-trip.
     /// </summary>
-    /// <param name="lookups">The master-data type/value pairs to resolve.</param>
+    /// <param name="keys">The master-data type/value keys to resolve.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The resolved master-data values keyed by requested lookup type/value.</returns>
-    Task<IReadOnlyDictionary<MasterDataValueLookupModel, MasterDataValue>> GetByTypeAndValuesAsync(
-        IReadOnlyCollection<MasterDataValueLookupModel> lookups,
+    Task<IReadOnlyDictionary<MasterDataValueKeyModel, MasterDataValue>> GetByTypeAndValuesAsync(
+        IReadOnlyCollection<MasterDataValueKeyModel> keys,
         CancellationToken cancellationToken = default);
 }

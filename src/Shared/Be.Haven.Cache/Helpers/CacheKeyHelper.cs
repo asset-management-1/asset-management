@@ -45,7 +45,7 @@ public static class CacheKeyHelper
         string epoch,
         long version)
     {
-        // User-info is currently the only cache invalidation target and has no business query parameters.
+        // Invalidation targets only carry cache group and scope; business parameters belong to query payload keys.
         var scopeSegment = string.IsNullOrWhiteSpace(target.CacheScope)
             ? string.Empty
             : string.Format(CACHE_SCOPE_SEGMENT_FORMAT, target.CacheScope);
@@ -60,16 +60,15 @@ public static class CacheKeyHelper
     /// <returns>The stable parameter hash.</returns>
     public static string BuildParameterHash(ICacheableMediatorQueryService request)
     {
-        var dictionary = request.AsDictionary();
-
         // Exclude cache-control metadata; only true business query parameters belong in the hash.
         var raw = string.Join(
             PIPE_SEPARATOR,
-            dictionary.Where(x => x.Value is not null
-                                  && x.Key is not CACHEKEY
-                                  && x.Key is not BYPASSCACHE
-                                  && x.Key is not ABSOLUTEEXPIRATION
-                                  && x.Key is not CACHESCOPE)
+            request.AsDictionary()
+                .Where(x => x.Value is not null
+                            && x.Key is not CACHEKEY
+                            && x.Key is not BYPASSCACHE
+                            && x.Key is not ABSOLUTEEXPIRATION
+                            && x.Key is not CACHESCOPE)
                 .OrderBy(x => x.Key, StringComparer.Ordinal)
                 .Select(x => $"{x.Key}={x.Value}"));
 

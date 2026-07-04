@@ -7,7 +7,6 @@ public class UserService : IUserService
 {
     private readonly AuthenticationRepositoryDependencies _repositories;
     private readonly AuthenticationKycRepositoryDependencies _kycRepositories;
-    private readonly IPartyVehicleRepository _partyVehicleRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuthService _authService;
     private readonly IObjectStorageService _objectStorageService;
@@ -16,11 +15,10 @@ public class UserService : IUserService
     private readonly ILogger<UserService> _logger;
 
     /// <summary>
-    /// Creates the current-user service with profile, context, KYC, vehicle, and storage dependencies.
+    /// Creates the current-user service with profile, context, KYC, and storage dependencies.
     /// </summary>
     /// <param name="repositories">The grouped authentication repositories used by profile and context operations.</param>
     /// <param name="kycRepositories">The grouped repositories used by KYC and document persistence.</param>
-    /// <param name="partyVehicleRepository">The repository used for tenant profile vehicle flows.</param>
     /// <param name="unitOfWork">The unit of work used for transactional writes.</param>
     /// <param name="authService">The current authenticated-principal accessor.</param>
     /// <param name="supportDependencies">The grouped storage and option dependencies for user flows.</param>
@@ -28,7 +26,6 @@ public class UserService : IUserService
     public UserService(
         AuthenticationRepositoryDependencies repositories,
         AuthenticationKycRepositoryDependencies kycRepositories,
-        IPartyVehicleRepository partyVehicleRepository,
         IUnitOfWork unitOfWork,
         IAuthService authService,
         UserServiceSupportDependencies supportDependencies,
@@ -36,7 +33,6 @@ public class UserService : IUserService
     {
         _repositories = repositories;
         _kycRepositories = kycRepositories;
-        _partyVehicleRepository = partyVehicleRepository;
         _unitOfWork = unitOfWork;
         _authService = authService;
         _objectStorageService = supportDependencies.ObjectStorageService;
@@ -77,134 +73,6 @@ public class UserService : IUserService
             currentUserPublicId);
 
         return response;
-    }
-
-    /// <summary>
-    /// Loads registered vehicles for the current tenant profile.
-    /// </summary>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>The active vehicles registered under the current tenant party.</returns>
-    public async Task<IReadOnlyList<UserVehicleResponseDto>> GetVehiclesAsync(
-        CancellationToken cancellationToken = default)
-    {
-        // Resolve the active tenant party before querying tenant-scoped profile vehicles.
-        var user = await LoadTrackedCurrentUserAsync(cancellationToken);
-        var tenantParty = await LoadCurrentTenantPartyContextAsync(user, cancellationToken);
-
-        // Profile vehicles belong to the active tenant party only, not every party linked to the user.
-        var vehicles = await _partyVehicleRepository.GetActiveByPartyIdAsync(
-            tenantParty.PartyId,
-            cancellationToken);
-        _logger.LogInformation(
-            InfrastructureLogConstants.UserLogs.USER_VEHICLES_LOADED,
-            user.PublicId,
-            vehicles.Count);
-
-        return vehicles;
-    }
-
-    /// <summary>
-    /// Registers a vehicle under the current tenant profile.
-    /// </summary>
-    /// <param name="request">The tenant vehicle registration payload.</param>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>The registered vehicle response.</returns>
-    public async Task<UserVehicleResponseDto> RegisterVehicleAsync(
-        RegisterUserVehicleRequestDto request,
-        CancellationToken cancellationToken = default)
-    {
-        var user = await LoadTrackedCurrentUserAsync(cancellationToken);
-        _logger.LogInformation(
-            InfrastructureLogConstants.UserLogs.USER_VEHICLE_REGISTRATION_STARTED,
-            user.PublicId);
-
-        // Tenant vehicle registration is scoped to the user's currently selected tenant party.
-        var vehicleContext = await ResolveVehicleRegistrationContextAsync(user, request, cancellationToken);
-        // Vehicle type is profile metadata; parking fees remain a later billing policy per rental place.
-        // Images are uploaded before the row is saved, so persisted image URLs always point to successful uploads.
-        var uploadedImages = await UploadVehicleImagesAsync(user.PublicId, request, cancellationToken);
-        _logger.LogInformation(
-            InfrastructureLogConstants.UserLogs.USER_VEHICLE_UPLOAD_COMPLETED,
-            user.PublicId,
-            uploadedImages.Front is not null,
-            uploadedImages.Side is not null);
-
-        var vehicle = new PartyVehicle
-        {
-            PartyId = vehicleContext.TenantPartyId,
-            VehicleTypeId = vehicleContext.VehicleType.Id,
-            VehicleName = request.VehicleName,
-            LicensePlate = request.LicensePlate,
-            FrontImageUrl = ObjectStorageHelper.BuildObjectUrl(
-                _r2StorageOptions.PublicBaseUrl,
-                uploadedImages.Front?.ObjectKey),
-            SideImageUrl = ObjectStorageHelper.BuildObjectUrl(
-                _r2StorageOptions.PublicBaseUrl,
-                uploadedImages.Side?.ObjectKey)
-        };
-
-        try
-        {
-            // Persist the vehicle only after tenant context validation and optional image uploads succeed.
-            await _partyVehicleRepository.AddAsync(vehicle, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(
-                ex,
-                InfrastructureLogConstants.UserLogs.USER_VEHICLE_PERSISTENCE_FAILED,
-                user.PublicId);
-
-            await CleanupUploadedObjectsAsync(
-                user.PublicId,
-                uploadedImages.UploadedObjects,
-                cancellationToken);
-
-            throw new ApiException(
-                VEHICLE_REGISTRATION_FAILED_MESSAGE,
-                AUTH_VEHICLE_INVALID,
-                StatusCodes.Status500InternalServerError);
-        }
-        _logger.LogInformation(
-            InfrastructureLogConstants.UserLogs.USER_VEHICLE_REGISTERED,
-            user.PublicId);
-
-        vehicle.VehicleType = vehicleContext.VehicleType;
-        return vehicle.Adapt<UserVehicleResponseDto>();
-    }
-
-    /// <summary>
-    /// Soft deletes a vehicle from the current tenant profile.
-    /// </summary>
-    /// <param name="vehiclePublicId">The public vehicle identifier to remove.</param>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>The delete operation result.</returns>
-    public async Task<OperationStatusResponseDto> DeleteVehicleAsync(
-        Guid vehiclePublicId,
-        CancellationToken cancellationToken = default)
-    {
-        // Resolve the current tenant party before loading the owned vehicle row.
-        var user = await LoadTrackedCurrentUserAsync(cancellationToken);
-        var tenantParty = await LoadCurrentTenantPartyContextAsync(user, cancellationToken);
-        var vehicle = await _partyVehicleRepository.GetTrackedByPublicIdAndPartyIdAsync(
-                          vehiclePublicId,
-                          tenantParty.PartyId,
-                          cancellationToken)
-                      ?? throw new ApiException(
-                          VEHICLE_NOT_FOUND_MESSAGE,
-                          AUTH_VEHICLE_NOT_FOUND,
-                          StatusCodes.Status404NotFound);
-
-        // Ownership is enforced in the lookup above; only the active tenant party can remove this row.
-        vehicle.IsDeleted = true;
-        await _partyVehicleRepository.UpdateAsync(vehicle);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation(
-            InfrastructureLogConstants.UserLogs.USER_VEHICLE_DELETED,
-            user.PublicId);
-
-        return OperationStatusResponseHelper.Success(VEHICLE_DELETED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -627,34 +495,6 @@ public class UserService : IUserService
     }
 
     /// <summary>
-    /// Resolves the active tenant party and requested vehicle type for vehicle registration.
-    /// </summary>
-    /// <param name="user">The tracked current user entity.</param>
-    /// <param name="request">The vehicle registration payload.</param>
-    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
-    /// <returns>The resolved tenant party and vehicle type context.</returns>
-    private async Task<VehicleRegistrationContextModel> ResolveVehicleRegistrationContextAsync(
-        User user,
-        RegisterUserVehicleRequestDto request,
-        CancellationToken cancellationToken)
-    {
-        // Validate the current context before resolving vehicle metadata.
-        var currentParty = await LoadCurrentTenantPartyContextAsync(user, cancellationToken);
-        var vehicleType = await _repositories.MasterDataValueRepository.GetByTypeAndValueAsync(
-                              VEHICLE_TYPE_TYPE,
-                              request.VehicleType,
-                              cancellationToken)
-                          ?? throw new ApiException(INVALID_VEHICLE_TYPE_MESSAGE, AUTH_VEHICLE_INVALID);
-
-        // Vehicle type is the only request-driven master-data lookup left in this flow.
-        return new VehicleRegistrationContextModel
-        {
-            TenantPartyId = currentParty.PartyId,
-            VehicleType = vehicleType
-        };
-    }
-
-    /// <summary>
     /// Loads active linked parties as tracked entities for sync writes.
     /// </summary>
     /// <param name="user">The current tracked user entity.</param>
@@ -817,7 +657,7 @@ public class UserService : IUserService
         var backLinkType = requiresBackFile ? NATIONAL_ID_BACK_SCAN_LINK_TYPE : null;
 
         // Resolve every KYC master-data value in one batch to avoid repeated database round-trips.
-        var lookups = new List<MasterDataValueLookupModel>
+        var masterDataKeys = new List<MasterDataValueKeyModel>
         {
             new(IDENTIFIER_TYPE_TYPE, request.IdentifierType),
             new(IDENTIFIER_TYPE_TYPE, cccdIdentifierType),
@@ -834,106 +674,106 @@ public class UserService : IUserService
         };
         if (!string.IsNullOrWhiteSpace(backLinkType))
         {
-            lookups.Add(new MasterDataValueLookupModel(DOCUMENT_LINK_TYPE_TYPE, backLinkType));
+            masterDataKeys.Add(new MasterDataValueKeyModel(DOCUMENT_LINK_TYPE_TYPE, backLinkType));
         }
 
-        var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(lookups, cancellationToken);
+        var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(masterDataKeys, cancellationToken);
 
         // KYC needs several master values; resolve them from one batched DB lookup to avoid repeated round-trips.
         return new KycMasterDataContextModel
         {
-            IdentifierType = MasterDataLookupHelper.GetRequired(
+            IdentifierType = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     IDENTIFIER_TYPE_TYPE,
                     request.IdentifierType,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
             SupportedIdentifierTypes =
             [
-                MasterDataLookupHelper.GetRequired(
+                MasterDataValueHelper.GetRequired(
                     masterDataValues,
-                    new MasterDataRequiredLookupModel(
+                    new MasterDataValueRequirementModel(
                         IDENTIFIER_TYPE_TYPE,
                         cccdIdentifierType,
                         REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                         AUTH_KYC_INVALID)),
-                MasterDataLookupHelper.GetRequired(
+                MasterDataValueHelper.GetRequired(
                     masterDataValues,
-                    new MasterDataRequiredLookupModel(
+                    new MasterDataValueRequirementModel(
                         IDENTIFIER_TYPE_TYPE,
                         passportIdentifierType,
                         REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                         AUTH_KYC_INVALID))
             ],
-            Gender = MasterDataLookupHelper.GetRequired(
+            Gender = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     PROFILE_GENDER_TYPE,
                     request.GenderOnDocument,
                     INVALID_GENDER_MESSAGE,
                     AUTH_INVALID_GENDER)),
-            DocumentType = MasterDataLookupHelper.GetRequired(
+            DocumentType = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     DOCUMENT_TYPE_TYPE,
                     NATIONAL_ID_DOCUMENT_TYPE,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
-            StorageProvider = MasterDataLookupHelper.GetRequired(
+            StorageProvider = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     STORAGE_PROVIDER_TYPE,
                     R2_STORAGE_PROVIDER,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
-            DocumentStatus = MasterDataLookupHelper.GetRequired(
+            DocumentStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     DOCUMENT_STATUS_TYPE,
                     UPLOADED_DOCUMENT_STATUS,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
-            EntityType = MasterDataLookupHelper.GetRequired(
+            EntityType = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     ENTITY_TYPE_TYPE,
                     PARTY_ENTITY_TYPE,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
-            FrontLinkType = MasterDataLookupHelper.GetRequired(
+            FrontLinkType = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     DOCUMENT_LINK_TYPE_TYPE,
                     frontLinkType,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
             BackLinkType = string.IsNullOrWhiteSpace(backLinkType)
                 ? null
-                : MasterDataLookupHelper.GetRequired(
+                : MasterDataValueHelper.GetRequired(
                     masterDataValues,
-                    new MasterDataRequiredLookupModel(
+                    new MasterDataValueRequirementModel(
                         DOCUMENT_LINK_TYPE_TYPE,
                         backLinkType,
                         REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                         AUTH_KYC_INVALID)),
-            LinkStatus = MasterDataLookupHelper.GetRequired(
+            LinkStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     DOCUMENT_LINK_STATUS_TYPE,
                     ACTIVE_DOCUMENT_LINK_STATUS,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
-            KycStatus = MasterDataLookupHelper.GetRequired(
+            KycStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     KYC_STATUS_TYPE,
                     pendingKycStatus,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                     AUTH_KYC_INVALID)),
-            RejectedKycStatus = MasterDataLookupHelper.GetRequired(
+            RejectedKycStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
-                new MasterDataRequiredLookupModel(
+                new MasterDataValueRequirementModel(
                     KYC_STATUS_TYPE,
                     rejectedKycStatus,
                     REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
@@ -1004,65 +844,6 @@ public class UserService : IUserService
             throw new ApiException(
                 KYC_SUBMISSION_FAILED_MESSAGE,
                 AUTH_KYC_UPLOAD_FAILED,
-                StatusCodes.Status503ServiceUnavailable);
-        }
-    }
-
-    /// <summary>
-    /// Uploads optional tenant vehicle images to object storage.
-    /// </summary>
-    /// <param name="currentUserPublicId">The current user's public identifier.</param>
-    /// <param name="request">The vehicle registration payload.</param>
-    /// <param name="cancellationToken">The token used to cancel uploads.</param>
-    /// <returns>The uploaded vehicle image metadata keyed by image slot.</returns>
-    private async Task<VehicleUploadedImagesModel> UploadVehicleImagesAsync(
-        Guid currentUserPublicId,
-        RegisterUserVehicleRequestDto request,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            // Delegate optional vehicle images to the shared batch uploader with vehicle prefixing.
-            return await ObjectStorageHelper.UploadOwnerScopedFormFilesAsync(
-                _objectStorageService,
-                new ObjectStorageUploadBatchRequestModel
-                {
-                    ConfiguredPrefix = _r2StorageOptions.VehicleObjectPrefix,
-                    DefaultPrefix = DEFAULT_VEHICLE_OBJECT_PREFIX,
-                    OwnerPublicId = currentUserPublicId,
-                    Files =
-                    [
-                        new ObjectStorageUploadFileModel
-                        {
-                            SlotName = FRONT_OBJECT_SLOT,
-                            ObjectTag = FRONT_OBJECT_SLOT,
-                            File = request.FrontFile
-                        },
-                        new ObjectStorageUploadFileModel
-                        {
-                            SlotName = SIDE_OBJECT_SLOT,
-                            ObjectTag = SIDE_OBJECT_SLOT,
-                            File = request.SideFile
-                        }
-                    ]
-                },
-                uploadResult => new VehicleUploadedImagesModel
-                {
-                    Front = uploadResult.GetUpload(FRONT_OBJECT_SLOT),
-                    Side = uploadResult.GetUpload(SIDE_OBJECT_SLOT)
-                },
-                cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogWarning(
-                ex,
-                InfrastructureLogConstants.UserLogs.USER_VEHICLE_UPLOAD_FAILED,
-                currentUserPublicId);
-
-            throw new ApiException(
-                VEHICLE_UPLOAD_FAILED_MESSAGE,
-                AUTH_VEHICLE_UPLOAD_FAILED,
                 StatusCodes.Status503ServiceUnavailable);
         }
     }
@@ -1305,20 +1086,20 @@ public class UserService : IUserService
         // Resolve party status and type in one batch before creating the new context.
         var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(
             [
-                new MasterDataValueLookupModel(PARTY_STATUS_TYPE, ACTIVE_STATUS),
-                new MasterDataValueLookupModel(PARTY_TYPE_TYPE, targetPartyType)
+                new MasterDataValueKeyModel(PARTY_STATUS_TYPE, ACTIVE_STATUS),
+                new MasterDataValueKeyModel(PARTY_TYPE_TYPE, targetPartyType)
             ],
             cancellationToken);
-        var partyStatus = MasterDataLookupHelper.GetRequired(
+        var partyStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 PARTY_STATUS_TYPE,
                 ACTIVE_STATUS,
                 REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                 AUTH_FORBIDDEN_OPERATION));
-        var partyType = MasterDataLookupHelper.GetRequired(
+        var partyType = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 PARTY_TYPE_TYPE,
                 targetPartyType,
                 REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,

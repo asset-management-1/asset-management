@@ -342,16 +342,10 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         CancellationToken cancellationToken = default)
     {
         // Use the optimized PostgreSQL read model query because user-info assembles several child collections.
-        var userInfoByPublicIdQueryOptions = new DapperCommandOptions
-        {
-            CommandType = CommandType.Text,
-            CancellationToken = cancellationToken
-        };
-
         var readModel = await _dapperService.QueryFirstOrDefaultAsync<UserInfoReadModel>(
             InfrastructureQueryConstants.GET_USER_INFO_RESPONSE_BY_PUBLIC_ID_QUERY,
             new { UserPublicId = userPublicId },
-            userInfoByPublicIdQueryOptions);
+            DapperCommandOptionsHelper.CreateText(cancellationToken));
 
         return MapUserInfoResponse(readModel);
     }
@@ -371,7 +365,6 @@ public class UserRepository : GenericRepository<User>, IUserRepository
 
         // PostgreSQL emits child collections as JSON so the query returns one compact user row.
         var availableContexts = _jsonSerializerService.DeserializeList<string>(readModel.AvailableContextsJson);
-        var registeredVehicles = _jsonSerializerService.DeserializeList<UserVehicleReadModel>(readModel.RegisteredVehiclesJson);
 
         return new UserInfoResponseDto
         {
@@ -395,8 +388,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
                 MaskedIdentifier = readModel.KycMaskedIdentifier,
                 HasFrontFile = readModel.KycHasFrontFile,
                 HasBackFile = readModel.KycHasBackFile
-            },
-            RegisteredVehicles = registeredVehicles.Adapt<List<UserVehicleResponseDto>>()
+            }
         };
     }
 

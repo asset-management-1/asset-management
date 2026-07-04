@@ -92,4 +92,5 @@ public sealed class CacheKeyHelperTests
         // Assert
         result.Should().Be($"auth:global:e20260101:v2:{CacheKeyHelper.EmptyParameterHash}");
     }
+
 }

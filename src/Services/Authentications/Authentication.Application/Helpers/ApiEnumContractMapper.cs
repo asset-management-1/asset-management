@@ -115,22 +115,6 @@ public static class ApiEnumContractMapper
     }
 
     /// <summary>
-    /// Converts a vehicle status value into the public vehicle status enum.
-    /// </summary>
-    /// <param name="value">The vehicle status code or name.</param>
-    /// <returns>The matching vehicle status enum.</returns>
-    public static UserVehicleStatusEnum ToRequiredVehicleStatus(string value)
-    {
-        // Current vehicle APIs expose only active rows today.
-        if (Matches(value, nameof(UserVehicleStatusEnum.Active)))
-        {
-            return UserVehicleStatusEnum.Active;
-        }
-
-        throw new InvalidOperationException(string.Format(UNSUPPORTED_VEHICLE_STATUS_VALUE_MESSAGE, value));
-    }
-
-    /// <summary>
     /// Compares internal code values without leaking DB casing into API contracts.
     /// </summary>
     /// <param name="value">The source value to compare.</param>

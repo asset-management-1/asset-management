@@ -390,7 +390,9 @@ public sealed class GcpSubscriberJobTests
             _cancellationTokenSource.Cancel();
         }
 
-        public override Task StopAsync(CancellationToken cancellationToken)
+        public override Task StopAsync(
+            SubscriberClient.ShutdownOptions shutdownOptions,
+            CancellationToken cancellationToken)
         {
             StopCallCount++;
 

@@ -13,17 +13,17 @@ public static class InfrastructureQueryConstants
         WITH requested AS (
             SELECT
                 request."Ordinal",
-                request."Type" AS "LookupType",
-                request."Value" AS "LookupValue"
-            FROM UNNEST(@LookupTypes, @LookupValues, @LookupOrdinals) AS request("Type", "Value", "Ordinal")
+                request."Type" AS "KeyType",
+                request."Value" AS "KeyValue"
+            FROM UNNEST(@KeyTypes, @KeyValues, @KeyOrdinals) AS request("Type", "Value", "Ordinal")
             WHERE request."Type" IS NOT NULL
               AND request."Type" <> ''
               AND request."Value" IS NOT NULL
               AND request."Value" <> ''
         )
         SELECT DISTINCT ON (requested."Ordinal")
-            requested."LookupType",
-            requested."LookupValue",
+            requested."KeyType",
+            requested."KeyValue",
             master_value."Id",
             master_value."MasterDataTypeId",
             master_value."Code",
@@ -31,22 +31,14 @@ public static class InfrastructureQueryConstants
         FROM requested
         INNER JOIN "masterdata"."MasterDataTypes" master_type
             ON master_type."IsDeleted" = FALSE
-           AND (
-                master_type."Code" = requested."LookupType"
-                OR master_type."Name" = requested."LookupType"
-           )
+           AND master_type."Code" = requested."KeyType"
         INNER JOIN "masterdata"."MasterDataValues" master_value
             ON master_value."MasterDataTypeId" = master_type."Id"
            AND master_value."IsDeleted" = FALSE
            AND master_value."IsActive" = TRUE
-           AND (
-                master_value."Code" = requested."LookupValue"
-                OR master_value."Name" = requested."LookupValue"
-           )
+           AND master_value."Code" = requested."KeyValue"
         ORDER BY
             requested."Ordinal",
-            CASE WHEN master_type."Code" = requested."LookupType" THEN 0 ELSE 1 END,
-            CASE WHEN master_value."Code" = requested."LookupValue" THEN 0 ELSE 1 END,
             master_value."Id";
         """;
 
@@ -158,8 +150,7 @@ public static class InfrastructureQueryConstants
             COALESCE(kyc_summary."HasFrontFile", FALSE) AS "KycHasFrontFile",
             COALESCE(kyc_summary."HasBackFile", FALSE) AS "KycHasBackFile",
             COALESCE(available_contexts."JsonValue", '[]') AS "AvailableContextsJson",
-            COALESCE(external_providers."JsonValue", '[]') AS "ExternalProvidersJson",
-            COALESCE(registered_vehicles."JsonValue", '[]') AS "RegisteredVehiclesJson"
+            COALESCE(external_providers."JsonValue", '[]') AS "ExternalProvidersJson"
         FROM current_user_profile
         CROSS JOIN lookup_values
         LEFT JOIN LATERAL (
@@ -266,45 +257,5 @@ public static class InfrastructureQueryConstants
                   AND external_login."IsDeleted" = FALSE
             ) provider_value
         ) external_providers ON TRUE
-        LEFT JOIN LATERAL (
-            SELECT COALESCE(
-                jsonb_agg(
-                    jsonb_build_object(
-                        'PublicId', vehicle_value."PublicId",
-                        'VehicleType', vehicle_value."VehicleType",
-                        'VehicleTypeDisplayName', vehicle_value."VehicleTypeDisplayName",
-                        'VehicleName', vehicle_value."VehicleName",
-                        'LicensePlate', vehicle_value."LicensePlate",
-                        'Status', 'ACTIVE',
-                        'ThumbnailUrl', vehicle_value."ThumbnailUrl",
-                        'FrontImageUrl', vehicle_value."FrontImageUrl",
-                        'SideImageUrl', vehicle_value."SideImageUrl"
-                    )
-                    ORDER BY vehicle_value."UpdatedAt" DESC NULLS LAST, vehicle_value."CreatedAt" DESC
-                ),
-                '[]'::jsonb
-            )::text AS "JsonValue"
-            FROM (
-                SELECT
-                    party_vehicle."PublicId",
-                    COALESCE(NULLIF(vehicle_type."Code", ''), vehicle_type."Name") AS "VehicleType",
-                    vehicle_type."Name" AS "VehicleTypeDisplayName",
-                    party_vehicle."VehicleName",
-                    party_vehicle."LicensePlate",
-                    COALESCE(party_vehicle."FrontImageUrl", party_vehicle."SideImageUrl") AS "ThumbnailUrl",
-                    party_vehicle."FrontImageUrl",
-                    party_vehicle."SideImageUrl",
-                    party_vehicle."UpdatedAt",
-                    party_vehicle."CreatedAt"
-                FROM "core"."PartyVehicles" party_vehicle
-                INNER JOIN "masterdata"."MasterDataValues" vehicle_type
-                    ON vehicle_type."Id" = party_vehicle."VehicleTypeId"
-                   AND vehicle_type."IsDeleted" = FALSE
-                   AND vehicle_type."IsActive" = TRUE
-                WHERE party_vehicle."PartyId" = current_user_profile."CurrentPartyId"
-                  AND party_vehicle."IsDeleted" = FALSE
-                  AND current_user_profile."CurrentContext" = 'tenant'
-            ) vehicle_value
-        ) registered_vehicles ON TRUE;
         """;
 }

@@ -109,67 +109,6 @@ public class UserController : BaseApiController
     }
 
     /// <summary>
-    /// Returns active vehicles registered under the current tenant profile.
-    /// </summary>
-    /// <param name="request">Optional cache-control query values for the vehicle list.</param>
-    /// <returns>The standardized response containing active tenant profile vehicles.</returns>
-    [HttpGet]
-    [Route(VEHICLES)]
-    [SwaggerResponseExample<AuthenticationSwaggerExamples.VehicleListResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ResponseDto<IReadOnlyList<UserVehicleResponseDto>>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> GetVehicles([FromQuery] GetUserVehiclesQuery request)
-    {
-        return Ok(await Mediator.Send(request));
-    }
-
-    /// <summary>
-    /// Registers a vehicle under the current tenant profile.
-    /// </summary>
-    /// <param name="request">The vehicle registration form fields and optional images.</param>
-    /// <returns>The standardized response containing the registered vehicle.</returns>
-    [HttpPost]
-    [Route(VEHICLES)]
-    [Consumes(MULTIPART_FORM_DATA)]
-    [SwaggerRequestExample<AuthenticationSwaggerExamples.RegisterVehicleRequest>]
-    [SwaggerValueExample<AuthenticationSwaggerExamples.RegisterVehicleFieldValues>]
-    [SwaggerResponseExample<AuthenticationSwaggerExamples.VehicleResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ResponseDto<UserVehicleResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status413PayloadTooLarge)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status415UnsupportedMediaType)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> RegisterVehicle([FromForm] RegisterUserVehicleCommand request)
-    {
-        return Ok(await Mediator.Send(request));
-    }
-
-    /// <summary>
-    /// Soft deletes a vehicle from the current tenant profile.
-    /// </summary>
-    /// <param name="vehiclePublicId">The public vehicle identifier from the route.</param>
-    /// <returns>The standardized response describing the delete result.</returns>
-    [HttpDelete]
-    [Route(VEHICLE_BY_PUBLIC_ID)]
-    [SwaggerValueExample<AuthenticationSwaggerExamples.VehiclePublicIdValue>(nameof(DeleteUserVehicleCommand.VehiclePublicId))]
-    [SwaggerResponseExample<AuthenticationSwaggerExamples.OperationResponse>(StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ResponseDto<OperationStatusResponseDto>), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
-    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> DeleteVehicle([FromRoute(Name = VEHICLE_PUBLIC_ID_ROUTE_PARAMETER)] Guid vehiclePublicId)
-    {
-        return Ok(await Mediator.Send(new DeleteUserVehicleCommand(vehiclePublicId)));
-    }
-
-    /// <summary>
     /// Links an external provider to the current authenticated user.
     /// </summary>
     /// <param name="request">The external-provider link payload.</param>

@@ -27,39 +27,9 @@ public static class AuthenticationSwaggerExampleConstants
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
 
     /// <summary>
-    /// Example vehicle public identifier shown in Swagger path-parameter examples.
-    /// </summary>
-    public const string EXAMPLE_VEHICLE_PUBLIC_ID = "018f7b7e-3e59-7c77-8a18-314b31fe1f05";
-
-    /// <summary>
-    /// Example vehicle type shown in Swagger vehicle-registration examples.
-    /// </summary>
-    public const string EXAMPLE_VEHICLE_TYPE = "Motorbike";
-
-    /// <summary>
     /// Example phone number shown in Swagger profile examples.
     /// </summary>
     public const string EXAMPLE_PHONE_NUMBER = "0901234567";
-
-    /// <summary>
-    /// Example vehicle display name shown in Swagger vehicle-registration examples.
-    /// </summary>
-    public const string EXAMPLE_VEHICLE_NAME = "Honda SH 150i";
-
-    /// <summary>
-    /// Optional example license plate shown in Swagger vehicle-registration examples.
-    /// </summary>
-    public const string EXAMPLE_LICENSE_PLATE = "59-S2 123.45";
-
-    /// <summary>
-    /// Example placeholder for the optional front vehicle image multipart part.
-    /// </summary>
-    public const string EXAMPLE_FRONT_VEHICLE_IMAGE = "(binary front vehicle image)";
-
-    /// <summary>
-    /// Example placeholder for the optional side vehicle image multipart part.
-    /// </summary>
-    public const string EXAMPLE_SIDE_VEHICLE_IMAGE = "(binary side vehicle image)";
 
     /// <summary>
     /// Example placeholder for the required front or primary identity document image multipart part.

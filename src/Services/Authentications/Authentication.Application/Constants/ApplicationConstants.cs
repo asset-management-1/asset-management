@@ -11,11 +11,6 @@ public static class ApplicationConstants
     public const string USER_INFO_CACHE_KEY = "auth:user-info";
 
     /// <summary>
-    /// Logical cache group key used for the current tenant profile vehicles query.
-    /// </summary>
-    public const string USER_VEHICLES_CACHE_KEY = "auth:user-vehicles";
-
-    /// <summary>
     /// Generic unauthorized-request message used by application handlers.
     /// </summary>
     public const string UNAUTHORIZED_REQUEST_MESSAGE = "Unauthorized request.";

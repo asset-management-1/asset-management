@@ -49,6 +49,7 @@ global using Be.Haven.Core.Interfaces.Quartz;
 global using Be.Haven.Core.Jobs;
 global using Be.Haven.Core.Mappings;
 global using Be.Haven.Core.Models;
+global using Be.Haven.Core.Models.CodeGeneration;
 global using Be.Haven.Core.Models.ObjectStorage;
 global using Be.Haven.Core.Providers;
 global using Be.Haven.Core.Repositories;

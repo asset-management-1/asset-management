@@ -110,7 +110,6 @@ public sealed class LoginAttemptServiceTests
                 It.IsAny<RedisKey>(),
                 It.IsAny<RedisValue>(),
                 It.IsAny<TimeSpan?>(),
-                It.IsAny<bool>(),
                 It.IsAny<When>(),
                 It.IsAny<CommandFlags>()),
             Times.Never);
@@ -142,7 +141,6 @@ public sealed class LoginAttemptServiceTests
                 It.IsAny<RedisKey>(),
                 It.IsAny<RedisValue>(),
                 It.IsAny<TimeSpan?>(),
-                It.IsAny<bool>(),
                 It.IsAny<When>(),
                 It.IsAny<CommandFlags>()))
             .ReturnsAsync(true);
@@ -152,15 +150,17 @@ public sealed class LoginAttemptServiceTests
         await sut.CountFailedAttemptAsync("tenant.test", CancellationToken.None);
 
         // Assert
-        db.Verify(
-            x => x.StringSetAsync(
-                It.Is<RedisKey>(key => key.ToString() == string.Format(LOCK_KEY_PREFIX, "tenant.test")),
-                It.Is<RedisValue>(value => value.ToString() == LOCKED),
-                options.LockDuration,
-                It.IsAny<bool>(),
-                It.IsAny<When>(),
-                It.IsAny<CommandFlags>()),
-            Times.Once);
+        var matchingLockInvocations = db.Invocations
+            .Where(invocation =>
+                invocation.Method.Name == nameof(IDatabase.StringSetAsync)
+                && invocation.Arguments[0] is RedisKey key
+                && key.ToString() == string.Format(LOCK_KEY_PREFIX, "tenant.test")
+                && invocation.Arguments[1] is RedisValue value
+                && value.ToString() == LOCKED)
+            .ToList();
+        var lockInvocation = matchingLockInvocations.Should().ContainSingle().Subject;
+
+        lockInvocation.Arguments[2].ToString().Should().Be($"EX {(long)options.LockDuration.TotalSeconds}");
     }
 
     [Fact]

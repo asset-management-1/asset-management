@@ -211,28 +211,28 @@ public class AuthenticationService : IAuthenticationService
         // Resolve all creation statuses and context type in one master-data batch.
         var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(
             [
-                new MasterDataValueLookupModel(PARTY_TYPE_TYPE, pendingRegister.PartyType),
-                new MasterDataValueLookupModel(PARTY_STATUS_TYPE, ACTIVE_STATUS),
-                new MasterDataValueLookupModel(USER_STATUS_TYPE, ACTIVE_STATUS)
+                new MasterDataValueKeyModel(PARTY_TYPE_TYPE, pendingRegister.PartyType),
+                new MasterDataValueKeyModel(PARTY_STATUS_TYPE, ACTIVE_STATUS),
+                new MasterDataValueKeyModel(USER_STATUS_TYPE, ACTIVE_STATUS)
             ],
             cancellationToken);
-        var partyType = MasterDataLookupHelper.GetRequired(
+        var partyType = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 PARTY_TYPE_TYPE,
                 pendingRegister.PartyType,
                 REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                 AUTH_USER_STATUS_NOT_FOUND));
-        var partyStatus = MasterDataLookupHelper.GetRequired(
+        var partyStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 PARTY_STATUS_TYPE,
                 ACTIVE_STATUS,
                 REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                 AUTH_USER_STATUS_NOT_FOUND));
-        var userStatus = MasterDataLookupHelper.GetRequired(
+        var userStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 USER_STATUS_TYPE,
                 ACTIVE_STATUS,
                 REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,

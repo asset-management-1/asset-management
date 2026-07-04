@@ -28,7 +28,6 @@ public static class ServiceRegistration
         services.AddScoped<IExternalLoginRepository, ExternalLoginRepository>();
         services.AddScoped<IMasterDataValueRepository, MasterDataValueRepository>();
         services.AddScoped<IPartyRepository, PartyRepository>();
-        services.AddScoped<IPartyVehicleRepository, PartyVehicleRepository>();
         services.AddScoped<IUserPartyRepository, UserPartyRepository>();
         services.AddScoped<IDocumentRepository, DocumentRepository>();
         services.AddScoped<IDocumentLinkRepository, DocumentLinkRepository>();

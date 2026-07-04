@@ -81,11 +81,7 @@ public class HavenAuthResetValidator : IAuthResetValidator
             var readModel = await _dapperService.QueryFirstOrDefaultAsync<AuthResetReadModel>(
                 HavenAuthResetConstants.GET_AUTH_RESET_AT_BY_PUBLIC_ID_QUERY,
                 new { UserPublicId = userPublicId },
-                new DapperCommandOptions
-                {
-                    CommandType = System.Data.CommandType.Text,
-                    CancellationToken = cancellationToken
-                });
+                DapperCommandOptionsHelper.CreateText(cancellationToken));
 
             if (readModel is null)
             {

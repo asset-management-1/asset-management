@@ -43,11 +43,7 @@ public class HavenClientSessionValidator : IClientSessionValidator
                     UserPublicId = userPublicId,
                     SessionPublicId = sessionPublicId
                 },
-                new DapperCommandOptions
-                {
-                    CommandType = System.Data.CommandType.Text,
-                    CancellationToken = cancellationToken
-                });
+                DapperCommandOptionsHelper.CreateText(cancellationToken));
 
             return readModel is not null;
         }

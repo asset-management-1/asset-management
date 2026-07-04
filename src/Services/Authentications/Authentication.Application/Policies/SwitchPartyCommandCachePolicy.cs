@@ -33,10 +33,6 @@ public class SwitchPartyCommandCachePolicy : ICacheInvalidationPolicy<SwitchPart
 
         var cacheScope = currentUserPublicId.Value.ToUserCacheScope();
 
-        return
-        [
-            new CacheInvalidationTargetModel(USER_INFO_CACHE_KEY, cacheScope, failOnError: true),
-            new CacheInvalidationTargetModel(USER_VEHICLES_CACHE_KEY, cacheScope, failOnError: true)
-        ];
+        return [new CacheInvalidationTargetModel(USER_INFO_CACHE_KEY, cacheScope, failOnError: true)];
     }
 }

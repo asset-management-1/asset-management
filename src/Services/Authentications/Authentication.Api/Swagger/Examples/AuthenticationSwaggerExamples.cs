@@ -327,67 +327,6 @@ public static class AuthenticationSwaggerExamples
     }
 
     /// <summary>
-    /// Example request for vehicle registration.
-    /// </summary>
-    public sealed class RegisterVehicleRequest : SwaggerExampleProvider<object>
-    {
-        /// <summary>
-        /// Builds a multipart vehicle-registration request example.
-        /// </summary>
-        /// <returns>The vehicle-registration multipart request example.</returns>
-        protected override object BuildExample()
-        {
-            // Vehicle images and license plate are optional multipart form fields.
-            return new
-            {
-                vehicleType = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_TYPE,
-                vehicleName = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_NAME,
-                licensePlate = AuthenticationSwaggerExampleConstants.EXAMPLE_LICENSE_PLATE,
-                frontFile = AuthenticationSwaggerExampleConstants.EXAMPLE_FRONT_VEHICLE_IMAGE,
-                sideFile = AuthenticationSwaggerExampleConstants.EXAMPLE_SIDE_VEHICLE_IMAGE
-            };
-        }
-    }
-
-    /// <summary>
-    /// Field-level value examples for vehicle registration.
-    /// </summary>
-    public sealed class RegisterVehicleFieldValues : SwaggerExampleProvider<object>
-    {
-        /// <summary>
-        /// Builds vehicle-registration form-field value examples.
-        /// </summary>
-        /// <returns>The vehicle-registration form-field value examples.</returns>
-        protected override object BuildExample()
-        {
-            // File fields are intentionally excluded because Swagger cannot prefill binary file inputs.
-            // License plate is optional; this value only documents the expected format when supplied.
-            return new
-            {
-                vehicleType = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_TYPE,
-                vehicleName = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_NAME,
-                licensePlate = AuthenticationSwaggerExampleConstants.EXAMPLE_LICENSE_PLATE
-            };
-        }
-    }
-
-    /// <summary>
-    /// Field-level value example for a vehicle public identifier route parameter.
-    /// </summary>
-    public sealed class VehiclePublicIdValue : SwaggerExampleProvider<string>
-    {
-        /// <summary>
-        /// Builds the vehicle public identifier value example.
-        /// </summary>
-        /// <returns>The fake vehicle public identifier.</returns>
-        protected override string BuildExample()
-        {
-            // The value is fake documentation data and does not identify a real tenant vehicle.
-            return AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_PUBLIC_ID;
-        }
-    }
-
-    /// <summary>
     /// Example request for linking an external provider.
     /// </summary>
     public sealed class LinkExternalProviderRequest : SwaggerExampleProvider<LinkExternalProviderCommand>
@@ -533,11 +472,7 @@ public static class AuthenticationSwaggerExamples
                     MaskedIdentifier = AuthenticationSwaggerExampleConstants.EXAMPLE_MASKED_IDENTIFIER,
                     HasFrontFile = true,
                     HasBackFile = true
-                },
-                RegisteredVehicles =
-                [
-                    BuildVehicle()
-                ]
+                }
             };
         }
     }
@@ -564,41 +499,6 @@ public static class AuthenticationSwaggerExamples
     }
 
     /// <summary>
-    /// Example response for a vehicle item.
-    /// </summary>
-    public sealed class VehicleResponse : SwaggerSuccessExampleProvider<UserVehicleResponseDto>
-    {
-        /// <summary>
-        /// Builds a vehicle response example.
-        /// </summary>
-        /// <returns>The vehicle response example.</returns>
-        protected override UserVehicleResponseDto BuildData()
-        {
-            // Vehicle images are non-sensitive profile images and may be returned for UI thumbnails.
-            return BuildVehicle();
-        }
-    }
-
-    /// <summary>
-    /// Example response for a vehicle list.
-    /// </summary>
-    public sealed class VehicleListResponse : SwaggerSuccessExampleProvider<IReadOnlyList<UserVehicleResponseDto>>
-    {
-        /// <summary>
-        /// Builds a vehicle-list response example.
-        /// </summary>
-        /// <returns>The vehicle-list response example.</returns>
-        protected override IReadOnlyList<UserVehicleResponseDto> BuildData()
-        {
-            // List response contains active vehicles under the current tenant party only.
-            return
-            [
-                BuildVehicle()
-            ];
-        }
-    }
-
-    /// <summary>
     /// Example response for party-context switching.
     /// </summary>
     public sealed class SwitchPartyResponse : SwaggerSuccessExampleProvider<SwitchPartyResponseDto>
@@ -620,25 +520,5 @@ public static class AuthenticationSwaggerExamples
         }
     }
 
-    /// <summary>
-    /// Builds the shared vehicle example used by profile and vehicle endpoints.
-    /// </summary>
-    /// <returns>The vehicle response example.</returns>
-    private static UserVehicleResponseDto BuildVehicle()
-    {
-        // Keep vehicle examples focused on current profile fields and out of billing/parking concerns.
-        return new UserVehicleResponseDto
-        {
-            PublicId = Guid.Parse(AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_PUBLIC_ID),
-            VehicleType = VehicleTypeEnum.Motorbike,
-            VehicleTypeDisplayName = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_TYPE,
-            VehicleName = AuthenticationSwaggerExampleConstants.EXAMPLE_VEHICLE_NAME,
-            LicensePlate = AuthenticationSwaggerExampleConstants.EXAMPLE_LICENSE_PLATE,
-            Status = UserVehicleStatusEnum.Active,
-            ThumbnailUrl = "https://cdn.example.com/vehicles/front-demo.png",
-            FrontImageUrl = "https://cdn.example.com/vehicles/front-demo.png",
-            SideImageUrl = "https://cdn.example.com/vehicles/side-demo.png"
-        };
-    }
 }
 

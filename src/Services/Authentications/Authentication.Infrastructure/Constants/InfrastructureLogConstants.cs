@@ -255,12 +255,6 @@ public static class InfrastructureLogConstants
         public const string KYC_UPLOAD_COMPLETED = "KYC private file upload completed for user {UserPublicId}.";
 
         /// <summary>
-        /// Logged after tenant vehicles are loaded for the active tenant profile.
-        /// </summary>
-        public const string USER_VEHICLES_LOADED =
-            "User vehicles loaded for user {UserPublicId}. Count={VehicleCount}.";
-
-        /// <summary>
         /// Logged when the current user has no active party context.
         /// </summary>
         public const string TENANT_CONTEXT_MISSING = "Tenant context missing for user {UserPublicId}.";
@@ -270,39 +264,6 @@ public static class InfrastructureLogConstants
         /// </summary>
         public const string TENANT_CONTEXT_REJECTED =
             "Tenant context rejected for user {UserPublicId}. PartyId={PartyId}.";
-
-        /// <summary>
-        /// Logged when tenant vehicle registration starts for the current user.
-        /// </summary>
-        public const string USER_VEHICLE_REGISTRATION_STARTED =
-            "User vehicle registration started for user {UserPublicId}.";
-
-        /// <summary>
-        /// Logged after a tenant profile vehicle is registered.
-        /// </summary>
-        public const string USER_VEHICLE_REGISTERED = "User vehicle registered for user {UserPublicId}.";
-
-        /// <summary>
-        /// Logged when tenant vehicle persistence fails after optional image upload.
-        /// </summary>
-        public const string USER_VEHICLE_PERSISTENCE_FAILED =
-            "User vehicle persistence failed for user {UserPublicId}. Uploaded objects will be cleaned up.";
-
-        /// <summary>
-        /// Logged after a tenant profile vehicle is soft deleted.
-        /// </summary>
-        public const string USER_VEHICLE_DELETED = "User vehicle deleted for user {UserPublicId}.";
-
-        /// <summary>
-        /// Logged when a tenant vehicle image upload fails before vehicle persistence.
-        /// </summary>
-        public const string USER_VEHICLE_UPLOAD_FAILED = "User vehicle image upload failed for user {UserPublicId}.";
-
-        /// <summary>
-        /// Logged after optional tenant vehicle image uploads complete.
-        /// </summary>
-        public const string USER_VEHICLE_UPLOAD_COMPLETED =
-            "User vehicle image upload completed for user {UserPublicId}. FrontUploaded={FrontUploaded}. SideUploaded={SideUploaded}.";
 
         /// <summary>
         /// Logged when uploaded object cleanup fails after persistence does not complete.

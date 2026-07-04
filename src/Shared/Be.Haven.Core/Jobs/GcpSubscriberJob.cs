@@ -124,7 +124,7 @@ public class GcpSubscriberJob : BackgroundService
 
                 await using var reg = stoppingToken.Register(() =>
                 {
-                    _ = subscriber.StopAsync(CancellationToken.None);
+                    _ = subscriber.StopAsync(new SubscriberClient.ShutdownOptions(), CancellationToken.None);
                 });
 
                 _logger.LogInformation(SUBSCRIBER_STARTED, subscriptionName);

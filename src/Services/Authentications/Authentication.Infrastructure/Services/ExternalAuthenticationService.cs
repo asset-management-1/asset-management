@@ -416,26 +416,26 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
         // Resolve account creation statuses and default party type in one master-data batch.
         var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(
             [
-                new MasterDataValueLookupModel(PARTY_STATUS_TYPE, ACTIVE_STATUS),
-                new MasterDataValueLookupModel(USER_STATUS_TYPE, ACTIVE_STATUS),
-                new MasterDataValueLookupModel(PARTY_TYPE_TYPE, provider.DefaultPartyType)
+                new MasterDataValueKeyModel(PARTY_STATUS_TYPE, ACTIVE_STATUS),
+                new MasterDataValueKeyModel(USER_STATUS_TYPE, ACTIVE_STATUS),
+                new MasterDataValueKeyModel(PARTY_TYPE_TYPE, provider.DefaultPartyType)
             ],
             cancellationToken);
-        var partyStatus = MasterDataLookupHelper.GetRequired(
+        var partyStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 PARTY_STATUS_TYPE,
                 ACTIVE_STATUS,
                 ACTIVE_STATUS_NOT_FOUND_MESSAGE));
-        var userStatus = MasterDataLookupHelper.GetRequired(
+        var userStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 USER_STATUS_TYPE,
                 ACTIVE_STATUS,
                 ACTIVE_STATUS_NOT_FOUND_MESSAGE));
-        var partyType = MasterDataLookupHelper.GetRequired(
+        var partyType = MasterDataValueHelper.GetRequired(
             masterDataValues,
-            new MasterDataRequiredLookupModel(
+            new MasterDataValueRequirementModel(
                 PARTY_TYPE_TYPE,
                 provider.DefaultPartyType,
                 DEFAULT_PARTY_TYPE_NOT_FOUND_MESSAGE));

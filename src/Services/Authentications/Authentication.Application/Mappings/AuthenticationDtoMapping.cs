@@ -30,14 +30,5 @@ public class AuthenticationDtoMapping : IRegister
         // Change-email notification request has the same email shape as the prepared change-email response.
         config.NewConfig<ChangeEmailStartResponseDto, ChangeEmailSecurityNotificationRequestDto>();
 
-        // Vehicle responses expose public enum contracts while DB rows still store master-data codes.
-        config.NewConfig<PartyVehicle, UserVehicleResponseDto>()
-            .Map(dest => dest.VehicleType, src => ApiEnumContractMapper.ToRequiredVehicleType(
-                src.VehicleType.Code != null && src.VehicleType.Code != string.Empty
-                    ? src.VehicleType.Code
-                    : src.VehicleType.Name))
-            .Map(dest => dest.VehicleTypeDisplayName, src => src.VehicleType.Name)
-            .Map(dest => dest.Status, _ => UserVehicleStatusEnum.Active)
-            .Map(dest => dest.ThumbnailUrl, src => src.FrontImageUrl ?? src.SideImageUrl);
     }
 }

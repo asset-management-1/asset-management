@@ -65,8 +65,4 @@ public class UserInfoResponseDto
     /// </summary>
     public KycSummaryResponseDto KycSummary { get; set; } = new();
 
-    /// <summary>
-    /// Vehicles registered under the active tenant context.
-    /// </summary>
-    public List<UserVehicleResponseDto> RegisteredVehicles { get; set; } = [];
 }

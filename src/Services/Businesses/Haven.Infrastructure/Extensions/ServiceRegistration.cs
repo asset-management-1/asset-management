@@ -1,5 +1,8 @@
 namespace Haven.Infrastructure.Extensions;
 
+/// <summary>
+/// Registers Haven business infrastructure dependencies.
+/// </summary>
 public static class ServiceRegistration
 {
     /// <summary>
@@ -11,5 +14,23 @@ public static class ServiceRegistration
         this IServiceCollection services,
         IConfiguration configuration)
     {
+        services.AddDbConnectionInitialization();
+        services.AddDapperInfrastructure();
+        services.AddConfiguredDbContext<HavenDbContext>();
+        services.AddUnitOfWork<HavenDbContext>();
+        services.AddScoped<IPartyService, PartyService>();
+        services.AddScoped<IMasterDataService, MasterDataService>();
+        services.AddScoped<ILocationService, LocationService>();
+        services.AddScoped<IPropertyService, PropertyService>();
+        services.AddScoped<IPartyRepository, PartyRepository>();
+        services.AddScoped<IMasterDataRepository, MasterDataRepository>();
+        services.AddScoped<ILocationRepository, LocationRepository>();
+        services.AddScoped<IPropertyRepository, PropertyRepository>();
+        services.AddScoped<IUnitRepository, UnitRepository>();
+        services.AddScoped<IUnitPackageRepository, UnitPackageRepository>();
+        services.AddScoped<IUnitPackageItemRepository, UnitPackageItemRepository>();
+        services.AddScoped<IPropertyPartyRepository, PropertyPartyRepository>();
+        services.AddScoped<IRentalChargePolicyRepository, RentalChargePolicyRepository>();
+        services.AddScoped<PropertyRepositoryDependencies>();
     }
 }

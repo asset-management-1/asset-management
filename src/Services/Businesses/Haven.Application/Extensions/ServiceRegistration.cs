@@ -12,9 +12,37 @@ public static class ServiceRegistration
     public static void AddApplication(this IServiceCollection services)
     {
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+        RegisterCacheInvalidationPolicies(services);
         services.AddTransient(typeof(Mediator.IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddTransient(typeof(Mediator.IPipelineBehavior<,>), typeof(InvalidationBehavior<,>));
         services.AddTransient(typeof(Mediator.IPipelineBehavior<,>), typeof(CachingBehavior<,>));
-        services.AddDapperInfrastructure();
+    }
+
+    /// <summary>
+    /// Registers all cache invalidation policies defined in the Haven application assembly.
+    /// </summary>
+    /// <param name="services">The service collection that receives the policy registrations.</param>
+    private static void RegisterCacheInvalidationPolicies(IServiceCollection services)
+    {
+        var assembly = Assembly.GetExecutingAssembly();
+
+        // Cache policies opt in per command and are discovered the same way as Authentication policies.
+        var policyRegistrations = assembly
+            .DefinedTypes
+            .Where(type => type is { IsClass: true, IsAbstract: false })
+            .SelectMany(type => type
+                .ImplementedInterfaces
+                .Where(@interface => @interface.IsGenericType
+                                     && @interface.GetGenericTypeDefinition() == typeof(ICacheInvalidationPolicy<>))
+                .Select(@interface => new
+                {
+                    ServiceType = @interface,
+                    ImplementationType = type.AsType()
+                }));
+
+        foreach (var registration in policyRegistrations)
+        {
+            services.AddTransient(registration.ServiceType, registration.ImplementationType);
+        }
     }
 }

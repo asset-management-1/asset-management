@@ -71,21 +71,6 @@ public static class ControllerRouteConstants
     public const string KYC = "kyc";
 
     /// <summary>
-    /// Route segment for current tenant profile vehicles.
-    /// </summary>
-    public const string VEHICLES = "vehicles";
-
-    /// <summary>
-    /// Route template for a current tenant profile vehicle by public identifier.
-    /// </summary>
-    public const string VEHICLE_BY_PUBLIC_ID = "vehicles/{" + VEHICLE_PUBLIC_ID_ROUTE_PARAMETER + "}";
-
-    /// <summary>
-    /// Route parameter name for a vehicle public identifier.
-    /// </summary>
-    public const string VEHICLE_PUBLIC_ID_ROUTE_PARAMETER = "vehicle-public-id";
-
-    /// <summary>
     /// Route segment for the party-context switch endpoint.
     /// </summary>
     public const string SWITCH_PARTY = "switch-party";

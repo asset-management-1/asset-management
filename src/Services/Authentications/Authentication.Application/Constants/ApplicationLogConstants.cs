@@ -377,21 +377,6 @@ public static class ApplicationLogConstants
     public const string KYC_SUBMITTED = "KYC submitted for manual review by user {UserPublicId}.";
 
     /// <summary>
-    /// Logged after the current user's tenant vehicles are loaded.
-    /// </summary>
-    public const string USER_VEHICLES_LOADED = "User vehicles loaded for user {UserPublicId}.";
-
-    /// <summary>
-    /// Logged after a tenant profile vehicle registration command completes.
-    /// </summary>
-    public const string USER_VEHICLE_REGISTERED = "User vehicle registered for user {UserPublicId}.";
-
-    /// <summary>
-    /// Logged after a tenant profile vehicle delete command completes.
-    /// </summary>
-    public const string USER_VEHICLE_DELETED = "User vehicle deleted for user {UserPublicId}.";
-
-    /// <summary>
     /// Logged when old-email security notification cannot be delivered.
     /// </summary>
     public const string CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED =

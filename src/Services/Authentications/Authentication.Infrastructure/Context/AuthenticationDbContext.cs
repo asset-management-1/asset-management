@@ -26,8 +26,6 @@ public partial class AuthenticationDbContext : DbContext
 
     public virtual DbSet<Party> Parties { get; set; }
 
-    public virtual DbSet<PartyVehicle> PartyVehicles { get; set; }
-
     public virtual DbSet<PartyIdentifier> PartyIdentifiers { get; set; }
 
     public virtual DbSet<Permission> Permissions { get; set; }

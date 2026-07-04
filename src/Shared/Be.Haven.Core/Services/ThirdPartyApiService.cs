@@ -141,9 +141,15 @@ public class ThirdPartyApiService : IThirdPartyApiService
         // Adapt the request to the BaseHttpRequest model
         var requestData = request.Adapt<BaseHttpRequest>();
 
-        if(request.File is not null)
+        if (request.File is not null)
         {
             requestData.File = request.File;
+        }
+
+        if (request.ContentStream is not null)
+        {
+            // Streams are pass-through payloads and should not be cloned by object mapping.
+            requestData.RequestStream = request.ContentStream;
         }
 
         // Validate the request

@@ -84,6 +84,21 @@ public static class AppConstants
         public const string COMMA_SEPARATOR = ",";
 
         /// <summary>
+        /// Default separator used when composing generated business-readable codes.
+        /// </summary>
+        public const string DEFAULT_CODE_SEPARATOR = "_";
+
+        /// <summary>
+        /// Maximum random segment length available from a GUID hex string without separators.
+        /// </summary>
+        public const int MAX_GUID_HEX_RANDOM_LENGTH = 32;
+
+        /// <summary>
+        /// GUID format used to generate a hex string without separators.
+        /// </summary>
+        public const string GUID_HEX_RANDOM_FORMAT = "N";
+
+        /// <summary>
         /// Constant representing a separator used for single-line formatting purposes.
         /// </summary>
         public const string ONE_LINE_SEPARATOR = " | ";
@@ -1023,6 +1038,11 @@ public static class AppConstants
         /// Generic message returned for unexpected server errors so internal exception details are not exposed.
         /// </summary>
         public const string UNEXPECTED_SERVER_ERROR = "An unexpected error occurred.";
+
+        /// <summary>
+        /// Exception message used when unique code generation exhausts all attempts.
+        /// </summary>
+        public const string UNIQUE_CODE_GENERATION_FAILED = "Could not generate a unique code after exhausting all random segment lengths.";
         
         /// <summary>
         /// Log message indicating that an HTTP request failed due to a specific HTTP request exception.

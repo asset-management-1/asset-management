@@ -46,8 +46,4 @@ public class Party : BaseEntity
     /// </summary>
     public virtual ICollection<UserParty> UserParties { get; set; } = new List<UserParty>();
 
-    /// <summary>
-    /// Related tenant profile vehicles linked to this party.
-    /// </summary>
-    public virtual ICollection<PartyVehicle> PartyVehicles { get; set; } = new List<PartyVehicle>();
 }

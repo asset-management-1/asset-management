@@ -41,11 +41,6 @@ public static class InfrastructureConstants
     public const string PROFILE_GENDER_TYPE = "Gender";
 
     /// <summary>
-    /// Master-data type code for tenant profile vehicle types.
-    /// </summary>
-    public const string VEHICLE_TYPE_TYPE = "VehicleType";
-
-    /// <summary>
     /// Master-data type code for identifier type values.
     /// </summary>
     public const string IDENTIFIER_TYPE_TYPE = "IdentifierType";

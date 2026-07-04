@@ -13,15 +13,13 @@ public class BaseMappingConfig : IRegister
     {
         config.NewConfig<BaseThirdPartyApiRequest, BaseHttpRequest>()
             .Ignore(dest => dest.File)
+            .Ignore(dest => dest.RequestStream)
 
             // Maps ApiRequest.Endpoint to BaseHttpRequest.RequestUri
             .Map(dest => dest.RequestUri, src => src.Endpoint)
 
             // Maps ApiRequest.Content to BaseHttpRequest.RequestData
             .Map(dest => dest.RequestData, src => src.Content)
-
-            // Maps ApiRequest.ContentStream to BaseHttpRequest.RequestStream
-            .Map(dest => dest.RequestStream, src => src.ContentStream)
 
             // Maps ApiRequest.FormData to BaseHttpRequest.RequestFormData
             .Map(dest => dest.RequestFormData, src => src.FormData)

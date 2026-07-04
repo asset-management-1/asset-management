@@ -114,4 +114,5 @@ public sealed class InvalidationBehaviorTests
 
         return version;
     }
+
 }

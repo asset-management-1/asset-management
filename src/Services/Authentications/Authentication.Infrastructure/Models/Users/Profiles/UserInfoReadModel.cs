@@ -95,8 +95,4 @@ public class UserInfoReadModel
     /// </summary>
     public string ExternalProvidersJson { get; set; }
 
-    /// <summary>
-    /// Gets or sets the JSON array of registered tenant vehicles.
-    /// </summary>
-    public string RegisteredVehiclesJson { get; set; }
 }
