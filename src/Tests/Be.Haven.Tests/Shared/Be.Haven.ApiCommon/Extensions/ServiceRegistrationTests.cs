@@ -1,7 +1,7 @@
-using ApiCommonServiceRegistration = Be.Haven.ApiCommon.Extensions.ServiceRegistration;
 using Be.Haven.ApiCommon.Options.Swagger;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Serilog.Extensions.Hosting;
+using ApiCommonServiceRegistration = Be.Haven.ApiCommon.Extensions.ServiceRegistration;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.ApiCommon.Extensions;
 

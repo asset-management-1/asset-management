@@ -6,9 +6,9 @@ namespace Haven.Application.Models.Properties.Rows;
 public class PropertyPackageTemplateRowModel
 {
     /// <summary>
-    /// Gets or sets the package code.
+    /// Gets or sets the package public identifier.
     /// </summary>
-    public string PackageCode { get; set; }
+    public Guid PackagePublicId { get; set; }
 
     /// <summary>
     /// Gets or sets the package display name.

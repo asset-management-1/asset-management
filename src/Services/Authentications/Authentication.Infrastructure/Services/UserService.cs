@@ -10,6 +10,7 @@ public class UserService : IUserService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IAuthService _authService;
     private readonly IObjectStorageService _objectStorageService;
+    private readonly IImageOptimizationService _imageOptimizationService;
     private readonly ExternalAuthenticationOptions _externalAuthenticationOptions;
     private readonly R2StorageOptions _r2StorageOptions;
     private readonly ILogger<UserService> _logger;
@@ -36,6 +37,7 @@ public class UserService : IUserService
         _unitOfWork = unitOfWork;
         _authService = authService;
         _objectStorageService = supportDependencies.ObjectStorageService;
+        _imageOptimizationService = supportDependencies.ImageOptimizationService;
         _externalAuthenticationOptions = supportDependencies.ExternalAuthenticationOptions;
         _r2StorageOptions = supportDependencies.R2StorageOptions;
         _logger = logger;
@@ -51,7 +53,7 @@ public class UserService : IUserService
         // Resolve current identity from the authenticated principal before loading account data.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
         var response = await _repositories.UserRepository.GetUserInfoResponseByPublicIdAsync(
@@ -60,7 +62,7 @@ public class UserService : IUserService
         if (response is null)
         {
             throw new HttpStatusCodeException(
-                ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                 UNAUTHORIZED,
                 StatusCodes.Status401Unauthorized);
         }
@@ -87,14 +89,17 @@ public class UserService : IUserService
     {
         // Load the tracked user so profile fields can be applied in the current unit of work.
         var user = await LoadTrackedCurrentUserAsync(cancellationToken);
-        var normalizedPhoneNumber = request.PhoneNumber;
+        var previousAvatarUrl = user.AvatarUrl;
+        var phoneNumber = request.PhoneNumber;
 
         // Phone number uniqueness is checked only when the submitted value changes.
-        if (!string.IsNullOrWhiteSpace(normalizedPhoneNumber)
-            && !string.Equals(user.PhoneNumber, normalizedPhoneNumber, StringComparison.OrdinalIgnoreCase)
-            && await _repositories.UserRepository.PhoneNumberExistsAsync(normalizedPhoneNumber, cancellationToken))
+        if (!string.IsNullOrWhiteSpace(phoneNumber)
+            && !string.Equals(user.PhoneNumber, phoneNumber, StringComparison.OrdinalIgnoreCase)
+            && await _repositories.UserRepository.PhoneNumberExistsAsync(phoneNumber, cancellationToken))
         {
-            throw new ApiException(PHONE_NUMBER_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.PHONE_NUMBER_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS);
         }
 
         // Resolve optional lookup data and all linked parties before applying profile snapshots.
@@ -108,8 +113,8 @@ public class UserService : IUserService
             uploadedAvatar?.ObjectKey);
 
         // Profile fields live on the identity user while display/contact snapshots are kept in linked parties.
-        ApplyProfileUpdate(user, request, gender, normalizedPhoneNumber, avatarUrl);
-        SyncPartyProfile(parties, request.FullName, normalizedPhoneNumber, null);
+        ApplyProfileUpdate(user, request, gender, phoneNumber, avatarUrl);
+        SyncPartyProfile(parties, request.FullName, phoneNumber, null);
 
         try
         {
@@ -129,15 +134,33 @@ public class UserService : IUserService
                 cancellationToken);
 
             throw new ApiException(
-                USER_INFO_UPDATE_FAILED_MESSAGE,
-                AUTH_PROFILE_UPDATE_FAILED,
+                ApplicationErrorConstants.ProfileErrors.USER_INFO_UPDATE_FAILED_MESSAGE,
+                ApplicationErrorConstants.ProfileErrorCodes.AUTH_PROFILE_UPDATE_FAILED,
                 StatusCodes.Status500InternalServerError);
         }
+
+        if (uploadedAvatar is not null)
+        {
+            // Delete the superseded avatar only after the new URL is committed.
+            // Cleanup cannot invalidate the profile update.
+            var cleanupResult = await ObjectStorageHelper.CleanupObjectKeysAsync(
+                _objectStorageService,
+                [ObjectStorageHelper.GetObjectKey(_r2StorageOptions.PublicBaseUrl, previousAvatarUrl)],
+                cancellationToken);
+            if (cleanupResult.HasFailures)
+            {
+                _logger.LogWarning(
+                    InfrastructureLogConstants.UserLogs.UPLOADED_OBJECT_CLEANUP_FAILED,
+                    user.PublicId);
+            }
+        }
+
         _logger.LogInformation(
             InfrastructureLogConstants.UserLogs.USER_INFO_UPDATED,
             user.PublicId);
 
-        return OperationStatusResponseHelper.Success(USER_INFO_UPDATED_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.ProfileMessages.USER_INFO_UPDATED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -153,9 +176,12 @@ public class UserService : IUserService
         // Load the current user because change-email validation depends on the existing email.
         var user = await LoadTrackedCurrentUserAsync(cancellationToken);
         var normalizedNewEmail = request.NewEmail;
+
         if (string.Equals(user.Email, normalizedNewEmail, StringComparison.OrdinalIgnoreCase))
         {
-            throw new ApiException(EMAIL_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.EMAIL_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS);
         }
 
         // Confirm that the new email is not owned by another active user.
@@ -187,7 +213,7 @@ public class UserService : IUserService
         // Load the tracked user after OTP verification so the verified email can be persisted.
         var user = await _repositories.UserRepository.GetTrackedByPublicIdAsync(currentUserPublicId, cancellationToken)
                    ?? throw new HttpStatusCodeException(
-                       ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                        UNAUTHORIZED,
                        StatusCodes.Status401Unauthorized);
         var normalizedNewEmail = request.NewEmail;
@@ -212,7 +238,8 @@ public class UserService : IUserService
             InfrastructureLogConstants.UserLogs.CHANGE_EMAIL_VERIFIED,
             currentUserPublicId);
 
-        return OperationStatusResponseHelper.Success(CHANGE_EMAIL_COMPLETED_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.ProfileMessages.CHANGE_EMAIL_COMPLETED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -227,21 +254,24 @@ public class UserService : IUserService
     {
         // Load the current user and parties because KYC is shared across tenant/landlord contexts.
         var user = await LoadTrackedCurrentUserAsync(cancellationToken);
+
         _logger.LogInformation(
             InfrastructureLogConstants.UserLogs.KYC_SUBMISSION_STARTED,
             user.PublicId);
 
         var parties = (await LoadTrackedUserPartiesAsync(user, cancellationToken)).ToList();
+
         if (parties.Count == 0)
         {
             throw new ApiException(
-                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                AUTH_KYC_INVALID,
+                ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID,
                 StatusCodes.Status500InternalServerError);
         }
 
         // KYC lookup values are resolved in one batch because this flow needs many master-data records.
         var kycMasterData = await ResolveKycMasterDataAsync(request, cancellationToken);
+
         _logger.LogInformation(
             InfrastructureLogConstants.UserLogs.KYC_MASTER_DATA_RESOLVED,
             user.PublicId);
@@ -268,6 +298,7 @@ public class UserService : IUserService
 
         // Private scans are uploaded before metadata persistence; no object key is returned to the API caller.
         var uploadedDocuments = await UploadKycDocumentsAsync(user.PublicId, request, cancellationToken);
+
         _logger.LogInformation(
             InfrastructureLogConstants.UserLogs.KYC_UPLOAD_COMPLETED,
             user.PublicId);
@@ -311,7 +342,6 @@ public class UserService : IUserService
                         },
                         ct);
 
-                    // Manual review owns the final profile sync; submit only stages scanned data and private files.
                 },
                 cancellationToken);
         }
@@ -328,8 +358,8 @@ public class UserService : IUserService
                 cancellationToken);
 
             throw new ApiException(
-                KYC_SUBMISSION_FAILED_MESSAGE,
-                AUTH_KYC_INVALID,
+                ApplicationErrorConstants.KycErrors.KYC_SUBMISSION_FAILED_MESSAGE,
+                ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID,
                 StatusCodes.Status500InternalServerError);
         }
 
@@ -341,7 +371,7 @@ public class UserService : IUserService
         {
             IsSubmitted = true,
             Status = KycStatusEnum.Pending,
-            Message = KYC_SUBMITTED_SUCCESS_MESSAGE
+            Message = ApplicationMessageConstants.KycMessages.KYC_SUBMITTED_SUCCESS_MESSAGE
         };
     }
 
@@ -382,8 +412,10 @@ public class UserService : IUserService
         }
 
         // Rebuild available contexts after the switch so the response reflects newly created contexts.
-        var availableContexts = (await _repositories.UserPartyRepository.GetActiveByUserIdAsync(user.Id, cancellationToken))
-            .Select(x => AuthenticationFlowHelper.ToPartyContextValue(x.Party?.PartyType?.Code ?? x.Party?.PartyType?.Name))
+        var availableContexts = (await _repositories.UserPartyRepository.GetActiveByUserIdAsync(
+                user.Id,
+                cancellationToken))
+            .Select(x => AuthenticationFlowHelper.ToPartyContextValue(x.Party?.PartyType?.Code))
             .Where(x => x is not null)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -400,10 +432,12 @@ public class UserService : IUserService
         return new SwitchPartyResponseDto
         {
             IsSuccess = true,
-            Message = SWITCH_PARTY_SUCCESS_MESSAGE,
+            Message = ApplicationMessageConstants.AccountMessages.SWITCH_PARTY_SUCCESS_MESSAGE,
             CurrentContext = ApiEnumContractMapper.ToPartyType(targetContext)
                              ?? throw new InvalidOperationException(
-                                 string.Format(UNSUPPORTED_PARTY_CONTEXT_VALUE_MESSAGE, targetContext)),
+                                 string.Format(
+                                     InfrastructureErrorConstants.PartyContextErrors.UNSUPPORTED_PARTY_CONTEXT_VALUE_MESSAGE,
+                                     targetContext)),
             AvailableContexts = ApiEnumContractMapper.ToPartyTypes(availableContexts)
         };
     }
@@ -415,14 +449,15 @@ public class UserService : IUserService
     /// <returns>The tracked current user.</returns>
     private async Task<User> LoadTrackedCurrentUserAsync(CancellationToken cancellationToken)
     {
-        // The auth handler has already validated the token; here we only need the normalized public user id.
+        // The auth handler has already validated the token; here we resolve its public user id claim.
         var currentUserPublicId = _authService.UserId();
+
         if (!currentUserPublicId.HasValue)
         {
             _logger.LogWarning(InfrastructureLogConstants.UserLogs.CURRENT_USER_CLAIM_MISSING);
 
             throw new HttpStatusCodeException(
-                ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                 UNAUTHORIZED,
                 StatusCodes.Status401Unauthorized);
         }
@@ -441,57 +476,9 @@ public class UserService : IUserService
             currentUserPublicId.Value);
 
         throw new HttpStatusCodeException(
-            ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+            ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
             UNAUTHORIZED,
             StatusCodes.Status401Unauthorized);
-    }
-
-    /// <summary>
-    /// Loads the active party context and ensures it is a tenant profile.
-    /// </summary>
-    /// <param name="user">The tracked current user entity.</param>
-    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
-    /// <returns>The current tenant party context.</returns>
-    private async Task<CurrentPartyContextModel> LoadCurrentTenantPartyContextAsync(
-        User user,
-        CancellationToken cancellationToken)
-    {
-        // Vehicle registration is tenant-only, so a missing active party blocks the operation.
-        if (!user.CurrentPartyId.HasValue)
-        {
-            _logger.LogWarning(
-                InfrastructureLogConstants.UserLogs.TENANT_CONTEXT_MISSING,
-                user.PublicId);
-
-            throw new HttpStatusCodeException(
-                TENANT_CONTEXT_REQUIRED_MESSAGE,
-                AUTH_FORBIDDEN_OPERATION,
-                StatusCodes.Status403Forbidden);
-        }
-
-        // Load the current party type without tracking because this method only validates context.
-        var currentParty = await _repositories.PartyRepository.GetContextByIdAsync(
-            user.CurrentPartyId.Value,
-            cancellationToken);
-
-        // The party type was normalized when saved, so tenant validation uses the current party row directly.
-        var tenantPartyType = PartyTypeEnum.Tenant.ToMasterDataCode();
-        if (currentParty is null
-            || (currentParty.PartyTypeCode != tenantPartyType
-                && currentParty.PartyTypeName != tenantPartyType))
-        {
-            _logger.LogWarning(
-                InfrastructureLogConstants.UserLogs.TENANT_CONTEXT_REJECTED,
-                user.PublicId,
-                user.CurrentPartyId.Value);
-
-            throw new HttpStatusCodeException(
-                TENANT_CONTEXT_REQUIRED_MESSAGE,
-                AUTH_FORBIDDEN_OPERATION,
-                StatusCodes.Status403Forbidden);
-        }
-
-        return currentParty;
     }
 
     /// <summary>
@@ -524,34 +511,27 @@ public class UserService : IUserService
     /// <param name="user">The tracked current user entity.</param>
     /// <param name="request">The profile update payload.</param>
     /// <param name="gender">The resolved gender master data, if supplied.</param>
-    /// <param name="normalizedPhoneNumber">The Mapster-normalized phone number, if supplied.</param>
+    /// <param name="phoneNumber">The submitted phone number, if supplied.</param>
     /// <param name="avatarUrl">The backend-uploaded avatar URL, if supplied.</param>
     private static void ApplyProfileUpdate(
         User user,
         UpdateUserInfoRequestDto request,
         MasterDataValue gender,
-        string normalizedPhoneNumber,
+        string phoneNumber,
         string avatarUrl)
     {
-        // Apply only supplied optional fields so omitted profile values remain unchanged.
-        if (request.FullName is not null)
-        {
-            user.FullName = request.FullName;
-        }
+        // Mapster applies simple partial profile fields and leaves omitted values untouched.
+        request.Adapt(user);
 
-        if (normalizedPhoneNumber is not null)
+        // Phone, avatar, and gender stay explicit because they use separate validation, upload, or lookup flows.
+        if (phoneNumber is not null)
         {
-            user.PhoneNumber = normalizedPhoneNumber;
+            user.PhoneNumber = phoneNumber;
         }
 
         if (avatarUrl is not null)
         {
             user.AvatarUrl = avatarUrl;
-        }
-
-        if (request.DateOfBirth.HasValue)
-        {
-            user.DateOfBirth = request.DateOfBirth;
         }
 
         if (gender is not null)
@@ -607,9 +587,12 @@ public class UserService : IUserService
     {
         // Look up by normalized email and ignore the current user's own row.
         var existingUser = await _repositories.UserRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+
         if (existingUser is not null && existingUser.Id != currentUserId)
         {
-            throw new ApiException(EMAIL_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.EMAIL_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS);
         }
     }
 
@@ -634,7 +617,9 @@ public class UserService : IUserService
                    PROFILE_GENDER_TYPE,
                    gender,
                    cancellationToken)
-               ?? throw new ApiException(INVALID_GENDER_MESSAGE, AUTH_INVALID_GENDER);
+               ?? throw new ApiException(
+                   ApplicationErrorConstants.ProfileErrors.INVALID_GENDER_MESSAGE,
+                   ApplicationErrorConstants.ProfileErrorCodes.AUTH_INVALID_GENDER);
     }
 
     /// <summary>
@@ -677,7 +662,9 @@ public class UserService : IUserService
             masterDataKeys.Add(new MasterDataValueKeyModel(DOCUMENT_LINK_TYPE_TYPE, backLinkType));
         }
 
-        var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(masterDataKeys, cancellationToken);
+        var masterDataValues = await _repositories.MasterDataValueRepository.GetByTypeAndValuesAsync(
+            masterDataKeys,
+            cancellationToken);
 
         // KYC needs several master values; resolve them from one batched DB lookup to avoid repeated round-trips.
         return new KycMasterDataContextModel
@@ -687,8 +674,8 @@ public class UserService : IUserService
                 new MasterDataValueRequirementModel(
                     IDENTIFIER_TYPE_TYPE,
                     request.IdentifierType,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             SupportedIdentifierTypes =
             [
                 MasterDataValueHelper.GetRequired(
@@ -696,58 +683,58 @@ public class UserService : IUserService
                     new MasterDataValueRequirementModel(
                         IDENTIFIER_TYPE_TYPE,
                         cccdIdentifierType,
-                        REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                        AUTH_KYC_INVALID)),
+                        ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                        ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
                 MasterDataValueHelper.GetRequired(
                     masterDataValues,
                     new MasterDataValueRequirementModel(
                         IDENTIFIER_TYPE_TYPE,
                         passportIdentifierType,
-                        REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                        AUTH_KYC_INVALID))
+                        ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                        ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID))
             ],
             Gender = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     PROFILE_GENDER_TYPE,
                     request.GenderOnDocument,
-                    INVALID_GENDER_MESSAGE,
-                    AUTH_INVALID_GENDER)),
+                    ApplicationErrorConstants.ProfileErrors.INVALID_GENDER_MESSAGE,
+                    ApplicationErrorConstants.ProfileErrorCodes.AUTH_INVALID_GENDER)),
             DocumentType = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     DOCUMENT_TYPE_TYPE,
                     NATIONAL_ID_DOCUMENT_TYPE,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             StorageProvider = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     STORAGE_PROVIDER_TYPE,
                     R2_STORAGE_PROVIDER,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             DocumentStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     DOCUMENT_STATUS_TYPE,
                     UPLOADED_DOCUMENT_STATUS,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             EntityType = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     ENTITY_TYPE_TYPE,
                     PARTY_ENTITY_TYPE,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             FrontLinkType = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     DOCUMENT_LINK_TYPE_TYPE,
                     frontLinkType,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             BackLinkType = string.IsNullOrWhiteSpace(backLinkType)
                 ? null
                 : MasterDataValueHelper.GetRequired(
@@ -755,29 +742,29 @@ public class UserService : IUserService
                     new MasterDataValueRequirementModel(
                         DOCUMENT_LINK_TYPE_TYPE,
                         backLinkType,
-                        REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                        AUTH_KYC_INVALID)),
+                        ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                        ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             LinkStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     DOCUMENT_LINK_STATUS_TYPE,
                     ACTIVE_DOCUMENT_LINK_STATUS,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             KycStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     KYC_STATUS_TYPE,
                     pendingKycStatus,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID)),
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID)),
             RejectedKycStatus = MasterDataValueHelper.GetRequired(
                 masterDataValues,
                 new MasterDataValueRequirementModel(
                     KYC_STATUS_TYPE,
                     rejectedKycStatus,
-                    REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                    AUTH_KYC_INVALID))
+                    ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                    ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID))
         };
     }
 
@@ -817,9 +804,10 @@ public class UserService : IUserService
                 });
             }
 
-            // Delegate document scans to the shared batch uploader with private KYC prefixing.
-            return await ObjectStorageHelper.UploadOwnerScopedFormFilesAsync(
+            // Decode all submitted scans before preserving their original bytes under the private KYC prefix.
+            var uploadResult = await ObjectStorageHelper.UploadOwnerScopedValidatedImageFormFilesAsync(
                 _objectStorageService,
+                _imageOptimizationService,
                 new ObjectStorageUploadBatchRequestModel
                 {
                     ConfiguredPrefix = _r2StorageOptions.KycObjectPrefix,
@@ -827,12 +815,21 @@ public class UserService : IUserService
                     OwnerPublicId = currentUserPublicId,
                     Files = files
                 },
-                uploadResult => new KycUploadedDocumentsModel
-                {
-                    Front = uploadResult.GetUpload(FRONT_OBJECT_SLOT),
-                    Back = uploadResult.GetUpload(BACK_OBJECT_SLOT)
-                },
                 cancellationToken);
+
+            return new KycUploadedDocumentsModel
+            {
+                Front = uploadResult.GetUpload(FRONT_OBJECT_SLOT),
+                Back = uploadResult.GetUpload(BACK_OBJECT_SLOT)
+            };
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, InfrastructureLogConstants.UserLogs.KYC_UPLOAD_FAILED, currentUserPublicId);
+            throw new ApiException(
+                IMAGE_FILE_INVALID_MESSAGE,
+                ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID,
+                StatusCodes.Status400BadRequest);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -842,8 +839,8 @@ public class UserService : IUserService
                 currentUserPublicId);
 
             throw new ApiException(
-                KYC_SUBMISSION_FAILED_MESSAGE,
-                AUTH_KYC_UPLOAD_FAILED,
+                ApplicationErrorConstants.KycErrors.KYC_SUBMISSION_FAILED_MESSAGE,
+                ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_UPLOAD_FAILED,
                 StatusCodes.Status503ServiceUnavailable);
         }
     }
@@ -862,9 +859,10 @@ public class UserService : IUserService
     {
         try
         {
-            // Delegate avatar upload to the shared owner-scoped batch uploader so object-key rules stay consistent.
-            var uploadResult = await ObjectStorageHelper.UploadOwnerScopedFormFilesAsync(
+            // Decode the avatar before preserving its original bytes with the shared owner-scoped key rules.
+            var uploadResult = await ObjectStorageHelper.UploadOwnerScopedValidatedImageFormFilesAsync(
                 _objectStorageService,
+                _imageOptimizationService,
                 new ObjectStorageUploadBatchRequestModel
                 {
                     ConfiguredPrefix = _r2StorageOptions.AvatarObjectPrefix,
@@ -887,6 +885,18 @@ public class UserService : IUserService
 
             return uploadResult.GetUpload(AVATAR_OBJECT_SLOT);
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                InfrastructureLogConstants.UserLogs.USER_AVATAR_UPLOAD_FAILED,
+                currentUserPublicId);
+
+            throw new ApiException(
+                IMAGE_FILE_INVALID_MESSAGE,
+                ApplicationErrorConstants.ProfileErrorCodes.AUTH_PROFILE_UPLOAD_FAILED,
+                StatusCodes.Status400BadRequest);
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(
@@ -895,8 +905,8 @@ public class UserService : IUserService
                 currentUserPublicId);
 
             throw new ApiException(
-                AVATAR_UPLOAD_FAILED_MESSAGE,
-                AUTH_PROFILE_UPLOAD_FAILED,
+                ApplicationErrorConstants.ProfileErrors.AVATAR_UPLOAD_FAILED_MESSAGE,
+                ApplicationErrorConstants.ProfileErrorCodes.AUTH_PROFILE_UPLOAD_FAILED,
                 StatusCodes.Status503ServiceUnavailable);
         }
     }
@@ -917,7 +927,6 @@ public class UserService : IUserService
         var cleanupResult = await ObjectStorageHelper.CleanupUploadedObjectsAsync(
             _objectStorageService,
             uploads,
-            upload => upload.ObjectKey,
             cancellationToken);
         if (cleanupResult.HasFailures)
         {
@@ -941,7 +950,8 @@ public class UserService : IUserService
             FileName = Path.GetFileName(request.Upload.ObjectKey),
             OriginalFileName = request.File.FileName,
             ContentType = request.Upload.ContentType,
-            FileExtension = Path.GetExtension(request.File.FileName),
+            // Persist the canonical stored extension while retaining the user-supplied name separately for audit.
+            FileExtension = Path.GetExtension(request.Upload.ObjectKey),
             FileSize = request.Upload.FileSize,
             StorageProviderId = request.MasterData.StorageProvider.Id,
             StoragePath = request.Upload.ObjectKey,
@@ -1015,14 +1025,16 @@ public class UserService : IUserService
             request.IdentifierTypeIds,
             cancellationToken);
 
-        // KYC is shared by the identity user, so any tenant/landlord context with pending/approved data blocks re-upload.
+        // KYC is shared by the identity user, so pending or approved data in any party context blocks re-upload.
         if (existingIdentifiers.Any(x => x.StatusId != request.RejectedStatusId))
         {
             _logger.LogWarning(
                 InfrastructureLogConstants.UserLogs.KYC_REUPLOAD_BLOCKED,
                 request.CurrentUserPublicId);
 
-            throw new ApiException(KYC_REUPLOAD_NOT_ALLOWED_MESSAGE, AUTH_KYC_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.KycErrors.KYC_REUPLOAD_NOT_ALLOWED_MESSAGE,
+                ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID);
         }
     }
 
@@ -1040,17 +1052,19 @@ public class UserService : IUserService
         KycMasterDataContextModel masterData,
         CancellationToken cancellationToken)
     {
-        // The normalized identifier is the uniqueness key across all party contexts.
-        var normalizedIdentifierValue = request.IdentifierValue;
+        // The submitted identifier value is the uniqueness key across all party contexts.
+        var identifierValue = request.IdentifierValue;
         var partyIds = parties.Select(x => x.Id).ToHashSet();
         var identifier = await _kycRepositories.PartyIdentifierRepository.GetByTypeAndValueAsync(
             masterData.IdentifierType.Id,
-            normalizedIdentifierValue,
+            identifierValue,
             cancellationToken);
 
         if (identifier is not null && !partyIds.Contains(identifier.PartyId))
         {
-            throw new ApiException(KYC_IDENTIFIER_ALREADY_USED_MESSAGE, AUTH_KYC_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.KycErrors.KYC_IDENTIFIER_ALREADY_USED_MESSAGE,
+                ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID);
         }
 
         if (identifier is null)
@@ -1060,7 +1074,7 @@ public class UserService : IUserService
             {
                 PartyId = parties.First().Id,
                 IdentifierTypeId = masterData.IdentifierType.Id,
-                IdentifierValue = normalizedIdentifierValue
+                IdentifierValue = identifierValue
             };
             await _kycRepositories.PartyIdentifierRepository.AddAsync(identifier, cancellationToken);
         }
@@ -1095,15 +1109,15 @@ public class UserService : IUserService
             new MasterDataValueRequirementModel(
                 PARTY_STATUS_TYPE,
                 ACTIVE_STATUS,
-                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                AUTH_FORBIDDEN_OPERATION));
+                ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_FORBIDDEN_OPERATION));
         var partyType = MasterDataValueHelper.GetRequired(
             masterDataValues,
             new MasterDataValueRequirementModel(
                 PARTY_TYPE_TYPE,
                 targetPartyType,
-                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                AUTH_FORBIDDEN_OPERATION));
+                ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_FORBIDDEN_OPERATION));
 
         // Create the missing party context, link it to the user, and make it current atomically.
         await _unitOfWork.ExecuteInTransactionAsync(
@@ -1112,7 +1126,10 @@ public class UserService : IUserService
                 var party = new Party
                 {
                     PartyTypeId = partyType.Id,
-                    DisplayName = string.Format(PARTY_CONTEXT_DISPLAY_NAME_SUFFIX_FORMAT, user.FullName, partyType.Name),
+                    DisplayName = string.Format(
+                        PARTY_CONTEXT_DISPLAY_NAME_SUFFIX_FORMAT,
+                        user.FullName,
+                        partyType.Name),
                     PrimaryEmail = user.Email,
                     PrimaryPhone = user.PhoneNumber,
                     StatusId = partyStatus.Id

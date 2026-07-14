@@ -55,7 +55,7 @@ public static class ValidationMessage
     /// Placeholder: {PropertyName}.
     /// </summary>
     public const string COLLECTION_MUST_CONTAIN_ITEM = "{PropertyName} must contain at least one item.";
-    
+
     /// <summary>
     /// Enum value is not defined in its type.
     /// Placeholder: {PropertyName}.
@@ -187,7 +187,7 @@ public static class ValidationMessage
     /// Placeholder: {PropertyName}.
     /// </summary>
     public const string DATE_AFTER_NOW = "{PropertyName} must be greater than the current date.";
-    
+
     /// <summary>
     /// Guard text used when a range rule is misconfigured: min must be less than or equal to max.
     /// </summary>

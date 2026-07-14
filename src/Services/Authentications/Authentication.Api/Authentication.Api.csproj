@@ -6,6 +6,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <UserSecretsId>haven-authentication-local</UserSecretsId>
         <NoWarn>$(NoWarn);1591</NoWarn>
     </PropertyGroup>
 

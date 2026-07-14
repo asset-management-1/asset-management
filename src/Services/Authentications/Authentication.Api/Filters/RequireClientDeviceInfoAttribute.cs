@@ -33,8 +33,8 @@ public sealed class RequireClientDeviceInfoAttribute : Attribute, IAsyncResource
 
         // Keep the client error generic so missing metadata details do not leak into service code paths.
         throw new ApiException(
-            DEVICE_INFO_REQUIRED_MESSAGE,
-            AUTH_DEVICE_INFO_REQUIRED,
+            ApplicationErrorConstants.AccountErrors.DEVICE_INFO_REQUIRED_MESSAGE,
+            ApplicationErrorConstants.TokenErrorCodes.AUTH_DEVICE_INFO_REQUIRED,
             StatusCodes.Status400BadRequest);
     }
 

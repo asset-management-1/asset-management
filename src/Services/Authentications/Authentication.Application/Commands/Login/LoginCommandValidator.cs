@@ -6,7 +6,7 @@ namespace Authentication.Application.Commands.Login;
 public class LoginCommandValidator : AbstractValidator<LoginCommand>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="LoginCommandValidator"/> class.
+    /// Creates validation rules for login credentials before lockout checks run.
     /// </summary>
     public LoginCommandValidator()
     {

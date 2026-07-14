@@ -61,7 +61,7 @@ public class PropertyCreationRequestModel
     public decimal? Longitude { get; set; }
 
     /// <summary>
-    /// Gets or sets the generated structure setup.
+    /// Gets or sets the final floor and room structure submitted by the frontend.
     /// </summary>
     public CreatePropertyStructureRequestDto StructureSetup { get; set; }
 
@@ -71,14 +71,9 @@ public class PropertyCreationRequestModel
     public IReadOnlyList<CreatePropertyChargePolicyRequestDto> ChargePolicies { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets optional service/furniture packages copied to each generated room.
+    /// Gets or sets optional common service and furniture packages for the property.
     /// </summary>
     public IReadOnlyList<CreatePropertyPackageRequestDto> Packages { get; set; } = [];
-
-    /// <summary>
-    /// Gets or sets resolved master-data values used to map the entity graph.
-    /// </summary>
-    public IReadOnlyDictionary<MasterDataKeyModel, MasterDataValueModel> MasterData { get; set; }
 
     /// <summary>
     /// Gets or sets resolved location values used to map the property address.

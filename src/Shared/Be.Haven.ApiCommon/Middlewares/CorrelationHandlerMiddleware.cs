@@ -28,7 +28,7 @@ public class CorrelationHandlerMiddleware
 
         // 3) Add correlation ID to OpenTelemetry activity
         var currentActivity = Activity.Current;
-        
+
         if (currentActivity != null)
         {
             currentActivity.SetTag(OTEL_CORRELATION_ID_TAG, correlationId);

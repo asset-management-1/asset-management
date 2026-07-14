@@ -26,8 +26,18 @@ public class RentalChargePolicyConfiguration : IEntityTypeConfiguration<RentalCh
             .HasForeignKey(x => x.PropertyId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        entity.HasOne(x => x.Unit)
+            .WithMany(x => x.RentalChargePolicies)
+            .HasForeignKey(x => x.UnitId)
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
+
         entity.HasIndex(x => x.PublicId).IsUnique();
         entity.HasIndex(x => new { x.PropertyId, x.StatusId })
             .HasFilter("\"IsDeleted\" = FALSE");
+        entity.HasIndex(x => new { x.PropertyId, x.LineTypeId, x.VehicleTypeId })
+            .HasFilter("\"UnitId\" IS NULL AND \"IsDeleted\" = FALSE");
+        entity.HasIndex(x => new { x.UnitId, x.LineTypeId, x.VehicleTypeId })
+            .HasFilter("\"UnitId\" IS NOT NULL AND \"IsDeleted\" = FALSE");
     }
 }

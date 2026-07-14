@@ -12,6 +12,8 @@ internal sealed class CoreSampleValidationModel
 
     public Guid PublicId { get; set; }
 
+    public Guid? OptionalPublicId { get; set; }
+
     public int Count { get; set; }
 
     public int OtherCount { get; set; }
@@ -37,4 +39,6 @@ internal sealed class CoreSampleValidationModel
     public CoreSampleStatusEnum? OptionalStatus { get; set; }
 
     public string StatusCsv { get; set; }
+
+    public IFormFile ImageFile { get; set; }
 }

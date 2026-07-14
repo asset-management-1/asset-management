@@ -92,6 +92,7 @@ internal static class AuthSessionHelper
         // Reuse the existing row when present so repeated login/refresh does not append rows.
         var refreshToken = request.SessionRefreshToken ?? new RefreshToken();
         var currentTokenHash = refreshToken.TokenHash;
+
         if (request.RenewSessionPublicId || !refreshToken.SessionPublicId.HasValue)
         {
             refreshToken.SessionPublicId = Guid.NewGuid();
@@ -134,11 +135,6 @@ internal static class AuthSessionHelper
             new(ClaimTypes.Name, user.UserName ?? string.Empty),
             new(JwtRegisteredClaimNames.Jti, jwtId),
             new(TokenClaimTypes.SESSION_ID, refreshToken.SessionPublicId?.ToString() ?? string.Empty),
-            new(TokenClaimTypes.DEVICE_ID, refreshToken.DeviceId ?? string.Empty),
-            new(TokenClaimTypes.DEVICE_NAME, refreshToken.DeviceName ?? string.Empty),
-            new(TokenClaimTypes.DEVICE_TYPE, refreshToken.DeviceType ?? string.Empty),
-            new(TokenClaimTypes.USER_AGENT, refreshToken.UserAgent ?? string.Empty),
-            new(TokenClaimTypes.IP_ADDRESS, refreshToken.IpAddress ?? string.Empty),
             new(
                 TokenClaimTypes.HAVEN_ISSUED_AT_MS,
                 TokenHelper.ToUnixTimeMilliseconds(issuedAt).ToString(CultureInfo.InvariantCulture))

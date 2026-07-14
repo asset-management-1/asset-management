@@ -59,7 +59,7 @@ public class RestClientMultipleService : IRestClientMultipleService
         // Set the timeout for the request
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TIME_RUN_REQUEST));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
-        
+
         try
         {
             var httpClient = _httpClientFactory.CreateClient(request.HttpClientName);
@@ -123,7 +123,7 @@ public class RestClientMultipleService : IRestClientMultipleService
             return new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.GatewayTimeout,
-                Content = new StringContent(string.Format(ERROR_REQUEST_TIMEOUT, TIME_RUN_REQUEST,  ex.Message))
+                Content = new StringContent(string.Format(ERROR_REQUEST_TIMEOUT, TIME_RUN_REQUEST, ex.Message))
             };
         }
         catch (HttpRequestException ex)
@@ -149,7 +149,7 @@ public class RestClientMultipleService : IRestClientMultipleService
                 request.HttpClientName,
                 HttpMethod.Post.Method,
                 request.RequestUri);
-            
+
             return new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.ServiceUnavailable,
@@ -164,7 +164,7 @@ public class RestClientMultipleService : IRestClientMultipleService
                 request.HttpClientName,
                 HttpMethod.Post.Method,
                 request.RequestUri);
-            
+
             return new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.InternalServerError,
@@ -199,7 +199,7 @@ public class RestClientMultipleService : IRestClientMultipleService
 
         // Create the HTTP content for the request
         using var httpContent = CreateHttpContent(request);
-        
+
         // Set the timeout for the request
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TIME_RUN_REQUEST));
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, cts.Token);
@@ -225,7 +225,7 @@ public class RestClientMultipleService : IRestClientMultipleService
             return new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.GatewayTimeout,
-                Content = new StringContent(string.Format(ERROR_REQUEST_TIMEOUT, TIME_RUN_REQUEST,  ex.Message))
+                Content = new StringContent(string.Format(ERROR_REQUEST_TIMEOUT, TIME_RUN_REQUEST, ex.Message))
             };
         }
         catch (HttpRequestException ex)
@@ -236,7 +236,7 @@ public class RestClientMultipleService : IRestClientMultipleService
                 request.HttpClientName,
                 HttpMethod.Put.Method,
                 request.RequestUri);
-            
+
             return new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.GatewayTimeout,
@@ -251,7 +251,7 @@ public class RestClientMultipleService : IRestClientMultipleService
                 request.HttpClientName,
                 HttpMethod.Put.Method,
                 request.RequestUri);
-            
+
             return new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.ServiceUnavailable,
@@ -266,7 +266,7 @@ public class RestClientMultipleService : IRestClientMultipleService
                 request.HttpClientName,
                 HttpMethod.Put.Method,
                 request.RequestUri);
-            
+
             return new HttpResponseMessage
             {
                 StatusCode = HttpStatusCode.InternalServerError,

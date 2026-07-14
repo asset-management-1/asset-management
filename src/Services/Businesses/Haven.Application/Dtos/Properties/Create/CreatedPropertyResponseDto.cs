@@ -21,17 +21,17 @@ public class CreatedPropertyResponseDto
     public string Name { get; set; }
 
     /// <summary>
-    /// Gets or sets the generated floor count.
+    /// Gets or sets the persisted floor count.
     /// </summary>
     public int TotalFloors { get; set; }
 
     /// <summary>
-    /// Gets or sets the generated room count.
+    /// Gets or sets the persisted room count.
     /// </summary>
     public int TotalRooms { get; set; }
 
     /// <summary>
-    /// Gets or sets the generated floor summaries.
+    /// Gets or sets the persisted floor summaries.
     /// </summary>
     public IReadOnlyList<CreatedPropertyFloorResponseDto> Floors { get; set; } = [];
 }

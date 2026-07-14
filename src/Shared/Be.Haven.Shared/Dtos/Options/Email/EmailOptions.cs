@@ -1,5 +1,7 @@
 namespace Be.Haven.Shared.Dtos.Options.Email;
 
+using System.ComponentModel.DataAnnotations;
+
 /// <summary>
 /// Represents configuration settings for sending emails.
 /// </summary>
@@ -8,16 +10,19 @@ public class EmailOptions
     /// <summary>
     /// Gets or sets the SendGrid API key.
     /// </summary>
+    [Required]
     public string ApiKey { get; set; }
 
     /// <summary>
     /// Gets or sets the default sender email address.
     /// </summary>
+    [Required, EmailAddress]
     public string FromEmail { get; set; }
 
     /// <summary>
     /// Gets or sets the default sender display name.
     /// </summary>
+    [Required]
     public string FromName { get; set; }
 
     /// <summary>

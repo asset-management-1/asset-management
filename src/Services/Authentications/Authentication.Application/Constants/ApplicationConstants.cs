@@ -11,19 +11,29 @@ public static class ApplicationConstants
     public const string USER_INFO_CACHE_KEY = "auth:user-info";
 
     /// <summary>
-    /// Generic unauthorized-request message used by application handlers.
+    /// Minimum accepted password length for authentication password validators.
     /// </summary>
-    public const string UNAUTHORIZED_REQUEST_MESSAGE = "Unauthorized request.";
+    public const int PASSWORD_MINIMUM_LENGTH = 8;
 
     /// <summary>
-    /// Master-data type code for user profile gender values.
+    /// Regular expression that requires at least one uppercase Latin letter in a password.
     /// </summary>
-    public const string GENDER_TYPE = "Gender";
+    public const string PASSWORD_UPPERCASE_PATTERN = "[A-Z]";
 
     /// <summary>
-    /// Validation message returned when a target context is unsupported.
+    /// Regular expression that requires at least one lowercase Latin letter in a password.
     /// </summary>
-    public const string INVALID_TARGET_CONTEXT_VALIDATION_MESSAGE = "TargetContext must be tenant or landlord.";
+    public const string PASSWORD_LOWERCASE_PATTERN = "[a-z]";
+
+    /// <summary>
+    /// Regular expression that requires at least one numeric digit in a password.
+    /// </summary>
+    public const string PASSWORD_NUMBER_PATTERN = "[0-9]";
+
+    /// <summary>
+    /// Regular expression that requires at least one supported special character in a password.
+    /// </summary>
+    public const string PASSWORD_SPECIAL_CHARACTER_PATTERN = "[@$!%*?&]";
 
     /// <summary>
     /// OTP purpose code used by the register flow.
@@ -39,11 +49,6 @@ public static class ApplicationConstants
     /// OTP purpose code used by the change-email flow.
     /// </summary>
     public const string CHANGE_EMAIL_PURPOSE = "change-email";
-
-    /// <summary>
-    /// Master-data code for the active status value.
-    /// </summary>
-    public const string ACTIVE_STATUS = "ACTIVE";
 
     /// <summary>
     /// Master-data type code for user-account status values.
@@ -109,26 +114,6 @@ public static class ApplicationConstants
     /// Time-to-live, in minutes, for forgot-password reset sessions.
     /// </summary>
     public const int RESET_SESSION_TTL_MINUTES = 5;
-
-    /// <summary>
-    /// Email subject used when sending register verification OTP emails.
-    /// </summary>
-    public const string EMAIL_SUBJECT_VERIFY_ACCOUNT = "Verify your Haven account";
-
-    /// <summary>
-    /// Email subject used when sending forgot-password OTP emails.
-    /// </summary>
-    public const string EMAIL_SUBJECT_RESET_PASSWORD = "Reset your Haven password";
-
-    /// <summary>
-    /// Email subject used when sending change-email OTP emails to the new address.
-    /// </summary>
-    public const string EMAIL_SUBJECT_CHANGE_EMAIL = "Verify your new Haven email";
-
-    /// <summary>
-    /// Email subject used when notifying the previous address about a change-email request.
-    /// </summary>
-    public const string EMAIL_SUBJECT_CHANGE_EMAIL_SECURITY = "Security notice: email change requested";
 
     /// <summary>
     /// Token type returned for JWT bearer authentication.

@@ -27,7 +27,7 @@ public static class ServiceRegistration
 
         var cacheOption = configuration.GetSection(CACHE_SETTING).Get<CacheOptions>()
             ?? throw new InvalidOperationException(ERROR_CACHE_OPTION_MISSING);
-        
+
         // Retrieve Redis configuration settings
         services.AddTransient<ICachingService, CachingService>(); // Add caching service to the service collection
 
@@ -39,7 +39,7 @@ public static class ServiceRegistration
             services.AddTransient<ICacheVersionService, InMemoryCacheVersionService>();
             return; // Exit the method
         }
- 
+
         var passwordRedis = cacheOption.RedisSettings.Password;
 
         try

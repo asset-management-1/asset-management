@@ -5,11 +5,17 @@ namespace Be.Haven.Core.Services.Gcp;
 /// </summary>
 public sealed class GcpPubSubPublisherClientFactoryService : IGcpPubSubPublisherClientFactory
 {
-    /// <inheritdoc />
+    /// <summary>
+    /// Creates a Pub/Sub publisher client for the supplied topic.
+    /// </summary>
+    /// <param name="topicName">The Pub/Sub topic name.</param>
+    /// <param name="cancellationToken">The token used to cancel client creation.</param>
+    /// <returns>The shared publisher client wrapper.</returns>
     public async Task<IGcpPubSubPublisherClient> CreateAsync(
         TopicName topicName,
         CancellationToken cancellationToken)
     {
+        // Let Google client builder choose emulator or production based on local environment configuration.
         var publisherClient = await new PublisherClientBuilder
         {
             TopicName = topicName,

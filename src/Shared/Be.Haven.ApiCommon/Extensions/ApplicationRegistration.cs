@@ -18,7 +18,7 @@ public static class ApplicationRegistration
         app.UseMiddleware<CorrelationHandlerMiddleware>();
         app.UseMiddleware<ErrorHandlerMiddleware>();
     }
-    
+
     /// <summary>
     /// Configures and applies necessary application-level middlewares to the request pipeline.
     /// Adds the error handling middleware to manage exceptions and produce consistent error responses.
@@ -120,7 +120,7 @@ public static class ApplicationRegistration
         {
             return;
         }
-                
+
         context.Response.ContentType = TEXT_JSON;
 
         var response = new

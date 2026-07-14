@@ -1,5 +1,5 @@
-using Microsoft.OpenApi;
 using System.Reflection;
+using Microsoft.OpenApi;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.ApiCommon.Filters;
 

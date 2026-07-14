@@ -6,7 +6,12 @@ namespace Haven.Application.Models.Properties.Create;
 public class PropertyUnitPackageBuildModel
 {
     /// <summary>
-    /// Gets or sets the unit that owns the package.
+    /// Gets or sets the property that owns the package.
+    /// </summary>
+    public Property Property { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional room that owns an override package.
     /// </summary>
     public Unit Unit { get; set; }
 
@@ -21,7 +26,7 @@ public class PropertyUnitPackageBuildModel
     public MasterDataValueModel Status { get; set; }
 
     /// <summary>
-    /// Gets or sets the package code unique within the unit.
+    /// Gets or sets the package code unique within the property or overridden room.
     /// </summary>
     public string PackageCode { get; set; }
 

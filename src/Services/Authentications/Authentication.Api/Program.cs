@@ -1,13 +1,8 @@
 var builder = WebApplication.CreateBuilder(args);
 
-var env = builder.Environment.EnvironmentName;
-
-IConfiguration configuration = new ConfigurationBuilder()
-    .AddJsonFile(APPSETTING_JSON, optional: false, reloadOnChange: true)
-    .AddJsonFile(string.Format(APPSETTING_DEVELOPMENT_JSON, env), optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables()
-    .Build();
-configuration = await configuration.ApplySecretsAsync();
+// Preserve the host configuration pipeline, including Development User Secrets, before applying
+// the optional production Secret Manager overlay.
+IConfiguration configuration = await builder.Configuration.ApplySecretsAsync();
 
 // Observability
 builder.Services.AddConfiguredLogging(configuration);

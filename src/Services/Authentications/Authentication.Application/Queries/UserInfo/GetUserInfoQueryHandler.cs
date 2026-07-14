@@ -31,7 +31,8 @@ public class GetUserInfoQueryHandler : IQueryHandler<GetUserInfoQuery, ResponseD
     {
         // User info is resolved entirely from the authenticated principal and cached per user by the cache behavior.
         var result = await _userService.GetUserInfoAsync(cancellationToken);
-        _logger.LogInformation(USER_INFO_LOADED);
+
+        _logger.LogInformation(ApplicationLogConstants.ProfileLogs.USER_INFO_LOADED);
 
         return new ResponseDto<UserInfoResponseDto>(result);
     }

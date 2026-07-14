@@ -44,24 +44,24 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
             cancellationToken);
         if (registerSession?.PendingRegister is null || registerSession.Otp is null)
         {
-            throw new ApiException(REGISTRATION_SESSION_EXPIRED_MESSAGE, AUTH_PENDING_REGISTER_NOT_FOUND);
+            throw new ApiException(ApplicationErrorConstants.OtpErrors.REGISTRATION_SESSION_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_PENDING_REGISTER_NOT_FOUND);
         }
 
-        _logger.LogInformation(VERIFY_REGISTER_FLOW_STEP1_SESSION_LOADED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP1_SESSION_LOADED);
 
         await VerifyOtpAsync(registerSessionKey, registerSession, verifyRequest.Otp, cancellationToken);
-        _logger.LogInformation(VERIFY_REGISTER_FLOW_STEP2_OTP_VERIFIED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP2_OTP_VERIFIED);
 
         // Account creation re-checks uniqueness and writes Party + User + UserParty atomically.
         var result = await _authenticationService.CompleteRegistrationAsync(
             registerSession.PendingRegister,
             cancellationToken);
-        _logger.LogInformation(VERIFY_REGISTER_FLOW_STEP3_ACCOUNT_CREATED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP3_ACCOUNT_CREATED);
 
         // Consume the register session only after the account graph is created successfully.
         await _cachingService.RemoveAsync(registerSessionKey, cancellationToken);
-        _logger.LogInformation(VERIFY_REGISTER_FLOW_STEP4_SESSION_REMOVED);
-        _logger.LogInformation(VERIFY_REGISTER_FLOW_COMPLETED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP4_SESSION_REMOVED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_COMPLETED);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
@@ -80,17 +80,25 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
         string otp,
         CancellationToken cancellationToken)
     {
+        // The registration session owns both pending account data and the current one-time OTP state.
         var otpEntry = registerSession.Otp;
+
         if (otpEntry is null || string.IsNullOrWhiteSpace(otpEntry.Code))
         {
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
+        // Expired sessions are removed so pending registration data cannot outlive its OTP.
         var remainingTtl = otpEntry.ExpiresAtUtc - DateTime.UtcNow;
+
         if (remainingTtl <= TimeSpan.Zero)
         {
             await _cachingService.RemoveAsync(registerSessionKey, cancellationToken);
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
         if (!string.Equals(otpEntry.Code, otp, StringComparison.Ordinal))
@@ -100,7 +108,7 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
             if (otpEntry.Attempts >= OTP_MAX_VERIFY_ATTEMPTS)
             {
                 await _cachingService.RemoveAsync(registerSessionKey, cancellationToken);
-                _logger.LogInformation(VERIFY_REGISTER_FLOW_OTP_LOCKED);
+                _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_OTP_LOCKED);
             }
             else
             {
@@ -109,10 +117,13 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
                     registerSession,
                     remainingTtl,
                     cancellationToken);
-                _logger.LogInformation(VERIFY_REGISTER_FLOW_OTP_ATTEMPT_RECORDED);
+                _logger.LogInformation(
+                    ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_OTP_ATTEMPT_RECORDED);
             }
 
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
     }
 }

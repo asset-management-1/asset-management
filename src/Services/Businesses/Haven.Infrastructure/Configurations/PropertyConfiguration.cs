@@ -23,6 +23,9 @@ public class PropertyConfiguration : IEntityTypeConfiguration<Property>
         entity.Property(x => x.Latitude).HasPrecision(18, 10);
         entity.Property(x => x.Longitude).HasPrecision(18, 10);
         entity.Property(x => x.IsPublished).HasDefaultValue(false);
+        entity.Property(x => x.DeleteRequestedAt);
+        entity.Property(x => x.DeleteScheduledAt);
+        entity.Property(x => x.DeleteRequestedByPartyId);
         entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         entity.Property(x => x.IsDeleted).HasDefaultValue(false);
 
@@ -34,5 +37,7 @@ public class PropertyConfiguration : IEntityTypeConfiguration<Property>
             .HasFilter("\"IsDeleted\" = FALSE");
         entity.HasIndex(x => new { x.StatusId, x.IsPublished })
             .HasFilter("\"IsDeleted\" = FALSE");
+        entity.HasIndex(x => x.DeleteScheduledAt)
+            .HasFilter("\"DeleteScheduledAt\" IS NOT NULL AND \"IsDeleted\" = FALSE");
     }
 }

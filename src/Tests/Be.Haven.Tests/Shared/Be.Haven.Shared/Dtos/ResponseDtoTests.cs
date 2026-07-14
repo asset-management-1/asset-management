@@ -63,11 +63,11 @@ public sealed class ResponseDtoTests
     public void Constructor_Should_SetProvidedStatusCodeAndDefaultMeta_When_ErrorIsProvided()
     {
         // Act
-        var result = new ResponseDto<string>("error_conflict", "conflict", StatusCodes.Status409Conflict);
+        var result = new ResponseDto<string>("error_forbidden", "forbidden", StatusCodes.Status403Forbidden);
 
         // Assert
         result.Success.Should().BeFalse();
-        result.Error.StatusCode.Should().Be(StatusCodes.Status409Conflict);
+        result.Error.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
         result.Meta.Should().NotBeNull();
     }
 }

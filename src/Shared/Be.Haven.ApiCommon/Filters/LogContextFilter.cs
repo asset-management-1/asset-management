@@ -5,14 +5,14 @@ public sealed class LogContextFilter : IAsyncActionFilter, IAsyncResultFilter, I
     public int Order => int.MaxValue;
 
     private readonly ILogger<LogContextFilter> _logger;
-    
+
     private readonly JsonSerializerSettings _jsonSerializerSettings = new()
     {
         ContractResolver = new CamelCasePropertyNamesContractResolver(),
         NullValueHandling = NullValueHandling.Ignore,
         MissingMemberHandling = MissingMemberHandling.Ignore
     };
-    
+
     public LogContextFilter(ILogger<LogContextFilter> logger)
     {
         _logger = logger;
@@ -35,7 +35,7 @@ public sealed class LogContextFilter : IAsyncActionFilter, IAsyncResultFilter, I
         // Collect all action arguments after model binding (JSON, form, query, route, etc.)
         // and sanitize them (e.g., strip IFormFile content, keep only metadata).
         var requestObject = context.ActionArguments.SanitizeArgs();
-    
+
         // Serialize the sanitized arguments:
         //  - null   → null
         //  - string → keep as-is

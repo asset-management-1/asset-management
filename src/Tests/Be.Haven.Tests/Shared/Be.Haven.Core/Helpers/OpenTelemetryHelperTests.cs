@@ -1,8 +1,8 @@
+using System.Reflection;
 using Be.Haven.Shared.Dtos.Options.Observability;
 using OpenTelemetry;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using System.Reflection;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Helpers;
 

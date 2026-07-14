@@ -78,7 +78,7 @@ public static class AuthConstants
     /// Attribute key for the internal factory identifier.
     /// </summary>
     public const string NA_FACTORY_ID = "na_factory_id";
-    
+
     /// <summary>
     /// Attribute key used on the NA/Keycloak side to store the mapped customer id.
     /// Note the lower-camel case to match NA attribute naming conventions.
@@ -169,31 +169,6 @@ public static class AuthConstants
         /// Server-issued public identifier for the authenticated client session.
         /// </summary>
         public const string SESSION_ID = "session_id";
-
-        /// <summary>
-        /// Client-supplied app/browser instance identifier recorded as session metadata.
-        /// </summary>
-        public const string DEVICE_ID = "device_id";
-
-        /// <summary>
-        /// Client-supplied device display name recorded as session metadata.
-        /// </summary>
-        public const string DEVICE_NAME = "device_name";
-
-        /// <summary>
-        /// Client-supplied device type recorded as session metadata.
-        /// </summary>
-        public const string DEVICE_TYPE = "device_type";
-
-        /// <summary>
-        /// Request user-agent value recorded as session metadata.
-        /// </summary>
-        public const string USER_AGENT = "user_agent";
-
-        /// <summary>
-        /// Remote IP address value recorded as session metadata.
-        /// </summary>
-        public const string IP_ADDRESS = "ip_address";
 
         /// <summary>
         /// OpenID Connect subject claim.

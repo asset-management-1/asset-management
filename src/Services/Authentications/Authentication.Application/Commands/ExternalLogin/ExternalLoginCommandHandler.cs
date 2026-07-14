@@ -35,7 +35,7 @@ public class ExternalLoginCommandHandler : ICommandHandler<ExternalLoginCommand,
         var result = await _externalAuthenticationService.LoginAsync(
             request.Adapt<ExternalLoginRequestDto>(),
             cancellationToken);
-        _logger.LogInformation(EXTERNAL_LOGIN_COMPLETED, request.Provider);
+        _logger.LogInformation(ApplicationLogConstants.ExternalProviderLogs.EXTERNAL_LOGIN_COMPLETED, request.Provider);
 
         return new ResponseDto<LoginResponseDto>(result);
     }

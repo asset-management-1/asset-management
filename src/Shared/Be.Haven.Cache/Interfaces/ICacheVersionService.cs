@@ -8,7 +8,7 @@ public interface ICacheVersionService
     /// </summary>
     /// <returns>A string representing the current UTC date in "yyyyMMdd" format.</returns>
     string GetEpoch();
-    
+
     /// <summary>
     /// Asynchronously retrieves the current cache version for the current epoch.
     /// </summary>
@@ -17,7 +17,7 @@ public interface ICacheVersionService
     /// <param name="epoch">The epoch window used to partition version counters.</param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the current cache version as a long value.</returns>
     Task<long> GetAsync(string cacheGroup, string cacheScope, string epoch);
-    
+
     /// <summary>
     /// Increments the cache version for the current epoch, effectively invalidating stale cache keys.
     /// Implementations must either return an advanced version or throw; write invalidation must not fail open.

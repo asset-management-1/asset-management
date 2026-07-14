@@ -1,7 +1,9 @@
-using Haven.Application.Mappings;
 using Haven.Application.Dtos.Properties.Create;
 using Haven.Application.Dtos.Properties.Detail;
 using Haven.Application.Dtos.Properties.List;
+using Haven.Application.Mappings.Properties;
+using Haven.Application.Mappings.Rooms;
+using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
@@ -19,7 +21,6 @@ public sealed class PropertyResponseMapperTests
 {
     static PropertyResponseMapperTests()
     {
-        new PropertyMapping().Register(TypeAdapterConfig.GlobalSettings);
     }
 
     [Fact]
@@ -158,7 +159,8 @@ public sealed class PropertyResponseMapperTests
                 "Summary",
                 "OccupiedUnitCount",
                 "MaintenanceUnitCount",
-                "PublishedUnitCount"
+                "PublishedUnitCount",
+                "ThumbnailUrl"
             ]);
     }
 
@@ -213,12 +215,17 @@ public sealed class PropertyResponseMapperTests
         propertyNames.Should().Contain("DefaultDepositAmount");
         propertyNames.Should().Contain(["Code", "Name", "TypeCode", "TypeName"]);
         propertyNames.Should().NotContain(["TotalBedrooms", "TotalBathrooms"]);
+        propertyNames.Should().NotContain("DeleteInfo");
         propertyNames.Should().NotContain(["UnitCode", "UnitName", "UnitTypeCode", "UnitTypeName", "FloorNumber"]);
     }
 
     [Fact]
     public void PropertyDetailResponseDtos_Should_UseFrontendFriendlyNames()
     {
+        var detailNames = typeof(PropertyDetailResponseDto)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
         var basicInfoNames = typeof(PropertyDetailBasicInfoResponseDto)
             .GetProperties()
             .Select(property => property.Name)
@@ -239,17 +246,33 @@ public sealed class PropertyResponseMapperTests
             .GetProperties()
             .Select(property => property.Name)
             .ToArray();
+        var wholeBuildingNames = typeof(PropertyWholeBuildingRentalResponseDto)
+            .GetProperties()
+            .Select(property => property.Name)
+            .ToArray();
 
-        basicInfoNames.Should().Contain("Code");
-        basicInfoNames.Should().NotContain(["PropertyCode", "Description"]);
+        detailNames.Should().Contain(["BasicInfo", "Structure", "WholeBuildingRental", "ChargePolicies", "PackageTemplates"]);
+        detailNames.Should().NotContain(["Address", "ManagementSummary"]);
+        basicInfoNames.Should().Contain(["Code", "ProvinceCode", "DistrictCode", "WardCode", "StreetAddress", "FormattedAddress"]);
+        basicInfoNames.Should().NotContain([
+            "PropertyCode",
+            "Description",
+            "IsPublished",
+            "IsPendingDelete",
+            "DeleteScheduledAt",
+            "DeleteInfo",
+            "ThumbnailUrl"
+        ]);
         floorNames.Should().Contain("Number");
-        floorNames.Should().NotContain("FloorNumber");
+        floorNames.Should().NotContain(["FloorNumber", "DeleteInfo"]);
         chargePolicyNames.Should().Contain(["Code", "Name", "CalculationMethodCode"]);
         chargePolicyNames.Should().NotContain(["ChargeTypeCode", "ChargeTypeName", "ChargeName", "IsUsageBased"]);
-        packageNames.Should().Contain(["Code", "Name"]);
+        packageNames.Should().Contain(["Id", "Name"]);
         packageNames.Should().NotContain(["PackageCode", "PackageName"]);
         packageItemNames.Should().Contain("Name");
         packageItemNames.Should().NotContain("ItemName");
+        wholeBuildingNames.Should().Contain("Contract");
+        wholeBuildingNames.Should().NotContain("CanCreate");
     }
 
     [Fact]
@@ -276,11 +299,12 @@ public sealed class PropertyResponseMapperTests
                 StatusName = "Active"
             }
         };
+        var packagePublicId = Guid.NewGuid();
         var packageTemplates = new[]
         {
             new PropertyPackageTemplateRowModel
             {
-                PackageCode = "PKG-001",
+                PackagePublicId = packagePublicId,
                 PackageName = "Gói Full Nội thất",
                 PriceAdjustment = 1_500_000,
                 ItemName = "Giường ngủ King Size",
@@ -288,25 +312,21 @@ public sealed class PropertyResponseMapperTests
             },
             new PropertyPackageTemplateRowModel
             {
-                PackageCode = "PKG-001",
+                PackagePublicId = packagePublicId,
                 PackageName = "Gói Full Nội thất",
                 PriceAdjustment = 1_500_000,
                 ItemName = "Tủ lạnh 200L",
                 DisplayOrder = 2
             }
         };
-        var managementSummary = new PropertyManagementSummaryRowModel
-        {
-            TenantCount = 3,
-            ActiveContractCount = 2,
-            DocumentCount = 4,
-            UnpaidInvoiceCount = 1
-        };
 
-        var result = PropertyResponseMapper.MapDetail(row, floors, rooms, chargePolicies, packageTemplates, managementSummary);
+        var result = PropertyResponseMapper.MapDetail(row, floors, rooms, chargePolicies, packageTemplates, null);
 
         result.BasicInfo.Id.Should().Be(propertyPublicId);
         result.BasicInfo.Code.Should().Be("PROP-A");
+        result.BasicInfo.ProvinceCode.Should().Be("HCM");
+        result.BasicInfo.DistrictCode.Should().Be("D1");
+        result.BasicInfo.WardCode.Should().Be("W1");
         result.Structure.TotalFloors.Should().Be(2);
         result.Structure.Floors.Should().ContainSingle();
         result.Structure.Floors[0].Number.Should().Be(1);
@@ -319,11 +339,71 @@ public sealed class PropertyResponseMapperTests
         result.ChargePolicies[0].Name.Should().Be("Electricity");
         result.ChargePolicies[0].CalculationMethodCode.Should().Be(CALCULATION_METHOD_FIXED);
         result.PackageTemplates.Should().ContainSingle();
-        result.PackageTemplates[0].Code.Should().Be("PKG-001");
+        result.PackageTemplates[0].Id.Should().Be(packagePublicId);
         result.PackageTemplates[0].Name.Should().Be("Gói Full Nội thất");
         result.PackageTemplates[0].Items.Select(item => item.Name).Should().Equal("Giường ngủ King Size", "Tủ lạnh 200L");
-        result.ManagementSummary.TotalTenants.Should().Be(3);
-        result.ManagementSummary.TotalUnpaidInvoices.Should().Be(1);
+    }
+
+    [Fact]
+    public void MapDetail_Should_ReturnWholeBuildingRentalCta_When_BuildingUnitExistsAndNoRentalExists()
+    {
+        var row = BuildPropertyRow(Guid.NewGuid(), "PROP-A");
+        var wholeBuildingRental = new PropertyWholeBuildingRentalRowModel();
+
+        var result = PropertyResponseMapper.MapDetail(row, [], [], [], [], wholeBuildingRental);
+
+        result.WholeBuildingRental.Should().NotBeNull();
+        result.WholeBuildingRental.Contract.Should().BeNull();
+    }
+
+    [Fact]
+    public void MapDetail_Should_ReturnWholeBuildingRentalContract_When_BuildingUnitHasContract()
+    {
+        var row = BuildPropertyRow(Guid.NewGuid(), "PROP-A");
+        var contractPublicId = Guid.NewGuid();
+        var tenantPublicId = Guid.NewGuid();
+        var wholeBuildingRental = new PropertyWholeBuildingRentalRowModel
+        {
+            ContractPublicId = contractPublicId,
+            ContractCode = "HD-001",
+            TenantPublicId = tenantPublicId,
+            TenantName = "NextGen Globals Inc.",
+            StatusCode = "ACTIVE",
+            StatusName = "Đang hiệu lực",
+            TotalRentAmount = 45_000_000,
+            StartDate = new DateTime(2026, 10, 12),
+            EndDate = new DateTime(2027, 10, 12)
+        };
+
+        var result = PropertyResponseMapper.MapDetail(
+            row,
+            [],
+            [],
+            [],
+            [],
+            wholeBuildingRental);
+
+        result.WholeBuildingRental.Should().NotBeNull();
+        result.WholeBuildingRental.Contract.Id.Should().Be(contractPublicId);
+        result.WholeBuildingRental.Contract.TenantId.Should().Be(tenantPublicId);
+        result.WholeBuildingRental.Contract.Tenant.Should().Be("NextGen Globals Inc.");
+        result.WholeBuildingRental.Contract.TotalRentAmount.Should().Be(45_000_000);
+    }
+
+    [Fact]
+    public void MapDetail_Should_HideWholeBuildingRental_When_PropertyHasOnlyNormalRoomRentals()
+    {
+        var row = BuildPropertyRow(Guid.NewGuid(), "PROP-A");
+
+        var result = PropertyResponseMapper.MapDetail(
+            row,
+            [],
+            [],
+            [],
+            [],
+            null);
+
+        result.WholeBuildingRental.Should().BeNull();
     }
 
     [Fact]
@@ -337,7 +417,8 @@ public sealed class PropertyResponseMapperTests
             typeof(CreatedPropertyResponseDto),
             typeof(PropertyDetailBasicInfoResponseDto),
             typeof(PropertyDetailRoomResponseDto),
-            typeof(PropertyChargePolicyResponseDto)
+            typeof(PropertyChargePolicyResponseDto),
+            typeof(PropertyWholeBuildingRentalContractResponseDto)
         };
 
         var propertyNames = responseTypes
@@ -443,8 +524,10 @@ public sealed class PropertyResponseMapperTests
         {
             PropertyPublicId = propertyPublicId,
             UnitPublicId = unitPublicId,
+            OccupancyPublicId = tenantPublicId ?? Guid.NewGuid(),
             TenantPublicId = tenantPublicId ?? Guid.NewGuid(),
             TenantName = tenantName,
+            RoleCode = TENANT_ROLE_PRIMARY,
             ContractStartDate = new DateTime(2026, 1, 1),
             ContractEndDate = new DateTime(2026, 12, 31),
             OccupancyStatusCode = "ACTIVE",

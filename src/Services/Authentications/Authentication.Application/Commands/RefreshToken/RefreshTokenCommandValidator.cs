@@ -10,6 +10,7 @@ public class RefreshTokenCommandValidator : AbstractValidator<RefreshTokenComman
     /// </summary>
     public RefreshTokenCommandValidator()
     {
+        // Refresh exchange must include the opaque refresh token from the current device session.
         RuleFor(x => x.RefreshToken)
             .Required();
     }

@@ -11,7 +11,7 @@ public class PropertyCreationGraphModel
     public Property Property { get; set; }
 
     /// <summary>
-    /// Gets or sets generated unit entities.
+    /// Gets or sets unit entities created from the submitted room structure.
     /// </summary>
     public IReadOnlyList<Unit> Units { get; set; } = [];
 

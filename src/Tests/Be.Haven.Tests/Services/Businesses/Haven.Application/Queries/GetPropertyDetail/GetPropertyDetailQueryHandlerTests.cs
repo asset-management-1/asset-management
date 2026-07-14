@@ -1,9 +1,10 @@
-using Haven.Application.Dtos.Properties.Common;
 using Haven.Application.Dtos.Properties.Create;
 using Haven.Application.Dtos.Properties.Detail;
 using Haven.Application.Dtos.Properties.List;
 using Haven.Application.Interfaces.Services;
-using Haven.Application.Mappings;
+using Haven.Application.Mappings.Properties;
+using Haven.Application.Mappings.Rooms;
+using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
@@ -21,7 +22,6 @@ public sealed class GetPropertyDetailQueryHandlerTests
 {
     static GetPropertyDetailQueryHandlerTests()
     {
-        new PropertyMapping().Register(TypeAdapterConfig.GlobalSettings);
     }
 
     [Fact]

@@ -108,8 +108,8 @@ public class GcpSubscriberJob : BackgroundService
                 var attributes = ev.GetCustomAttribute<GcpAttribute>()
                     ?? throw new InvalidDataException(string.Format(MISSING_GCP_ATTRIBUTE_SETTING_EXCEPTION, ev.Name));
 
-                if (string.IsNullOrWhiteSpace(attributes.SubscriptionKey) || 
-                    !_queueOptions.Topics.TryGetValue(attributes.TopicKey, out var subscriptionId) || 
+                if (string.IsNullOrWhiteSpace(attributes.SubscriptionKey) ||
+                    !_queueOptions.Topics.TryGetValue(attributes.TopicKey, out var subscriptionId) ||
                     string.IsNullOrWhiteSpace(subscriptionId))
                 {
                     _logger.LogWarning(SKIP_EVENT_SUBSCRIPTIONID_EMPTY, ev.Name);

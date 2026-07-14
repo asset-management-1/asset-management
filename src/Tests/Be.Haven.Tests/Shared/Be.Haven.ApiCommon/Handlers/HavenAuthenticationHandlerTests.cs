@@ -1,9 +1,9 @@
+using System.Reflection;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.IdentityModel.Tokens;
-using System.Text.Encodings.Web;
-using System.Reflection;
 
 #pragma warning disable ASPDEPR004, ASPDEPR008
 

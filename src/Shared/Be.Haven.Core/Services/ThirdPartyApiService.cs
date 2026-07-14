@@ -41,7 +41,7 @@ public class ThirdPartyApiService : IThirdPartyApiService
             LOG_START_THIRD_PARTY_CALL,
             typeof(TRquest).Name,
             maskedRequestJson);
-        
+
         // Handle the request
         var response = await HandleDynamicHttpRequest(request);
 
@@ -69,7 +69,7 @@ public class ThirdPartyApiService : IThirdPartyApiService
             typeof(TRquest).Name,
             (int)response.StatusCode,
             maskedContent);
-        
+
         return content;
     }
 
@@ -92,7 +92,7 @@ public class ThirdPartyApiService : IThirdPartyApiService
             LOG_START_THIRD_PARTY_CALL,
             typeof(TRquest).Name,
             maskedRequestJson);
-        
+
         // Handle the request
         var response = await HandleDynamicHttpRequest(request);
 
@@ -114,16 +114,16 @@ public class ThirdPartyApiService : IThirdPartyApiService
                     response.StatusCode, response.ReasonPhrase, content), (int)response.StatusCode
             );
         }
-        
+
         _logger.LogInformation(
             LOG_END_THIRD_PARTY_CALL,
             typeof(TRquest).Name,
             (int)response.StatusCode,
             maskedContent);
-        
+
         // Deserialize the response content to the specified type
         var responseData = _jsonSerializerService.Deserialize<TResponse>(content);
-        
+
         return responseData;
     }
 

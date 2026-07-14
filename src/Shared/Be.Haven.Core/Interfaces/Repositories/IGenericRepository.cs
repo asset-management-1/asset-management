@@ -50,7 +50,7 @@ public interface IGenericRepository<T> where T : class
     /// <param name="entities">The list of entities to be deleted.</param>
     /// <returns>A task that represents the asynchronous delete operation.</returns>
     Task DeleteRangeAsync(List<T> entities);
-    
+
     /// <summary>
     /// Asynchronously retrieves an entity of type <typeparamref name="T"/> by its unique identifier.
     /// </summary>
@@ -176,7 +176,7 @@ public interface IGenericRepository<T> where T : class
         CancellationToken ct = default)
         where TModel : class
         where TParam : BaseParameterRequest;
-    
+
     /// <summary>
     /// Retrieves a paged response of a specific model based on the provided query, parameters, and configuration.
     /// </summary>

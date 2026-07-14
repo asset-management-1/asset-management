@@ -1,5 +1,8 @@
 namespace Authentication.Domain.Entities;
 
+/// <summary>
+/// Defines a dynamic authentication master-data category whose values are managed in persistence.
+/// </summary>
 public class MasterDataType : BaseEntity
 {
     /// <summary>

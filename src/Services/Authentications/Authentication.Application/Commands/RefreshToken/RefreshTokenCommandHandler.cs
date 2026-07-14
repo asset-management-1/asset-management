@@ -33,7 +33,7 @@ public class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCommand, R
         var result = await _authenticationService.RefreshTokenAsync(
             request.Adapt<RefreshTokenRequestDto>(),
             cancellationToken);
-        _logger.LogInformation(REFRESH_TOKEN_ROTATED);
+        _logger.LogInformation(ApplicationLogConstants.SessionLogs.REFRESH_TOKEN_ROTATED);
 
         return new ResponseDto<LoginResponseDto>(result);
     }

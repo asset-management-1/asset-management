@@ -22,7 +22,7 @@ public class GcpPublisherService : IGcpPublisherService
         ILogger<GcpPublisherService> logger,
         IJsonSerializerService serializerService,
         IOptions<GcpOptions> gcpOption,
-        QueueInfoOptions queueOptions, 
+        QueueInfoOptions queueOptions,
         IHttpContextAccessor httpContextAccessor,
         IGcpPubSubPublisherClientFactory publisherClientFactory)
     {
@@ -52,9 +52,9 @@ public class GcpPublisherService : IGcpPublisherService
             // Retrieve Pub/Sub topic information from the message type attribute
             var attributes = typeof(T).GetCustomAttribute<GcpAttribute>();
 
-            if (attributes is null || 
-                string.IsNullOrWhiteSpace(attributes.TopicKey) || 
-                !_queueOptions.Topics.TryGetValue(attributes.TopicKey, out var topicId) || 
+            if (attributes is null ||
+                string.IsNullOrWhiteSpace(attributes.TopicKey) ||
+                !_queueOptions.Topics.TryGetValue(attributes.TopicKey, out var topicId) ||
                 string.IsNullOrWhiteSpace(topicId))
             {
                 throw new InvalidOperationException(
@@ -67,12 +67,12 @@ public class GcpPublisherService : IGcpPublisherService
                 ?? Activity.Current?.GetTagItem(OTEL_CORRELATION_ID_TAG)?.ToString()
                 ?? Activity.Current?.TraceId.ToString()
                 ?? Guid.NewGuid().ToString("N");
-            
+
             message.TraceId = correlationId;
-            
+
             // Create the topic name using the project ID and topic ID from the attribute
             var topicName = new TopicName(_gcpProjectId, topicId);
-        
+
             // Serialize the message and wrap it in a PubsubMessage
             var pubSubMessage = new PubsubMessage
             {
@@ -83,17 +83,17 @@ public class GcpPublisherService : IGcpPublisherService
                     { X_CORRELATION_ID, correlationId }
                 }
             };
-            
+
             var act = Activity.Current;
             if (act is not null)
             {
                 // W3C context propagation for downstream tracing
                 if (!string.IsNullOrWhiteSpace(act.Id))
                     pubSubMessage.Attributes[TRACEPARENT] = act.Id;
-                
+
                 pubSubMessage.Attributes[TRACE_ID] = act.TraceId.ToString();
             }
-            
+
             var publisher = await _publisherClientFactory.CreateAsync(topicName, cancellationToken);
             var msgId = await publisher.PublishAsync(pubSubMessage);
 

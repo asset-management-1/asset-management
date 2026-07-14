@@ -5,10 +5,8 @@ namespace Authentication.Application.Queries.UserInfo;
 /// </summary>
 public class GetUserInfoQuery : IQuery<ResponseDto<UserInfoResponseDto>>, ICacheableMediatorQueryService
 {
-    /// <summary>
-    /// Gets a value indicating whether this query should bypass the cache layer.
-    /// </summary>
-    public bool BypassCache { get; init; }
+    // Cache bypass is an internal pipeline concern and is never exposed as a public query-string parameter.
+    bool ICacheableMediatorQueryService.BypassCache => false;
 
     /// <summary>
     /// Gets the logical cache group key for the current-user profile query.

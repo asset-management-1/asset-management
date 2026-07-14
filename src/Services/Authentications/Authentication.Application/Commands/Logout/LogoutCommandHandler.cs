@@ -36,12 +36,12 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<O
         // Logout revocation always targets the authenticated account and session from the token.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
         var currentSessionPublicId = _authService.SessionId()
                                      ?? throw new HttpStatusCodeException(
-                                         UNAUTHORIZED_REQUEST_MESSAGE,
+                                         ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                          UNAUTHORIZED,
                                          StatusCodes.Status401Unauthorized);
 
@@ -50,7 +50,7 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<O
             currentUserPublicId,
             currentSessionPublicId,
             cancellationToken);
-        _logger.LogInformation(LOGOUT_COMPLETED, currentUserPublicId);
+        _logger.LogInformation(ApplicationLogConstants.SessionLogs.LOGOUT_COMPLETED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

@@ -1,5 +1,8 @@
 namespace Authentication.Domain.Entities;
 
+/// <summary>
+/// Groups authorization permissions under a stable role code.
+/// </summary>
 public class Role : BaseEntity
 {
     /// <summary>

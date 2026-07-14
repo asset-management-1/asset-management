@@ -10,7 +10,9 @@ public class UnlinkExternalProviderCommandValidator : AbstractValidator<UnlinkEx
     /// </summary>
     public UnlinkExternalProviderCommandValidator()
     {
+        // Provider code selects the external login to unlink from the current account.
         RuleFor(x => x.Provider)
-            .Required();
+            .Required()
+            .MaxLen(50);
     }
 }

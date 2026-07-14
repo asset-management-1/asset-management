@@ -37,7 +37,7 @@ public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordComman
         var changeRequest = request.Adapt<ChangePasswordRequestDto>();
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
 
@@ -46,7 +46,7 @@ public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordComman
             currentUserPublicId,
             changeRequest,
             cancellationToken);
-        _logger.LogInformation(PASSWORD_CHANGED, currentUserPublicId);
+        _logger.LogInformation(ApplicationLogConstants.PasswordLogs.PASSWORD_CHANGED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

@@ -71,6 +71,16 @@ public class PropertyDetailRoomResponseDto
     public int? TotalBeds { get; set; }
 
     /// <summary>
+    /// Gets or sets whether this room currently falls back to property-level charge policies.
+    /// </summary>
+    public bool UsesCommonChargePolicies { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this room currently falls back to property-level package templates.
+    /// </summary>
+    public bool UsesCommonPackages { get; set; }
+
+    /// <summary>
     /// Gets or sets whether pets are allowed in the room.
     /// </summary>
     public bool IsPetAllowed { get; set; }

@@ -15,12 +15,12 @@ public class BasePaginationResponse<T>
     /// The default value is 10.
     /// </summary>
     public int PageSize { get; set; } = 10;
-    
+
     /// <summary>
     /// Gets or sets the total number of AP requests returned.
     /// </summary>
     public int Total { get; set; }
-    
+
     /// <summary>
     /// Gets or sets the list of AP request items.
     /// </summary>

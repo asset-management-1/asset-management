@@ -15,7 +15,7 @@ public class LoggingOptions
     /// Output template used for non-HTTP logs (background jobs, services, etc.).
     /// </summary>
     public string DefaultOutputTemplate { get; set; }
-    
+
     /// <summary>
     /// Output template used for HTTP request logs (SerilogRequestLogging).
     /// </summary>

@@ -2,6 +2,182 @@ namespace Be.Haven.Tests.Shared.Be.Haven.Core.Extensions.Validations;
 
 public sealed class BaseValidationRuleTests
 {
+    [Theory]
+    [InlineData("photo.jpg", "image/jpeg")]
+    [InlineData("document.pdf", "application/pdf")]
+    public void OptionalImageOrPdfFile_Should_AcceptSupportedPublicMetadata(
+        string fileName,
+        string contentType)
+    {
+        // Arrange
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.ImageFile).OptionalImageOrPdfFile();
+        var model = new CoreSampleValidationModel
+        {
+            ImageFile = new FormFile(new MemoryStream([1, 2, 3]), 0, 3, "evidenceFile", fileName)
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = contentType
+            }
+        };
+
+        // Act
+        var result = validator.Validate(model);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("evidence.exe", "application/pdf")]
+    [InlineData("evidence.pdf", "application/octet-stream")]
+    [InlineData("evidence.jpg", "application/pdf")]
+    [InlineData("evidence.pdf", "image/jpeg")]
+    public void OptionalImageOrPdfFile_Should_RejectUnsupportedPublicMetadata(
+        string fileName,
+        string contentType)
+    {
+        // Arrange
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.ImageFile).OptionalImageOrPdfFile();
+        var model = new CoreSampleValidationModel
+        {
+            ImageFile = new FormFile(new MemoryStream([1]), 0, 1, "evidenceFile", fileName)
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = contentType
+            }
+        };
+
+        // Act
+        var result = validator.Validate(model);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.PropertyName == nameof(CoreSampleValidationModel.ImageFile));
+    }
+
+    [Fact]
+    public void OptionalImageOrPdfFile_Should_RejectEvidenceOverUploadLimit()
+    {
+        // Arrange
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.ImageFile).OptionalImageOrPdfFile();
+        var model = new CoreSampleValidationModel
+        {
+            ImageFile = new FormFile(
+                Stream.Null,
+                baseStreamOffset: 0,
+                length: MAX_IMAGE_UPLOAD_BYTES + 1,
+                name: "evidenceFile",
+                fileName: "evidence.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            }
+        };
+
+        // Act
+        var result = validator.Validate(model);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.PropertyName == nameof(CoreSampleValidationModel.ImageFile));
+    }
+
+    [Fact]
+    public async Task OptionalImageOrPdfContent_Should_AcceptDecodablePdf()
+    {
+        var imageValidationService = new Mock<IImageOptimizationService>();
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.ImageFile).OptionalImageOrPdfContent(imageValidationService.Object);
+        using var document = new PdfSharp.Pdf.PdfDocument();
+        document.AddPage();
+        using var stream = new MemoryStream();
+        document.Save(stream, false);
+        var content = stream.ToArray();
+        var model = new CoreSampleValidationModel
+        {
+            ImageFile = new FormFile(new MemoryStream(content), 0, content.Length, "evidenceFile", "evidence.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = PDF_CONTENT_TYPE
+            }
+        };
+
+        var result = await validator.ValidateAsync(model);
+
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OptionalImageOrPdfContent_Should_RejectSpoofedPdfHeader()
+    {
+        var imageValidationService = new Mock<IImageOptimizationService>();
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.ImageFile).OptionalImageOrPdfContent(imageValidationService.Object);
+        var content = "%PDF-not-a-document"u8.ToArray();
+        var model = new CoreSampleValidationModel
+        {
+            ImageFile = new FormFile(new MemoryStream(content), 0, content.Length, "evidenceFile", "evidence.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = PDF_CONTENT_TYPE
+            }
+        };
+
+        var result = await validator.ValidateAsync(model);
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task OptionalImageOrPdfContent_Should_RejectDisguisedPdf()
+    {
+        var imageValidationService = new Mock<IImageOptimizationService>();
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.ImageFile).OptionalImageOrPdfContent(imageValidationService.Object);
+        var content = "MZ-executable"u8.ToArray();
+        var model = new CoreSampleValidationModel
+        {
+            ImageFile = new FormFile(new MemoryStream(content), 0, content.Length, "evidenceFile", "evidence.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = PDF_CONTENT_TYPE
+            }
+        };
+
+        var result = await validator.ValidateAsync(model);
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("photo.exe", "image/jpeg")]
+    public void OptionalImageFile_Should_FailValidation_When_ExtensionIsUnsupported(
+        string fileName,
+        string contentType)
+    {
+        // Arrange
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.ImageFile).OptionalImageFile();
+        var model = new CoreSampleValidationModel
+        {
+            ImageFile = new FormFile(new MemoryStream([1, 2, 3]), 0, 3, "imageFile", fileName)
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = contentType
+            }
+        };
+
+        // Act
+        var result = validator.Validate(model);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(error => error.PropertyName == nameof(CoreSampleValidationModel.ImageFile));
+    }
+
     [Fact]
     public void Required_Should_FailValidation_When_StringIsWhitespace()
     {
@@ -131,6 +307,25 @@ public sealed class BaseValidationRuleTests
     }
 
     [Fact]
+    public void MaxCount_Should_FailValidation_When_OptionalCollectionExceedsLimit()
+    {
+        // Arrange
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.Items).MaxCount(2);
+        var model = new CoreSampleValidationModel
+        {
+            Items = ["one", "two", "three"]
+        };
+
+        // Act
+        var result = validator.Validate(model);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(x => x.PropertyName == nameof(CoreSampleValidationModel.Items));
+    }
+
+    [Fact]
     public void ValidEnum_Should_FailValidation_When_EnumValueIsUndefined()
     {
         // Arrange
@@ -213,6 +408,39 @@ public sealed class BaseValidationRuleTests
             nameof(CoreSampleValidationModel.Count),
             nameof(CoreSampleValidationModel.OtherCount)
         ]);
+    }
+
+    [Fact]
+    public void OptionalPrimitiveRules_Should_AllowNullAndFailOnlyWhenSuppliedValueIsInvalid()
+    {
+        // Arrange
+        var validator = new InlineValidator<CoreSampleValidationModel>();
+        validator.RuleFor(x => x.OptionalPublicId).NotDefaultWhenPresent();
+        validator.RuleFor(x => x.OptionalCount).GreaterThanZeroWhenPresent();
+        validator.RuleFor(x => x.OptionalCount).GreaterOrEqualZeroWhenPresent();
+        validator.RuleFor(x => x.OptionalCount).BetweenInclusiveWhenPresent(1, 3);
+
+        // Act
+        var nullResult = validator.Validate(new CoreSampleValidationModel());
+        var invalidResult = validator.Validate(new CoreSampleValidationModel
+        {
+            OptionalPublicId = Guid.Empty,
+            OptionalCount = 0
+        });
+        var validResult = validator.Validate(new CoreSampleValidationModel
+        {
+            OptionalPublicId = Guid.NewGuid(),
+            OptionalCount = 2
+        });
+
+        // Assert
+        nullResult.IsValid.Should().BeTrue();
+        invalidResult.IsValid.Should().BeFalse();
+        invalidResult.Errors.Select(x => x.PropertyName).Should().Contain([
+            nameof(CoreSampleValidationModel.OptionalPublicId),
+            nameof(CoreSampleValidationModel.OptionalCount)
+        ]);
+        validResult.IsValid.Should().BeTrue();
     }
 
     [Fact]

@@ -132,7 +132,7 @@ public sealed class UnitOfWorkTests
     }
 
     [Fact]
-    public async Task ExecuteInTransactionAsync_Should_RollBackAndWrapException_When_ActionFails()
+    public async Task ExecuteInTransactionAsync_Should_RollBackAndPreserveException_When_ActionFails()
     {
         // Arrange
         await using var connection = await OpenConnectionAsync();
@@ -151,8 +151,8 @@ public sealed class UnitOfWorkTests
         });
 
         // Assert
-        var exception = await act.Should().ThrowAsync<InvalidOperationException>();
-        exception.Which.InnerException.Should().BeOfType<ApplicationException>();
+        await act.Should().ThrowAsync<ApplicationException>()
+            .WithMessage("boom");
         await using var verifyContext = CreateContext(connection);
         verifyContext.AuditableSamples.Should().BeEmpty();
         sut.HasActiveTransaction.Should().BeFalse();
@@ -200,7 +200,7 @@ public sealed class UnitOfWorkTests
     }
 
     [Fact]
-    public async Task ExecuteInTransactionAsync_Should_RollBackAndWrapException_When_ResultActionFails()
+    public async Task ExecuteInTransactionAsync_Should_RollBackAndPreserveException_When_ResultActionFails()
     {
         // Arrange
         await using var connection = await OpenConnectionAsync();
@@ -219,8 +219,8 @@ public sealed class UnitOfWorkTests
         });
 
         // Assert
-        var exception = await act.Should().ThrowAsync<InvalidOperationException>();
-        exception.Which.InnerException.Should().BeOfType<ApplicationException>();
+        await act.Should().ThrowAsync<ApplicationException>()
+            .WithMessage("result failed");
         await using var verifyContext = CreateContext(connection);
         verifyContext.AuditableSamples.Should().BeEmpty();
     }

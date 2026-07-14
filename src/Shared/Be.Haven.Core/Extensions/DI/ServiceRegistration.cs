@@ -14,7 +14,7 @@ public static class ServiceRegistration
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IClientDeviceContextAccessor, ClientDeviceContextAccessor>();
-        
+
         // Register Mapster configurations for object mapping across layers.
         RegisterMapperConfigurations();
     }
@@ -29,7 +29,7 @@ public static class ServiceRegistration
     {
         services.AddScoped<IUnitOfWork, UnitOfWork<TContext>>();
     }
-    
+
     /// <summary>
     /// Adds an authenticated HttpClient without JWT to the service collection.
     /// </summary>
@@ -158,7 +158,7 @@ public static class ServiceRegistration
 
         services.AddTransient<TService, TImplementation>();
     }
-    
+
     /// <summary>
     /// Registers Google Pub/Sub publisher-related services into the service collection.
     /// </summary>
@@ -236,7 +236,7 @@ public static class ServiceRegistration
         // if you later inject scoped dependencies (e.g., logging scopes, correlation, etc.).
         services.AddScoped<IDapperService, DapperService>();
     }
-    
+
     /// <summary>
     /// Adds services for initializing database connections to the service collection.
     /// </summary>
@@ -247,7 +247,7 @@ public static class ServiceRegistration
         services.AddSingleton<IConnectionStringProvider, ConnectionStringProvider>();
         services.AddHostedService<DbConnectionHostService>();
     }
-    
+
     /// <summary>
     /// Registers a DbContext with a specific connection string and environment configurations.
     /// </summary>
@@ -304,12 +304,12 @@ public static class ServiceRegistration
                     throw new NotSupportedException(
                         string.Format(ERROR_UNSUPPORTED_DATABASE_PROVIDER, resolvedProvider));
             }
-            
+
             options.AddInterceptors(new DbConnectionRefreshInterceptor(
                 csProvider,
                 sp.GetRequiredService<ILogger<DbConnectionRefreshInterceptor>>(),
                 resolvedConnectionName));
-            
+
             if (Environment.GetEnvironmentVariable(ASPNETCORE_ENVIRONMENT) == ENVIRONMENT_DEVELOPMENT)
             {
                 options.EnableSensitiveDataLogging();
@@ -407,7 +407,9 @@ public static class ServiceRegistration
     {
         // Bind EmailOptions after startup secret-overlay resolution has produced final option values.
         serviceCollection.AddOptions<EmailOptions>()
-                         .Bind(configuration.GetSection(EMAIL_SETTINGS));
+                         .Bind(configuration.GetSection(EMAIL_SETTINGS))
+                         .ValidateDataAnnotations()
+                         .ValidateOnStart();
 
         // Register EmailService as a singleton implementation of IEmailService
         serviceCollection.AddScoped<IEmailService, EmailService>();
@@ -452,8 +454,12 @@ public static class ServiceRegistration
         IConfiguration configuration)
     {
         serviceCollection.AddOptions<R2StorageOptions>()
-                         .Bind(configuration.GetSection(R2_STORAGE_SETTINGS));
+                         .Bind(configuration.GetSection(R2_STORAGE_SETTINGS))
+                         .ValidateDataAnnotations()
+                         .ValidateOnStart();
+
         serviceCollection.AddScoped<IObjectStorageService, R2ObjectStorageService>();
+        serviceCollection.AddScoped<IImageOptimizationService, ImageOptimizationService>();
 
         return serviceCollection;
     }

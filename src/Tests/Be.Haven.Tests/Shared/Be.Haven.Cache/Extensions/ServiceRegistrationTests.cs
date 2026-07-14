@@ -1,6 +1,6 @@
-using CacheServiceRegistration = Be.Haven.Cache.Extensions.ServiceRegistration;
 using System.Reflection;
 using static Be.Haven.Shared.Constants.RedisConstants;
+using CacheServiceRegistration = Be.Haven.Cache.Extensions.ServiceRegistration;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Cache.Extensions;
 

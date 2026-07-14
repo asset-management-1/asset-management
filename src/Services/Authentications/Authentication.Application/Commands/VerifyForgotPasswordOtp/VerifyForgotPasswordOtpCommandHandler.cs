@@ -34,10 +34,11 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
         // Mapster normalizes the email before OTP and reset-session keys are resolved.
         var verifyRequest = request.Adapt<VerifyForgotPasswordOtpRequestDto>();
         var normalizedEmail = verifyRequest.Email;
-        _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_STEP1_REQUEST_NORMALIZED);
+
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_STEP1_REQUEST_NORMALIZED);
 
         await VerifyOtpAsync(FORGOT_PASSWORD_PURPOSE, normalizedEmail, verifyRequest.Otp, cancellationToken);
-        _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_STEP2_OTP_VERIFIED);
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_STEP2_OTP_VERIFIED);
 
         // A short reset session lets the password-change endpoint proceed without keeping the OTP valid.
         await _cachingService.SetAbsoluteAsync(
@@ -45,10 +46,10 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
             new ResetSessionCacheResponseDto { CreatedAt = DateTime.UtcNow },
             TimeSpan.FromMinutes(RESET_SESSION_TTL_MINUTES),
             cancellationToken);
-        _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_STEP3_RESET_SESSION_CREATED);
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_STEP3_RESET_SESSION_CREATED);
 
         return new ResponseDto<OperationStatusResponseDto>(
-            OperationStatusResponseHelper.Success(OTP_VERIFIED_SUCCESS_MESSAGE));
+            OperationStatusResponseHelper.Success(ApplicationMessageConstants.OtpMessages.OTP_VERIFIED_SUCCESS_MESSAGE));
     }
 
     /// <summary>
@@ -65,18 +66,26 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
         string otp,
         CancellationToken cancellationToken)
     {
+        // Load the one-time OTP entry; missing cache state is indistinguishable from expiry to callers.
         var otpKey = AuthenticationFlowHelper.BuildOtpKey(purpose, normalizedEmail);
         var otpEntry = await _cachingService.GetAsync<OtpCacheResponseDto>(otpKey, cancellationToken);
+
         if (otpEntry is null || string.IsNullOrWhiteSpace(otpEntry.Code))
         {
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
+        // Remove stale entries explicitly so expired credentials cannot be revived by later writes.
         var remainingTtl = otpEntry.ExpiresAtUtc - DateTime.UtcNow;
+
         if (remainingTtl <= TimeSpan.Zero)
         {
             await _cachingService.RemoveAsync(otpKey, cancellationToken);
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
         if (!string.Equals(otpEntry.Code, otp, StringComparison.Ordinal))
@@ -86,17 +95,20 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
             if (otpEntry.Attempts >= OTP_MAX_VERIFY_ATTEMPTS)
             {
                 await _cachingService.RemoveAsync(otpKey, cancellationToken);
-                _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_OTP_LOCKED);
+                _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_OTP_LOCKED);
             }
             else
             {
                 await _cachingService.SetAbsoluteAsync(otpKey, otpEntry, remainingTtl, cancellationToken);
-                _logger.LogInformation(VERIFY_FORGOT_PASSWORD_FLOW_OTP_ATTEMPT_RECORDED);
+                _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_OTP_ATTEMPT_RECORDED);
             }
 
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
+        // Successful verification consumes the OTP before a reset session can be issued.
         await _cachingService.RemoveAsync(otpKey, cancellationToken);
     }
 }

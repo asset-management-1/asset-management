@@ -10,8 +10,4 @@ public static class ApiConstants
     /// </summary>
     public const string EXTERNAL_AUTHENTICATION_SETTINGS = "ExternalAuthenticationSettings";
 
-    /// <summary>
-    /// Configuration section key for shared information-data settings.
-    /// </summary>
-    public const string INFO_DATA_SETTING = "InfoDataSettings";
 }

@@ -44,21 +44,21 @@ public class ChangeForgotPasswordCommandHandler : ICommandHandler<ChangeForgotPa
             cancellationToken);
         if (resetSession is null)
         {
-            throw new ApiException(RESET_SESSION_INVALID_MESSAGE, AUTH_RESET_SESSION_INVALID);
+            throw new ApiException(ApplicationErrorConstants.OtpErrors.RESET_SESSION_INVALID_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
         }
 
-        _logger.LogInformation(CHANGE_FORGOT_PASSWORD_FLOW_STEP1_RESET_SESSION_VALIDATED);
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.CHANGE_FORGOT_PASSWORD_FLOW_STEP1_RESET_SESSION_VALIDATED);
 
         // Password update and refresh-token revocation are delegated to the auth service transaction boundary.
         var result = await _authenticationService.ChangeForgotPasswordAsync(
             changeRequest,
             cancellationToken);
-        _logger.LogInformation(CHANGE_FORGOT_PASSWORD_FLOW_STEP2_PASSWORD_CHANGED);
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.CHANGE_FORGOT_PASSWORD_FLOW_STEP2_PASSWORD_CHANGED);
 
         // Consume the reset session only after the password has been changed successfully.
         await _cachingService.RemoveAsync(resetSessionKey, cancellationToken);
-        _logger.LogInformation(CHANGE_FORGOT_PASSWORD_FLOW_STEP3_RESET_SESSION_CONSUMED);
-        _logger.LogInformation(FORGOT_PASSWORD_CHANGE_COMPLETED);
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.CHANGE_FORGOT_PASSWORD_FLOW_STEP3_RESET_SESSION_CONSUMED);
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.FORGOT_PASSWORD_CHANGE_COMPLETED);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

@@ -1,5 +1,8 @@
 namespace Authentication.Domain.Entities;
 
+/// <summary>
+/// Associates one login identity with one authorization role.
+/// </summary>
 public class UserRole : BaseEntity
 {
     /// <summary>

@@ -132,13 +132,42 @@ public sealed class ErrorHandlerMiddlewareTests
         await action.Should().NotThrowAsync();
     }
 
+    [Fact]
+    public async Task Invoke_Should_WriteApiExceptionDetails_When_PublicSafeDetailsAreProvided()
+    {
+        // Arrange
+        var details = new List<ErrorDetailDto>
+        {
+            new()
+            {
+                Field = "action",
+                Issue = "selection_required"
+            }
+        };
+        var context = CreateContext();
+        var sut = CreateSut(_ => throw new ApiException(
+            "Selection is required",
+            "error_selection_required",
+            StatusCodes.Status400BadRequest,
+            details));
+
+        // Act
+        await sut.Invoke(context);
+
+        // Assert
+        var response = await ReadResponseAsync(context);
+        response.Error.Details.Should().ContainSingle(detail =>
+            detail.Field == "action"
+            && detail.Issue.ToString() == "selection_required");
+    }
+
     public static TheoryData<Exception, int, string, string> ExceptionCases()
     {
         return new TheoryData<Exception, int, string, string>
         {
             {
-                new ApiException("domain failed", "error_domain", StatusCodes.Status409Conflict),
-                StatusCodes.Status409Conflict,
+                new ApiException("domain failed", "error_domain", StatusCodes.Status400BadRequest),
+                StatusCodes.Status400BadRequest,
                 "error_domain",
                 "domain failed"
             },

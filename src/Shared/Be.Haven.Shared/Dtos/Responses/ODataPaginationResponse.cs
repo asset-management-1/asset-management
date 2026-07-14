@@ -78,7 +78,7 @@ public class ODataPaginationResponse<T> : BasePaginationResponse<T>
         PageNumber = pageNumber;
         PageSize = pageSize;
     }
-    
+
     /// <summary>
     /// Initializes a new instance of <see cref="ODataPaginationResponse{T}"/>.
     /// Used to wrap an OData result (items) together with pagination metadata and link identifiers.

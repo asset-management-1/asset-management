@@ -38,11 +38,12 @@ public class UpdateUserInfoCommandHandler : ICommandHandler<UpdateUserInfoComman
         // Profile updates are account-scoped and also sync linked party contact snapshots in UserService.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
         var result = await _userService.UpdateUserInfoAsync(request.Adapt<UpdateUserInfoRequestDto>(), cancellationToken);
-        _logger.LogInformation(USER_INFO_UPDATED, currentUserPublicId);
+
+        _logger.LogInformation(ApplicationLogConstants.ProfileLogs.USER_INFO_UPDATED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

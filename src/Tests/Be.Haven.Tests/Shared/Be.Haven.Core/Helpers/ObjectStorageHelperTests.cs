@@ -78,33 +78,31 @@ public sealed class ObjectStorageHelperTests
         // Assert
         result.UploadsBySlot.Keys.Should().BeEquivalentTo(["front", "side"]);
         result.GetUpload("front").ObjectKey.Should().StartWith($"avatars/{OwnerPublicId}/");
-        result.GetUpload("side").ObjectKey.Should().Contain("-side-");
+        result.GetUpload("side").ObjectKey.Should().Contain("/side-");
         storage.UploadRequests.Should().HaveCount(2);
     }
 
     [Fact]
-    public async Task UploadOwnerScopedFormFilesAsync_Should_ReturnCallerOwnedResult_When_ResultFactoryIsProvided()
+    public async Task UploadOwnerScopedFormFilesAsync_Should_UseCanonicalImageContentType_When_MobileMetadataIsGeneric()
     {
         // Arrange
         var storage = new FakeObjectStorageService();
         var request = CreateBatchRequest([
             new ObjectStorageUploadFileModel
             {
-                SlotName = "front",
-                ObjectTag = "front",
-                File = CreateFormFile("front.jpg", "image/jpeg"),
+                SlotName = "electric-1",
+                ObjectTag = "electric",
+                File = CreateFormFile("electric-meter.webp", "application/octet-stream"),
                 IsRequired = true
             }
         ]);
 
         // Act
-        var result = await ObjectStorageHelper.UploadOwnerScopedFormFilesAsync(
-            storage,
-            request,
-            uploadResult => uploadResult.GetUpload("front").ObjectKey);
+        await ObjectStorageHelper.UploadOwnerScopedFormFilesAsync(storage, request);
 
         // Assert
-        result.Should().Contain("-front-");
+        storage.UploadRequests.Should().ContainSingle();
+        storage.UploadRequests[0].ContentType.Should().Be(WEBP_IMAGE_CONTENT_TYPE);
     }
 
     [Fact]
@@ -151,7 +149,66 @@ public sealed class ObjectStorageHelperTests
         // Assert
         await act.Should().ThrowAsync<InvalidOperationException>();
         storage.DeleteRequests.Should().ContainSingle();
-        storage.DeleteRequests[0].Should().Contain("-front-");
+        storage.DeleteRequests[0].Should().Contain("/front-");
+    }
+
+    [Fact]
+    public async Task UploadOwnerScopedFormFilesAsync_Should_CleanupWithIndependentToken_When_LaterUploadIsCancelled()
+    {
+        // Arrange
+        using var cancellationSource = new CancellationTokenSource();
+        var cleanupTokenWasCancelled = true;
+        var storage = new FakeObjectStorageService();
+        storage.UploadHandler = (request, _) =>
+        {
+            if (storage.UploadRequests.Count == 1)
+            {
+                return Task.FromResult(new ObjectUploadResponseModel
+                {
+                    BucketName = "fake-bucket",
+                    ObjectKey = request.ObjectKey,
+                    ContentType = request.ContentType,
+                    FileSize = 10,
+                    Checksum = "checksum"
+                });
+            }
+
+            cancellationSource.Cancel();
+            throw new OperationCanceledException(cancellationSource.Token);
+        };
+        storage.DeleteHandler = (_, token) =>
+        {
+            cleanupTokenWasCancelled = token.IsCancellationRequested;
+            return Task.FromResult(true);
+        };
+        var request = CreateBatchRequest([
+            new ObjectStorageUploadFileModel
+            {
+                SlotName = "front",
+                ObjectTag = "front",
+                File = CreateFormFile("front.jpg", "image/jpeg"),
+                IsRequired = true
+            },
+            new ObjectStorageUploadFileModel
+            {
+                SlotName = "side",
+                ObjectTag = "side",
+                File = CreateFormFile("side.jpg", "image/jpeg"),
+                IsRequired = true
+            }
+        ]);
+
+        // Act
+        var act = () => ObjectStorageHelper.UploadOwnerScopedFormFilesAsync(
+            storage,
+            request,
+            cancellationSource.Token);
+
+        // Assert
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        cleanupTokenWasCancelled.Should().BeFalse();
+        storage.DeleteRequests.Should().ContainSingle();
+        storage.DeleteRequests[0].Should().Contain("/front-");
     }
 
     [Fact]
@@ -180,15 +237,93 @@ public sealed class ObjectStorageHelperTests
     }
 
     [Fact]
-    public void ResolvePrefix_Should_ReturnDefaultOrTrimConfiguredPrefix_When_PrefixVaries()
+    public async Task UploadOwnerScopedValidatedImageFormFilesAsync_Should_ValidateThenPreserveOriginalUpload()
     {
+        // Arrange
+        var originalContent = Encoding.UTF8.GetBytes("original-image-content");
+        byte[] uploadedContent = null;
+        var storage = new FakeObjectStorageService
+        {
+            UploadHandler = async (upload, cancellationToken) =>
+            {
+                using var destination = new MemoryStream();
+                await upload.Content.CopyToAsync(destination, cancellationToken);
+                uploadedContent = destination.ToArray();
+                return new ObjectUploadResponseModel
+                {
+                    BucketName = "fake-bucket",
+                    ObjectKey = upload.ObjectKey,
+                    ContentType = upload.ContentType,
+                    FileSize = uploadedContent.LongLength,
+                    Checksum = "checksum"
+                };
+            }
+        };
+        var imageValidator = new Mock<IImageOptimizationService>();
+        var file = CreateFormFile(originalContent, "front.png", "image/png");
+        var request = CreateBatchRequest([
+            new ObjectStorageUploadFileModel
+            {
+                SlotName = "front",
+                ObjectTag = "front",
+                File = file,
+                IsRequired = true
+            }
+        ]);
+
         // Act
-        var defaultResult = ObjectStorageHelper.ResolvePrefix("   ", "avatars");
-        var configuredResult = ObjectStorageHelper.ResolvePrefix("/vehicles/", "avatars");
+        var result = await ObjectStorageHelper.UploadOwnerScopedValidatedImageFormFilesAsync(
+            storage,
+            imageValidator.Object,
+            request);
 
         // Assert
-        defaultResult.Should().Be("avatars");
-        configuredResult.Should().Be("vehicles");
+        imageValidator.Verify(service => service.ValidateAsync(file, It.IsAny<CancellationToken>()), Times.Once);
+        uploadedContent.Should().Equal(originalContent);
+        storage.UploadRequests[0].ContentType.Should().Be("image/png");
+        result.GetUpload("front").ObjectKey.Should().EndWith(".png");
+    }
+
+    [Fact]
+    public async Task UploadOwnerScopedValidatedImageFormFilesAsync_Should_NotUpload_When_AnyDecodeFails()
+    {
+        // Arrange
+        var storage = new FakeObjectStorageService();
+        var imageValidator = new Mock<IImageOptimizationService>();
+        imageValidator
+            .Setup(service => service.ValidateAsync(
+                It.Is<IFormFile>(file => file.FileName == "side.jpg"),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ArgumentException(IMAGE_FILE_INVALID_MESSAGE));
+        var request = CreateBatchRequest([
+            new ObjectStorageUploadFileModel
+            {
+                SlotName = "front",
+                ObjectTag = "front",
+                File = CreateFormFile("front.jpg", "image/jpeg"),
+                IsRequired = true
+            },
+            new ObjectStorageUploadFileModel
+            {
+                SlotName = "side",
+                ObjectTag = "side",
+                File = CreateFormFile("side.jpg", "image/jpeg"),
+                IsRequired = true
+            }
+        ]);
+
+        // Act
+        var action = () => ObjectStorageHelper.UploadOwnerScopedValidatedImageFormFilesAsync(
+            storage,
+            imageValidator.Object,
+            request);
+
+        // Assert
+        await action.Should().ThrowAsync<ArgumentException>();
+        imageValidator.Verify(
+            service => service.ValidateAsync(It.IsAny<IFormFile>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+        storage.UploadRequests.Should().BeEmpty();
     }
 
     [Fact]
@@ -209,7 +344,7 @@ public sealed class ObjectStorageHelperTests
 
         // Assert
         result.Should().StartWith($"avatars/{OwnerPublicId}/");
-        result.Should().Contain("-profile-");
+        result.Should().Contain("/profile-");
         result.Should().EndWith(".png");
     }
 
@@ -225,6 +360,20 @@ public sealed class ObjectStorageHelperTests
         publicUrl.Should().Be("https://cdn.haven.test/avatars/a.jpg");
         privateKey.Should().Be("avatars/a.jpg");
         blankKey.Should().Be("   ");
+    }
+
+    [Fact]
+    public void GetObjectKey_Should_ReturnObjectKeyOnly_When_PublicUrlOrPrivateKeyIsSupplied()
+    {
+        // Act
+        var publicObjectKey = ObjectStorageHelper.GetObjectKey("https://cdn.haven.test/", "https://cdn.haven.test/vehicles/one.jpg");
+        var privateObjectKey = ObjectStorageHelper.GetObjectKey(null, "vehicles/one.jpg");
+        var foreignUrl = ObjectStorageHelper.GetObjectKey("https://cdn.haven.test/", "https://other.test/vehicles/one.jpg");
+
+        // Assert
+        publicObjectKey.Should().Be("vehicles/one.jpg");
+        privateObjectKey.Should().Be("vehicles/one.jpg");
+        foreignUrl.Should().BeNull();
     }
 
     private static ObjectStorageUploadBatchRequestModel CreateBatchRequest(IReadOnlyCollection<ObjectStorageUploadFileModel> files)
@@ -246,6 +395,18 @@ public sealed class ObjectStorageHelperTests
         var stream = new MemoryStream(content);
 
         return new FormFile(stream, 0, content.Length, "file", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
+    }
+
+    private static IFormFile CreateFormFile(
+        byte[] content,
+        string fileName,
+        string contentType)
+    {
+        return new FormFile(new MemoryStream(content), 0, content.LongLength, "file", fileName)
         {
             Headers = new HeaderDictionary(),
             ContentType = contentType

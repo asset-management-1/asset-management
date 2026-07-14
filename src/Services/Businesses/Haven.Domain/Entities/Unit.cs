@@ -99,4 +99,9 @@ public class Unit : BaseEntity
     /// Gets the selectable packages configured for this unit.
     /// </summary>
     public ICollection<UnitPackage> UnitPackages { get; } = new List<UnitPackage>();
+
+    /// <summary>
+    /// Gets the room-specific rental charge policy overrides configured for this unit.
+    /// </summary>
+    public ICollection<RentalChargePolicy> RentalChargePolicies { get; } = new List<RentalChargePolicy>();
 }

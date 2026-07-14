@@ -148,7 +148,6 @@ public class UserController : BaseApiController
     /// <summary>
     /// Returns current user info.
     /// </summary>
-    /// <param name="request">Optional cache-control query values for the user-info read.</param>
     /// <returns>The standardized response containing the current-user profile.</returns>
     [HttpGet]
     [Route(USER_INFO)]
@@ -156,9 +155,9 @@ public class UserController : BaseApiController
     [ProducesResponseType(typeof(ResponseDto<UserInfoResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> GetUserInfo([FromQuery] GetUserInfoQuery request)
+    public async Task<IActionResult> GetUserInfo()
     {
-        return Ok(await Mediator.Send(request));
+        return Ok(await Mediator.Send(new GetUserInfoQuery()));
     }
 
     /// <summary>

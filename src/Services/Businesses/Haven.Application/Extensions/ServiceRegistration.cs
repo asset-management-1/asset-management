@@ -1,5 +1,8 @@
 namespace Haven.Application.Extensions;
 
+/// <summary>
+/// Registers Haven application validation, mediator behaviors, and cache policies.
+/// </summary>
 public static class ServiceRegistration
 {
     /// <summary>
@@ -11,7 +14,10 @@ public static class ServiceRegistration
     /// </param>
     public static void AddApplication(this IServiceCollection services)
     {
+        // Discover request validators before the validation behavior is added to the mediator pipeline.
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
+
+        // Cache policies and mediator behaviors are registered in their execution order.
         RegisterCacheInvalidationPolicies(services);
         services.AddTransient(typeof(Mediator.IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
         services.AddTransient(typeof(Mediator.IPipelineBehavior<,>), typeof(InvalidationBehavior<,>));

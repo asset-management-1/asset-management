@@ -69,16 +69,22 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
     {
         // Resolve configured provider metadata before validating the external token.
         var provider = GetProvider(request.Provider);
+
         if (provider is null)
         {
-            throw new ApiException(INVALID_EXTERNAL_PROVIDER_MESSAGE, AUTH_EXTERNAL_PROVIDER_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.INVALID_EXTERNAL_PROVIDER_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_INVALID);
         }
 
         // Validate the provider token and map it into a normalized external identity profile.
         var profile = await ValidateAsync(provider.Name, request.ExternalToken, cancellationToken);
+
         if (profile is null)
         {
-            throw new ApiException(INVALID_EXTERNAL_TOKEN_MESSAGE, AUTH_EXTERNAL_PROVIDER_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.INVALID_EXTERNAL_TOKEN_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_INVALID);
         }
 
         // Existing provider mappings log in directly after account state is verified.
@@ -91,8 +97,8 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             if (!AuthenticationFlowHelper.CanLogin(existingMapping.User))
             {
                 throw new ApiException(
-                    ACCOUNT_INACTIVE_MESSAGE,
-                    AUTH_ACCOUNT_INACTIVE,
+                    ApplicationErrorConstants.AccountErrors.ACCOUNT_INACTIVE_MESSAGE,
+                    ApplicationErrorConstants.AccountErrorCodes.AUTH_ACCOUNT_INACTIVE,
                     StatusCodes.Status403Forbidden);
             }
 
@@ -112,10 +118,13 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
 
         // New external accounts cannot auto-provision over an existing local email account.
         var normalizedEmail = profile.Email.NormalizeEmail();
+
         if (!string.IsNullOrWhiteSpace(normalizedEmail)
             && await _repositories.UserRepository.GetByEmailAsync(normalizedEmail, cancellationToken) is not null)
         {
-            throw new ApiException(ACCOUNT_ALREADY_EXISTS_LINK_MESSAGE, AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.ACCOUNT_ALREADY_EXISTS_LINK_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
         }
 
         // Provision a missing external account and issue the first Haven session.
@@ -148,22 +157,28 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
         // Load the current user row required to own the new provider mapping.
         var user = await _repositories.UserRepository.GetByPublicIdAsync(currentUserPublicId, cancellationToken)
                    ?? throw new HttpStatusCodeException(
-                       ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                        UNAUTHORIZED,
                        StatusCodes.Status401Unauthorized);
 
         // Resolve provider configuration before trusting the submitted external token.
         var provider = GetProvider(request.Provider);
+
         if (provider is null)
         {
-            throw new ApiException(INVALID_EXTERNAL_PROVIDER_MESSAGE, AUTH_EXTERNAL_PROVIDER_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.INVALID_EXTERNAL_PROVIDER_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_INVALID);
         }
 
         // Validate the external token and extract the provider user id used for linking.
         var profile = await ValidateAsync(provider.Name, request.ExternalToken, cancellationToken);
+
         if (profile is null)
         {
-            throw new ApiException(INVALID_EXTERNAL_TOKEN_MESSAGE, AUTH_EXTERNAL_PROVIDER_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.INVALID_EXTERNAL_TOKEN_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_INVALID);
         }
 
         // Existing links are idempotent only when they point to the same provider user id.
@@ -179,10 +194,13 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
                     InfrastructureLogConstants.ExternalProviderLogs.PROVIDER_LINKED,
                     provider.Name,
                     currentUserPublicId);
-                return OperationStatusResponseHelper.Success(EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
+                return OperationStatusResponseHelper.Success(
+                    ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
             }
 
-            throw new ApiException(EXTERNAL_PROVIDER_LINK_CONFLICT_MESSAGE, AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.EXTERNAL_PROVIDER_LINK_CONFLICT_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
         }
 
         // Check soft-deleted local links and active global mappings before creating or reviving a link.
@@ -196,7 +214,9 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             cancellationToken);
         if (existingMapping is not null && existingMapping.UserId != user.Id)
         {
-            throw new ApiException(EXTERNAL_PROVIDER_LINK_CONFLICT_MESSAGE, AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.EXTERNAL_PROVIDER_LINK_CONFLICT_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
         }
 
         if (deletedUserProvider is not null)
@@ -212,7 +232,8 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
                 provider.Name,
                 currentUserPublicId);
 
-            return OperationStatusResponseHelper.Success(EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
+            return OperationStatusResponseHelper.Success(
+                ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
         }
 
         if (existingMapping is null)
@@ -234,7 +255,8 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             provider.Name,
             currentUserPublicId);
 
-        return OperationStatusResponseHelper.Success(EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -254,15 +276,18 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             currentUserPublicId,
             cancellationToken)
                    ?? throw new HttpStatusCodeException(
-                       ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                        UNAUTHORIZED,
                        StatusCodes.Status401Unauthorized);
 
         // Resolve provider configuration before locating the link to remove.
         var provider = GetProvider(request.Provider);
+
         if (provider is null)
         {
-            throw new ApiException(INVALID_EXTERNAL_PROVIDER_MESSAGE, AUTH_EXTERNAL_PROVIDER_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.INVALID_EXTERNAL_PROVIDER_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_INVALID);
         }
 
         // Only the current user's active provider link can be unlinked.
@@ -272,13 +297,17 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             cancellationToken);
         if (externalLogin is null)
         {
-            throw new ApiException(EXTERNAL_PROVIDER_NOT_LINKED_MESSAGE, AUTH_EXTERNAL_PROVIDER_NOT_LINKED);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.EXTERNAL_PROVIDER_NOT_LINKED_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_NOT_LINKED);
         }
 
         if (string.IsNullOrWhiteSpace(user.PasswordHash) && user.ExternalLogins.Count <= 1)
         {
             // Keep at least one usable sign-in method so unlink cannot lock the account out.
-            throw new ApiException(LAST_SIGN_IN_METHOD_REQUIRED_MESSAGE, AUTH_LAST_SIGN_IN_METHOD_REQUIRED);
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.LAST_SIGN_IN_METHOD_REQUIRED_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_LAST_SIGN_IN_METHOD_REQUIRED);
         }
 
         // Soft-delete the provider mapping so it can be revived by a later link operation.
@@ -290,7 +319,8 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             provider.Name,
             currentUserPublicId);
 
-        return OperationStatusResponseHelper.Success(EXTERNAL_PROVIDER_UNLINKED_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_UNLINKED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -302,6 +332,7 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
     {
         // Read raw options first so default party-type configuration can be normalized for persistence.
         var options = GetProviderOptions(provider);
+
         if (options is null)
         {
             return null;
@@ -329,6 +360,7 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
     {
         // Missing provider options or token means this external login attempt is not valid.
         var options = GetProviderOptions(provider);
+
         if (options is null || string.IsNullOrWhiteSpace(externalToken))
         {
             return null;
@@ -343,7 +375,12 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             var configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(
                 metadataAddress,
                 new OpenIdConnectConfigurationRetriever(),
-                new HttpDocumentRetriever { RequireHttps = metadataAddress.StartsWith("https://", StringComparison.OrdinalIgnoreCase) });
+                new HttpDocumentRetriever
+                {
+                    RequireHttps = metadataAddress.StartsWith(
+                        "https://",
+                        StringComparison.OrdinalIgnoreCase)
+                });
             var configuration = await configurationManager.GetConfigurationAsync(cancellationToken);
             var validationParameters = new TokenValidationParameters
             {
@@ -426,22 +463,22 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             new MasterDataValueRequirementModel(
                 PARTY_STATUS_TYPE,
                 ACTIVE_STATUS,
-                ACTIVE_STATUS_NOT_FOUND_MESSAGE));
+                ApplicationErrorConstants.ContextErrors.ACTIVE_STATUS_NOT_FOUND_MESSAGE));
         var userStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
             new MasterDataValueRequirementModel(
                 USER_STATUS_TYPE,
                 ACTIVE_STATUS,
-                ACTIVE_STATUS_NOT_FOUND_MESSAGE));
+                ApplicationErrorConstants.ContextErrors.ACTIVE_STATUS_NOT_FOUND_MESSAGE));
         var partyType = MasterDataValueHelper.GetRequired(
             masterDataValues,
             new MasterDataValueRequirementModel(
                 PARTY_TYPE_TYPE,
                 provider.DefaultPartyType,
-                DEFAULT_PARTY_TYPE_NOT_FOUND_MESSAGE));
+                ApplicationErrorConstants.ContextErrors.DEFAULT_PARTY_TYPE_NOT_FOUND_MESSAGE));
         var fullName = string.IsNullOrWhiteSpace(profile.FullName)
             ? profile.Email ?? profile.ProviderUserId
-            : profile.FullName.NormalizeOptional();
+            : profile.FullName;
         var normalizedEmail = profile.Email.NormalizeEmail();
         var provision = new ExternalAccountProvisionRequestDto
         {
@@ -482,7 +519,7 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
 
                 return await _repositories.UserRepository.GetUserForAuthenticationByIdAsync(user.Id, ct)
                        ?? throw new HttpStatusCodeException(
-                           EXTERNAL_USER_NOT_LOADED_MESSAGE,
+                           ApplicationErrorConstants.AccountErrors.EXTERNAL_USER_NOT_LOADED_MESSAGE,
                            StatusCodes.Status500InternalServerError);
             },
             cancellationToken);
@@ -512,6 +549,7 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
 
         var candidate = baseName;
         var suffix = 1;
+
         while (await _repositories.UserRepository.UserNameExistsAsync(candidate, cancellationToken))
         {
             // Append an incrementing suffix until the generated username is unique.

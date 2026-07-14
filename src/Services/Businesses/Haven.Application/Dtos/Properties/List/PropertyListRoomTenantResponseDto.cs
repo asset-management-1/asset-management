@@ -11,9 +11,19 @@ public class PropertyListRoomTenantResponseDto
     public Guid Id { get; set; }
 
     /// <summary>
+    /// Gets or sets the frontend-safe tenant party identifier.
+    /// </summary>
+    public Guid TenantId { get; set; }
+
+    /// <summary>
     /// Gets or sets the tenant display name.
     /// </summary>
     public string Tenant { get; set; }
+
+    /// <summary>
+    /// Gets or sets the tenant role in the room.
+    /// </summary>
+    public string RoleCode { get; set; }
 
     /// <summary>
     /// Gets or sets the tenant contract start date.

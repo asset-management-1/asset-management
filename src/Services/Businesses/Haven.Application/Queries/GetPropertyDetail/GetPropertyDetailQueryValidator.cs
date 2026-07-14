@@ -11,6 +11,6 @@ public class GetPropertyDetailQueryValidator : AbstractValidator<GetPropertyDeta
     public GetPropertyDetailQueryValidator()
     {
         // Detail reads must always be scoped by a route public identifier.
-        RuleFor(x => x.PropertyPublicId).NotEmpty();
+        RuleFor(x => x.PropertyPublicId).RequiredGuid();
     }
 }

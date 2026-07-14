@@ -1,6 +1,6 @@
+using System.Runtime.CompilerServices;
 using Google.Api.Gax;
 using Google.Cloud.SecretManager.V1;
-using System.Runtime.CompilerServices;
 using SecretVersion = Google.Cloud.SecretManager.V1.SecretVersion;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Services.Gcp;

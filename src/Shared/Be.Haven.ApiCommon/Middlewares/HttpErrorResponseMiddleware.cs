@@ -247,7 +247,7 @@ public sealed class HttpErrorResponseMiddleware
     private static ResponseDto<string> BuildResponse(HttpContext context, int status, string code, string message)
     {
         var activity = Activity.Current;
-        
+
         // API version (if any) for this request
         var version = context.Features.Get<IApiVersioningFeature>()?.RequestedApiVersion;
         string versionData = null;
@@ -255,7 +255,7 @@ public sealed class HttpErrorResponseMiddleware
         {
             versionData = $"{version.MajorVersion}.{version.MinorVersion ?? 0}";
         }
-        
+
         return new ResponseDto<string>
         {
             Error = new ErrorDto

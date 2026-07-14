@@ -46,7 +46,7 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
         // Current user and cooldown are checked before preparing any change-email session state.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
 
@@ -57,18 +57,18 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
         if (hasCooldown)
         {
             throw new ApiException(
-                OTP_COOLDOWN_MESSAGE,
-                AUTH_OTP_COOLDOWN,
+                ApplicationErrorConstants.OtpErrors.OTP_COOLDOWN_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_COOLDOWN,
                 StatusCodes.Status429TooManyRequests);
         }
 
-        _logger.LogInformation(CHANGE_EMAIL_FLOW_STEP1_CURRENT_USER_RESOLVED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP1_CURRENT_USER_RESOLVED);
 
         // UserService validates ownership rules and normalizes the target email for the session cache below.
         var changeEmail = await _userService.PrepareChangeEmailAsync(
             request.Adapt<ChangeEmailRequestDto>(),
             cancellationToken);
-        _logger.LogInformation(CHANGE_EMAIL_FLOW_STEP2_TARGET_PREPARED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP2_TARGET_PREPARED);
 
         var otpCode = AuthenticationFlowHelper.GenerateOtp();
         var otpCacheResponse = new OtpCacheRequestDto
@@ -93,14 +93,14 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
             changeEmailSession,
             otpTtl,
             cancellationToken);
-        _logger.LogInformation(CHANGE_EMAIL_FLOW_STEP3_SESSION_CACHED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP3_SESSION_CACHED);
 
         // The new email must receive the OTP before cooldown/security notification is recorded.
         var sent = await _authenticationService.SendOtpEmailAsync(
             new OtpEmailRequestDto
             {
                 Email = changeEmail.NewEmail,
-                Subject = EMAIL_SUBJECT_CHANGE_EMAIL,
+                Subject = ApplicationMessageConstants.EmailMessages.EMAIL_SUBJECT_CHANGE_EMAIL,
                 OtpCode = otpCode,
                 Purpose = CHANGE_EMAIL_PURPOSE
             },
@@ -111,29 +111,29 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
             await _cachingService.RemoveAsync(
                 changeEmailSessionKey,
                 cancellationToken);
-            _logger.LogWarning(CHANGE_EMAIL_FLOW_ROLLBACK_OTP_SEND_FAILED);
+            _logger.LogWarning(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_ROLLBACK_OTP_SEND_FAILED);
             throw new ApiException(
-                OTP_SEND_FAILED_MESSAGE,
-                AUTH_FORBIDDEN_OPERATION,
+                ApplicationErrorConstants.OtpErrors.OTP_SEND_FAILED_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_FORBIDDEN_OPERATION,
                 StatusCodes.Status503ServiceUnavailable);
         }
 
-        _logger.LogInformation(CHANGE_EMAIL_FLOW_STEP4_OTP_SENT);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP4_OTP_SENT);
 
         // Old-email notification is best-effort and must not block ownership verification of the new email.
         await TrySendSecurityNotificationAsync(changeEmail, currentUserPublicId, cancellationToken);
-        _logger.LogInformation(CHANGE_EMAIL_FLOW_STEP5_SECURITY_NOTIFICATION_ATTEMPTED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP5_SECURITY_NOTIFICATION_ATTEMPTED);
 
         await _cachingService.SetAbsoluteAsync(
             AuthenticationFlowHelper.BuildChangeEmailCooldownKey(currentUserPublicId),
             OTP_COOLDOWN_VALUE,
             TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
             cancellationToken);
-        _logger.LogInformation(CHANGE_EMAIL_FLOW_STEP6_COOLDOWN_SET);
-        _logger.LogInformation(CHANGE_EMAIL_FLOW_COMPLETED, currentUserPublicId);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP6_COOLDOWN_SET);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_COMPLETED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(
-            OperationStatusResponseHelper.Success(CHANGE_EMAIL_OTP_SENT_MESSAGE));
+            OperationStatusResponseHelper.Success(ApplicationMessageConstants.ProfileMessages.CHANGE_EMAIL_OTP_SENT_MESSAGE));
     }
 
     /// <summary>
@@ -150,17 +150,20 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
     {
         try
         {
+            // Notify the previous address after the new OTP flow starts; this alert must not block the requested change.
             var sent = await _authenticationService.SendChangeEmailSecurityNotificationAsync(
                 changeEmail.Adapt<ChangeEmailSecurityNotificationRequestDto>(),
                 cancellationToken);
+
             if (!sent.IsSuccess)
             {
-                _logger.LogWarning(CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED, currentUserPublicId);
+                _logger.LogWarning(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED, currentUserPublicId);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            _logger.LogWarning(ex, CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED, currentUserPublicId);
+            // Keep the main OTP flow successful when the secondary security notification provider is unavailable.
+            _logger.LogWarning(ex, ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED, currentUserPublicId);
         }
     }
 

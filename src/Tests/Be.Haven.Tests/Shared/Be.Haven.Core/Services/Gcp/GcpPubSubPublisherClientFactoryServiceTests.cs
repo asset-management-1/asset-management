@@ -14,13 +14,16 @@ public sealed class GcpPubSubPublisherClientFactoryServiceTests
 
         try
         {
-            // Act
-            var result = await sut.CreateAsync(
-                new TopicName("project-id", "topic-id"),
-                CancellationToken.None);
+            await GcpCredentialTestGuard.ExecuteAsyncOrSkip(async () =>
+            {
+                // Act
+                var result = await sut.CreateAsync(
+                    new TopicName("project-id", "topic-id"),
+                    CancellationToken.None);
 
-            // Assert
-            result.Should().BeOfType<GcpPubSubPublisherClientService>();
+                // Assert
+                result.Should().BeOfType<GcpPubSubPublisherClientService>();
+            });
         }
         finally
         {

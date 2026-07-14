@@ -38,13 +38,14 @@ public class SubmitKycCommandHandler : ICommandHandler<SubmitKycCommand, Respons
         // KYC submission belongs to the authenticated account; no document identity is accepted from route/query state.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
 
         // UserService stores the scanned identity snapshot for manual review; profile sync waits for admin approval.
         var result = await _userService.SubmitKycAsync(request.Adapt<SubmitKycRequestDto>(), cancellationToken);
-        _logger.LogInformation(KYC_SUBMITTED, currentUserPublicId);
+
+        _logger.LogInformation(ApplicationLogConstants.KycLogs.KYC_SUBMITTED, currentUserPublicId);
 
         return new ResponseDto<KycSubmissionResponseDto>(result);
     }

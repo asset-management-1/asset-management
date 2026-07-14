@@ -1,5 +1,8 @@
 namespace Authentication.Domain.Entities;
 
+/// <summary>
+/// Links a Haven user account to one identity issued by an external authentication provider.
+/// </summary>
 public class ExternalLogin : BaseEntity
 {
     /// <summary>

@@ -25,12 +25,16 @@ public class UnlinkExternalProviderCommandCachePolicy : ICacheInvalidationPolicy
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        // Resolve the caller after unlinking succeeds because provider changes affect only that user's profile projection.
         var currentUserPublicId = _authService.UserId();
+
         if (!currentUserPublicId.HasValue)
         {
+            // Background executions have no user-scoped profile cache entry to invalidate.
             return [];
         }
 
+        // Invalidate the profile read model so the next read contains the updated provider list.
         return
         [
             new CacheInvalidationTargetModel(USER_INFO_CACHE_KEY, currentUserPublicId.Value.ToUserCacheScope(), failOnError: true)

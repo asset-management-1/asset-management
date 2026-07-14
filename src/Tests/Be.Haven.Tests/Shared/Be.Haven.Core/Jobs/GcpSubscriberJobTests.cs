@@ -1,6 +1,6 @@
-using Google.Cloud.PubSub.V1;
 using System.Collections.Concurrent;
 using System.Reflection;
+using Google.Cloud.PubSub.V1;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Jobs;
 
@@ -317,7 +317,7 @@ public sealed class GcpSubscriberJobTests
             MessageId = "message-1",
             Data = ByteString.CopyFromUtf8("""{"name":"Haven"}""")
         };
-        message.Attributes[AppConstants.SystemVariable.ROUTING_KEY] = eventName;
+        message.Attributes[ROUTING_KEY] = eventName;
 
         return message;
     }
@@ -380,7 +380,7 @@ public sealed class GcpSubscriberJobTests
             _cancellationTokenSource = cancellationTokenSource;
         }
 
-        public SubscriberClient.Reply LastReply { get; private set; }
+        public Reply LastReply { get; private set; }
 
         public int StopCallCount { get; private set; }
 
@@ -391,7 +391,7 @@ public sealed class GcpSubscriberJobTests
         }
 
         public override Task StopAsync(
-            SubscriberClient.ShutdownOptions shutdownOptions,
+            ShutdownOptions shutdownOptions,
             CancellationToken cancellationToken)
         {
             StopCallCount++;

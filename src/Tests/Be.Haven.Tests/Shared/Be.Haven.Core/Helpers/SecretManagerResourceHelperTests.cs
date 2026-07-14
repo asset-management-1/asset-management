@@ -13,10 +13,13 @@ public sealed class SecretManagerResourceHelperTests
         try
         {
             // Act
-            var result = SecretManagerResourceHelper.BuildClient("global");
+            GcpCredentialTestGuard.ExecuteOrSkip(() =>
+            {
+                var result = SecretManagerResourceHelper.BuildClient("global");
 
-            // Assert
-            result.Should().NotBeNull();
+                // Assert
+                result.Should().NotBeNull();
+            });
         }
         finally
         {
@@ -35,10 +38,13 @@ public sealed class SecretManagerResourceHelperTests
         try
         {
             // Act
-            var result = SecretManagerResourceHelper.BuildClient("asia-southeast1");
+            GcpCredentialTestGuard.ExecuteOrSkip(() =>
+            {
+                var result = SecretManagerResourceHelper.BuildClient("asia-southeast1");
 
-            // Assert
-            result.Should().NotBeNull();
+                // Assert
+                result.Should().NotBeNull();
+            });
         }
         finally
         {

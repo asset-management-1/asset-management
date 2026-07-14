@@ -129,7 +129,7 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
                 await action(execCt);
                 return;
             }
-            
+
             // Create a new transaction owned by this method.
             await using var tx = await BeginTransactionAsync(execCt);
             try
@@ -142,7 +142,7 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
 
                 // Commit the transaction if everything completed successfully.
                 await CommitTransactionAsync(execCt);
-                
+
                 _logger.LogInformation(
                     LOG_TRANSACTIONAL_BLOCK_COMPLETED,
                     ContextName);
@@ -154,12 +154,10 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
                     LOG_TRANSACTIONAL_BLOCK_ERROR,
                     ContextName);
                 
-                // Roll back the transaction on failure and rethrow the original exception.
+                // Roll back the transaction before preserving the original exception contract for global middleware.
                 await RollbackTransactionAsync(execCt);
                 
-                throw new InvalidOperationException(
-                    string.Format(EX_TRANSACTIONAL_BLOCK_FAILED, ContextName),
-                    ex);
+                throw;
             }
         }, ct);
     }
@@ -192,7 +190,7 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
             {
                 return await action(execCt);
             }
-            
+
             // Create a new transaction owned by this method.
             await using var tx = await BeginTransactionAsync(execCt);
             try
@@ -205,11 +203,11 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
 
                 // Commit the transaction if everything completed successfully.
                 await CommitTransactionAsync(execCt);
-                
+
                 _logger.LogInformation(
                     LOG_TRANSACTIONAL_BLOCK_COMPLETED,
                     ContextName);
-                
+
                 return result;
             }
             catch (Exception ex)
@@ -219,12 +217,10 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
                     LOG_TRANSACTIONAL_BLOCK_ERROR,
                     ContextName);
                 
-                // Roll back the transaction on failure and rethrow the original exception.
+                // Roll back the transaction before preserving the original exception contract for global middleware.
                 await RollbackTransactionAsync(execCt);
                 
-                throw new InvalidOperationException(
-                    string.Format(EX_TRANSACTIONAL_BLOCK_FAILED, ContextName),
-                    ex);
+                throw;
             }
         }, ct);
     }

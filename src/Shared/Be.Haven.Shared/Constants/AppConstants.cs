@@ -8,7 +8,7 @@ public static class AppConstants
         /// Represents the prefix used for identifying cache connection keys in the system.
         /// </summary>
         public const string CACHE_CONNECTION_KEY_PREFIX = "db_connection_string";
-        
+
         /// <summary>
         /// Specifies the default duration that the system waits to acquire a lock before timing out.
         /// This value is used as a fallback when no custom lock wait timeout is configured.
@@ -20,7 +20,7 @@ public static class AppConstants
         /// This value is used as a fallback when no custom lock poll delay is configured.
         /// </summary>
         public static readonly TimeSpan DEFAULT_LOCK_POLL_DELAY = TimeSpan.FromSeconds(2);
-        
+
         /// <summary>
         /// Represents the default version value used as a fallback when no specific version is found or when a version-related value is invalid.
         /// </summary>
@@ -30,7 +30,7 @@ public static class AppConstants
         /// Specifies the maximum number of retry attempts allowed when writing cached data fails.
         /// </summary>
         public const int MAX_WRITE_CACHED_RETRIES = 5;
-        
+
         /// <summary>
         /// Constant representing the authentication scheme for Haven Bearer tokens.
         /// </summary>
@@ -67,7 +67,7 @@ public static class AppConstants
         /// Usage: string.Format(CACHE_SCOPE_SEGMENT_FORMAT, cacheScope)
         /// </summary>
         public const string CACHE_SCOPE_SEGMENT_FORMAT = ":{0}";
-        
+
         /// <summary>
         /// Represents the slash ("/") character used as a constant in system variables.
         /// </summary>
@@ -84,25 +84,25 @@ public static class AppConstants
         public const string COMMA_SEPARATOR = ",";
 
         /// <summary>
+        /// Represents a comma followed by a space for human-readable joined text.
+        /// </summary>
+        public const string COMMA_SPACE_SEPARATOR = ", ";
+
+        /// <summary>
         /// Default separator used when composing generated business-readable codes.
         /// </summary>
         public const string DEFAULT_CODE_SEPARATOR = "_";
 
         /// <summary>
-        /// Maximum random segment length available from a GUID hex string without separators.
+        /// Maximum numeric random segment length used for generated business-readable codes.
         /// </summary>
-        public const int MAX_GUID_HEX_RANDOM_LENGTH = 32;
-
-        /// <summary>
-        /// GUID format used to generate a hex string without separators.
-        /// </summary>
-        public const string GUID_HEX_RANDOM_FORMAT = "N";
+        public const int MAX_NUMERIC_RANDOM_CODE_LENGTH = 32;
 
         /// <summary>
         /// Constant representing a separator used for single-line formatting purposes.
         /// </summary>
         public const string ONE_LINE_SEPARATOR = " | ";
-        
+
         /// <summary>
         /// Constant representing an underscore character ("_") used as a separator or delimiter in string operations or configurations.
         /// </summary>
@@ -165,6 +165,10 @@ public static class AppConstants
         /// The configuration section name for Cloudflare R2 storage settings.
         /// </summary>
         public const string R2_STORAGE_SETTINGS = "R2StorageSettings";
+
+        /// <summary>
+        /// The configuration section for image optimization limits.
+        /// </summary>
 
         /// <summary>
         /// Configuration section name for NA settings (bound to <c>SsoInfoOptions</c>).
@@ -230,7 +234,7 @@ public static class AppConstants
         /// Constant representing the property name for storing or accessing the trace identifier, which is typically used for tracking and correlating log or request data throughout a system.
         /// </summary>
         public const string TRACE_ID_PROPERTY = "TraceId";
-        
+
         /// <summary>
         /// OpenTelemetry tag key for the correlation ID.
         /// </summary>
@@ -256,7 +260,7 @@ public static class AppConstants
         /// to pass vendor-specific trace information.
         /// </summary>
         public const string TRACE_ID = "trace_id";
-        
+
         /// <summary>
         /// The UTC timestamp captured at the beginning of a request,
         /// typically stored in <c>HttpContext.Items</c> for later logging/metrics.
@@ -273,7 +277,7 @@ public static class AppConstants
         /// Kept for compatibility with dashboards/queries that expect "deployment.environment".
         /// </summary>
         public const string OTL_DEPLOYMENT_ENVIRONMENT = "deployment.environment";
-        
+
         public const string OTL_INSTANCE_ENVIRONMENT = "service.instance.id";
 
         /// <summary>
@@ -496,7 +500,7 @@ public static class AppConstants
         /// Number cut url environment variable.
         /// </summary>
         public const int NUMBER_SEGMENTS = 2;
-        
+
         /// <summary>
         /// Content-Type environment variable.
         /// </summary>
@@ -890,11 +894,6 @@ public static class AppConstants
         public const int MANY_REQUESTS = 429;
 
         /// <summary>
-        /// Conflict Error response code.
-        /// </summary>
-        public const int CONFLICT_ERROR = 409;
-
-        /// <summary>
         /// Bad gateway timeout.
         /// </summary>
         public const int BAD_GATEWAY_TIMEOUT = 504;
@@ -980,15 +979,10 @@ public static class AppConstants
         public const string MANY_REQUESTS = "error_too_many_requests";
 
         /// <summary>
-        /// Error Conflict message code.
-        /// </summary>
-        public const string CONFLICT_ERROR = "error_conflict";
-
-        /// <summary>
         /// Error validation message code.
         /// </summary>
         public const string VALIDATION_ERROR = "Validation_failed";
-        
+
         /// <summary>
         /// Error API version not supported message code.
         /// </summary>
@@ -1043,7 +1037,7 @@ public static class AppConstants
         /// Exception message used when unique code generation exhausts all attempts.
         /// </summary>
         public const string UNIQUE_CODE_GENERATION_FAILED = "Could not generate a unique code after exhausting all random segment lengths.";
-        
+
         /// <summary>
         /// Log message indicating that an HTTP request failed due to a specific HTTP request exception.
         /// </summary>
@@ -1053,7 +1047,7 @@ public static class AppConstants
         /// Represents the log message used to indicate that an HTTP request was blocked due to the circuit breaker being open.
         /// </summary>
         public const string LOG_HTTP_CIRCUIT_OPEN = "HTTP request blocked because circuit breaker is OPEN. Client={ClientName}, Method={Method}, Uri={Uri}";
-        
+
         /// <summary>
         /// Log message indicating that an unexpected error occurred during an HTTP request.
         /// </summary>
@@ -1065,7 +1059,7 @@ public static class AppConstants
         /// and the timeout duration in seconds.
         /// </summary>
         public const string LOG_HTTP_REQUEST_TIMEOUT = "HTTP request timeout for client. ClientName={ClientName}, HttpMethod={HttpMethod}, Uri={Uri}, TimeoutSeconds={TimeoutSeconds}, TimeoutCtsCancelled={TimeoutCtsCancelled}";
-        
+
         /// <summary>
         /// Log message indicating that the database connection string is being resolved using GCP Secret Manager.
         /// </summary>
@@ -1085,7 +1079,7 @@ public static class AppConstants
         /// Log message indicating that the connection string is missing or empty for the specified provider.
         /// </summary>
         public const string LOG_CONNECTION_STRING_MISSING = "Connection string is not configured or is empty for Provider={Provider}.";
-        
+
         /// <summary>
         /// Log message template when changes have been successfully saved to the database context.
         /// </summary>
@@ -1102,10 +1096,9 @@ public static class AppConstants
         public const string LOG_TRANSACTIONAL_BLOCK_ERROR = "Error while executing transactional block for context {ContextName}. Rolling back...";
 
         /// <summary>
-        /// Exception message template used when a transactional block fails unexpectedly.
+        /// Log message template when rollback fails after the original transaction error has already been captured.
         /// </summary>
-        public const string EX_TRANSACTIONAL_BLOCK_FAILED = "An error occurred while executing transactional block for context {0}.";
-        
+
         /// <summary>
         /// Log message template indicating the start of a call to a third-party service,
         /// including the request type and serialized request data.
@@ -1117,7 +1110,7 @@ public static class AppConstants
         /// including details about the request type, status code, and response content.
         /// </summary>
         public const string LOG_END_THIRD_PARTY_CALL = "End calling third-party service with {RequestType} | StatusCode={StatusCode} | Response={ResponseJson}";
-        
+
         /// <summary>
         /// Log message template indicating the start of an HTTP request,
         /// including details such as the HTTP method, request path, action name,
@@ -1131,7 +1124,7 @@ public static class AppConstants
         /// status code, request body, and response body.
         /// </summary>
         public const string LOG_MSG_FINISH = "HTTP {RequestMethod} {RequestPath} finished with status {StatusCode}. RequestBody={RequestBody} ResponseBody={ResponseBody}";
-        
+
         /// <summary>
         /// Message thrown when the secretId is null/empty.
         /// </summary>
@@ -1162,7 +1155,7 @@ public static class AppConstants
         /// Includes the cache key referencing the retrieved value.
         /// </summary>
         public const string LOG_CACHE_VALUE_RETRIEVED = "Retrieved value from cache. Key={CacheKey}.";
-        
+
         /// <summary>
         /// Log message indicating that a value was not found in the cache for the specified key.
         /// </summary>
@@ -1459,12 +1452,12 @@ public static class AppConstants
         /// Represents the system message indicating that the payload size exceeds the allowed limit.
         /// </summary>
         public const string MSG_PAYLOAD_TOO_LARGE = "Payload too large.";
-        
+
         /// <summary>
         /// Defines the error message template for indicating a request timeout.
         /// </summary>
         public const string ERROR_REQUEST_TIMEOUT = "Request timeout after {0}s. Error Message: {1}";
-        
+
         /// <summary>
         /// Log message for email sending failure.
         /// </summary>
@@ -1490,7 +1483,7 @@ public static class AppConstants
         /// </summary>
         public const string REQUEST_CANCELED_WHILE_WRITING_ERROR_RESPONSE = "Request was canceled while writing error response. Path={Path}, Method={Method}";
 
-        
+
         /// <summary>
         /// Exception message templates for ResourceFileProvider.
         /// </summary>

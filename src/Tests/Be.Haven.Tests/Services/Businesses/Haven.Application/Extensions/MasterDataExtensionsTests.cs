@@ -1,55 +1,14 @@
 using Haven.Application.Extensions;
-using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
-using Haven.Application.Models.Parties;
-using Haven.Application.Models.Properties.Create;
-using Haven.Application.Models.Properties.Detail;
-using Haven.Application.Models.Properties.List;
-using Haven.Application.Models.Properties.QueryParameters;
-using Haven.Application.Models.Properties.Rows;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Extensions;
 
 public sealed class MasterDataExtensionsTests
 {
     [Fact]
-    public void AddKey_Should_AddRequiredMasterDataKey()
+    public void GetValue_Should_ReturnResolvedValue_When_KeyExists()
     {
-        var keys = new HashSet<MasterDataKeyModel>();
-
-        keys.AddKey("PROPERTY_TYPE", "BUILDING");
-
-        keys.Should().ContainSingle();
-        keys.Should().Contain(new MasterDataKeyModel("PROPERTY_TYPE", "BUILDING"));
-    }
-
-    [Fact]
-    public void AddOptionalKey_Should_SkipBlankCodeAndTrimSuppliedCode()
-    {
-        var keys = new HashSet<MasterDataKeyModel>();
-
-        keys.AddOptionalKey("VEHICLE_TYPE", "  MOTORBIKE  ");
-        keys.AddOptionalKey("VEHICLE_TYPE", "   ");
-
-        keys.Should().ContainSingle();
-        keys.Should().Contain(new MasterDataKeyModel("VEHICLE_TYPE", "MOTORBIKE"));
-    }
-
-    [Fact]
-    public void AddKey_Should_DedupeDuplicateKeys_When_TargetIsHashSet()
-    {
-        var keys = new HashSet<MasterDataKeyModel>();
-
-        keys.AddKey("UNIT_STATUS", "AVAILABLE");
-        keys.AddKey("UNIT_STATUS", "AVAILABLE");
-
-        keys.Should().ContainSingle();
-    }
-
-    [Fact]
-    public void RequireValue_Should_ReturnResolvedValue_When_KeyExists()
-    {
-        var key = new MasterDataKeyModel("PROPERTY_TYPE", "BUILDING");
+        var key = new MasterDataKeyModel(MasterDataTypeEnum.PropertyType, "BUILDING");
         var expected = new MasterDataValueModel
         {
             Id = 1,
@@ -62,18 +21,18 @@ public sealed class MasterDataExtensionsTests
             [key] = expected
         };
 
-        var result = values.RequireValue(key);
+        var result = values.GetValue(MasterDataTypeEnum.PropertyType, key.Code);
 
         result.Should().BeSameAs(expected);
     }
 
     [Fact]
-    public void RequireValue_Should_ThrowBadRequest_When_KeyIsMissing()
+    public void GetValue_Should_ThrowBadRequest_When_KeyIsMissing()
     {
         var values = new Dictionary<MasterDataKeyModel, MasterDataValueModel>();
-        var key = new MasterDataKeyModel("PROPERTY_TYPE", "BUILDING");
+        var key = new MasterDataKeyModel(MasterDataTypeEnum.PropertyType, "BUILDING");
 
-        var act = () => values.RequireValue(key);
+        var act = () => values.GetValue(MasterDataTypeEnum.PropertyType, key.Code);
 
         act.Should()
             .Throw<ApiException>()

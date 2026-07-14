@@ -21,11 +21,6 @@ public class PropertyListItemResponseDto
     public string Address { get; set; }
 
     /// <summary>
-    /// Gets or sets the thumbnail URL when a property image exists.
-    /// </summary>
-    public string ThumbnailUrl { get; set; }
-
-    /// <summary>
     /// Gets or sets the total number of floors shown on the property card.
     /// </summary>
     public int TotalFloors { get; set; }

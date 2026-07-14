@@ -16,17 +16,15 @@ public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCo
 
         RuleFor(x => x.NewPassword)
             .Required()
-            .MinimumLength(8)
-            .Matches("[A-Z]")
-            .Matches("[a-z]")
-            .Matches("[0-9]")
-            .Matches("[@$!%*?&]")
-            .WithMessage(PASSWORD_COMPLEXITY_RULES)
+            .MinLen(PASSWORD_MINIMUM_LENGTH, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_UPPERCASE_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_LOWERCASE_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_NUMBER_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_SPECIAL_CHARACTER_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
             .Must((request, newPassword) => !string.Equals(
                 request.CurrentPassword,
                 newPassword,
                 StringComparison.Ordinal))
-            .WithMessage(NEW_PASSWORD_MUST_DIFFER_FROM_CURRENT_PASSWORD);
-
+            .WithMessage(ApplicationErrorConstants.ValidationErrors.NEW_PASSWORD_MUST_DIFFER_FROM_CURRENT_PASSWORD);
     }
 }

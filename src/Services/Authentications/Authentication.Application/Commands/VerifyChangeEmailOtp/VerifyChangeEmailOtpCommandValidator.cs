@@ -6,17 +6,19 @@ namespace Authentication.Application.Commands.VerifyChangeEmailOtp;
 public class VerifyChangeEmailOtpCommandValidator : AbstractValidator<VerifyChangeEmailOtpCommand>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="VerifyChangeEmailOtpCommandValidator"/> class.
+    /// Creates validation rules for verifying a pending change-email OTP.
     /// </summary>
     public VerifyChangeEmailOtpCommandValidator()
     {
+        // New email identifies the pending change-email OTP request.
         RuleFor(x => x.NewEmail)
             .Required()
-            .EmailAddress()
-            .MaximumLength(255);
+            .EmailFormat()
+            .MaxLen(255);
 
+        // OTP length is fixed so the cache lookup and verification path stay predictable.
         RuleFor(x => x.Otp)
             .Required()
-            .Length(OTP_LENGTH);
+            .BetweenLen(OTP_LENGTH, OTP_LENGTH);
     }
 }

@@ -16,20 +16,19 @@ public class RegisterCommandValidator : AbstractValidator<RegisterCommand>
             .MaxLen(255);
 
         RuleFor(x => x.PartyType)
-            .IsInEnum();
+            .ValidEnum();
 
         RuleFor(x => x.Password)
             .Required()
-            .MinimumLength(8)
-            .Matches("[A-Z]")
-            .Matches("[a-z]")
-            .Matches("[0-9]")
-            .Matches("[@$!%*?&]")
-            .WithMessage(PASSWORD_COMPLEXITY_RULES);
+            .MinLen(PASSWORD_MINIMUM_LENGTH, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_UPPERCASE_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_LOWERCASE_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_NUMBER_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_SPECIAL_CHARACTER_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES);
 
         RuleFor(x => x.Email)
             .Required()
-            .EmailAddress()
+            .EmailFormat()
             .MaxLen(255);
 
         RuleFor(x => x.PhoneNumber)

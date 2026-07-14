@@ -42,7 +42,8 @@ public class GetPropertiesQueryHandler : IQueryHandler<GetPropertiesQuery, Respo
 
         // Infrastructure service owns repository reads and nested response assembly.
         var response = await _propertyService.GetPropertiesAsync(propertyRequest, cancellationToken);
-        _logger.LogInformation(LOG_PROPERTY_LIST_QUERY_COMPLETED, currentParty.PartyPublicId);
+
+        _logger.LogInformation(ApplicationLogConstants.PropertyLogs.PROPERTY_LIST_QUERY_COMPLETED, currentParty.PartyPublicId);
 
         return new ResponseDto<PaginationResponse<IReadOnlyList<PropertyListItemResponseDto>>>(response);
     }

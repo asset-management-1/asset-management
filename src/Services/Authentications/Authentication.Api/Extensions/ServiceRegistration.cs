@@ -34,6 +34,7 @@ public static class ServiceRegistration
         // Token issuing uses the same final secret value as the shared token validator.
         services.AddOptions<AuthOptions>()
                 .Bind(configuration.GetSection(AUTH_SETTINGS))
+                .ValidateDataAnnotations()
                 .ValidateOnStart();
     }
 

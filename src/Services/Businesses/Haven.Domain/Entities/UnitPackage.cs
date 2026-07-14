@@ -1,17 +1,27 @@
 namespace Haven.Domain.Entities;
 
 /// <summary>
-/// Represents a selectable service or furniture package for one unit in asset.UnitPackages.
+/// Represents a selectable service or furniture package in asset.UnitPackages.
 /// </summary>
 public class UnitPackage : BaseEntity
 {
     /// <summary>
-    /// Gets or sets the internal unit identifier.
+    /// Gets or sets the internal property identifier that owns this package.
     /// </summary>
-    public long UnitId { get; set; }
+    public long PropertyId { get; set; }
 
     /// <summary>
-    /// Gets or sets the unit navigation.
+    /// Gets or sets the parent property navigation.
+    /// </summary>
+    public Property Property { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional internal unit identifier for room-specific package overrides.
+    /// </summary>
+    public long? UnitId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional unit navigation for room-specific package overrides.
     /// </summary>
     public Unit Unit { get; set; }
 
@@ -21,7 +31,7 @@ public class UnitPackage : BaseEntity
     public long PackageTypeId { get; set; }
 
     /// <summary>
-    /// Gets or sets the package code unique within the unit.
+    /// Gets or sets the package code unique within the property or overridden room.
     /// </summary>
     public string PackageCode { get; set; }
 

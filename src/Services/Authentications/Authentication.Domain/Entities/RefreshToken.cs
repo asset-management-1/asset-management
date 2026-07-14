@@ -1,5 +1,8 @@
 namespace Authentication.Domain.Entities;
 
+/// <summary>
+/// Stores a revocable client session credential and its trusted device metadata.
+/// </summary>
 public class RefreshToken : BaseEntity
 {
     /// <summary>

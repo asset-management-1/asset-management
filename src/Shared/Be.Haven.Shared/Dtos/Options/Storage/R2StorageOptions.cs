@@ -1,5 +1,7 @@
 namespace Be.Haven.Shared.Dtos.Options.Storage;
 
+using System.ComponentModel.DataAnnotations;
+
 /// <summary>
 /// Represents Cloudflare R2 private bucket configuration.
 /// </summary>
@@ -8,21 +10,25 @@ public class R2StorageOptions
     /// <summary>
     /// Gets or sets the S3-compatible endpoint used for upload and delete requests.
     /// </summary>
+    [Required, Url]
     public string Endpoint { get; set; }
 
     /// <summary>
     /// Gets or sets the private bucket name used for uploads.
     /// </summary>
+    [Required]
     public string BucketName { get; set; }
 
     /// <summary>
     /// Gets or sets the R2 access key identifier.
     /// </summary>
+    [Required]
     public string AccessKeyId { get; set; }
 
     /// <summary>
     /// Gets or sets the R2 secret access key.
     /// </summary>
+    [Required]
     public string SecretAccessKey { get; set; }
 
     /// <summary>
@@ -44,4 +50,9 @@ public class R2StorageOptions
     /// Gets or sets the object-key prefix used for account avatar images.
     /// </summary>
     public string AvatarObjectPrefix { get; set; } = DEFAULT_AVATAR_OBJECT_PREFIX;
+
+    /// <summary>
+    /// Gets or sets the object-key prefix used for utility meter evidence.
+    /// </summary>
+    public string MeterObjectPrefix { get; set; } = DEFAULT_METER_OBJECT_PREFIX;
 }

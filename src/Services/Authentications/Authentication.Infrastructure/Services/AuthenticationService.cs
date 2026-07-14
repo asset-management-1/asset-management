@@ -63,8 +63,8 @@ public class AuthenticationService : IAuthenticationService
                 request.Password) == PasswordVerificationResult.Failed)
         {
             throw new ApiException(
-                INVALID_USERNAME_OR_PASSWORD_MESSAGE,
-                AUTH_INVALID_CREDENTIALS,
+                ApplicationErrorConstants.AccountErrors.INVALID_USERNAME_OR_PASSWORD_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_INVALID_CREDENTIALS,
                 StatusCodes.Status401Unauthorized);
         }
 
@@ -78,6 +78,8 @@ public class AuthenticationService : IAuthenticationService
             cancellationToken);
         var isNewClientSession = sessionRefreshToken is null;
         sessionRefreshToken ??= new RefreshToken();
+
+        // Issue the access token and rotate or create the persistent refresh-token session in one flow.
         var response = await IssueAsync(
             new AuthSessionIssueRequestModel
             {
@@ -148,7 +150,9 @@ public class AuthenticationService : IAuthenticationService
             cancellationToken);
         if (partyTypeValue is null)
         {
-            throw new ApiException(INVALID_PARTY_TYPE_MESSAGE, AUTH_FORBIDDEN_OPERATION);
+            throw new ApiException(
+                ApplicationErrorConstants.ContextErrors.INVALID_PARTY_TYPE_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_FORBIDDEN_OPERATION);
         }
     }
 
@@ -165,17 +169,23 @@ public class AuthenticationService : IAuthenticationService
         // Each uniqueness check maps to a database constraint the registration flow must respect.
         if (await _repositories.UserRepository.UserNameExistsAsync(request.UserName, cancellationToken))
         {
-            throw new ApiException(USERNAME_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.USERNAME_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS);
         }
 
         if (await _repositories.UserRepository.EmailExistsAsync(request.Email, cancellationToken))
         {
-            throw new ApiException(EMAIL_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.EMAIL_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS);
         }
 
         if (await _repositories.UserRepository.PhoneNumberExistsAsync(request.PhoneNumber, cancellationToken))
         {
-            throw new ApiException(PHONE_NUMBER_ALREADY_EXISTS_MESSAGE, AUTH_USER_ALREADY_EXISTS);
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.PHONE_NUMBER_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS);
         }
     }
 
@@ -221,22 +231,22 @@ public class AuthenticationService : IAuthenticationService
             new MasterDataValueRequirementModel(
                 PARTY_TYPE_TYPE,
                 pendingRegister.PartyType,
-                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                AUTH_USER_STATUS_NOT_FOUND));
+                ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_STATUS_NOT_FOUND));
         var partyStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
             new MasterDataValueRequirementModel(
                 PARTY_STATUS_TYPE,
                 ACTIVE_STATUS,
-                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                AUTH_USER_STATUS_NOT_FOUND));
+                ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_STATUS_NOT_FOUND));
         var userStatus = MasterDataValueHelper.GetRequired(
             masterDataValues,
             new MasterDataValueRequirementModel(
                 USER_STATUS_TYPE,
                 ACTIVE_STATUS,
-                REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
-                AUTH_USER_STATUS_NOT_FOUND));
+                ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_STATUS_NOT_FOUND));
 
         var provision = pendingRegister.Adapt<RegisterAccountProvisionRequestDto>();
         provision.PartyTypeId = partyType.Id;
@@ -265,7 +275,8 @@ public class AuthenticationService : IAuthenticationService
             InfrastructureLogConstants.SessionLogs.REGISTER_COMPLETED,
             createdUser?.PublicId);
 
-        return OperationStatusResponseHelper.Success(REGISTRATION_COMPLETED_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.AccountMessages.REGISTRATION_COMPLETED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -285,7 +296,9 @@ public class AuthenticationService : IAuthenticationService
                 RequestData = new RequestData
                 {
                     Subject = request.Subject,
-                    Body = string.Format(OTP_EMAIL_HTML_TEMPLATE, request.OtpCode),
+                    Body = string.Format(
+                        InfrastructureMessageConstants.EmailMessages.OTP_EMAIL_HTML_TEMPLATE,
+                        request.OtpCode),
                     To =
                     [
                         new EmailAddressRequest { Email = request.Email }
@@ -331,9 +344,9 @@ public class AuthenticationService : IAuthenticationService
             {
                 RequestData = new RequestData
                 {
-                    Subject = ApplicationConstants.EMAIL_SUBJECT_CHANGE_EMAIL_SECURITY,
+                    Subject = ApplicationMessageConstants.EmailMessages.EMAIL_SUBJECT_CHANGE_EMAIL_SECURITY,
                     Body = string.Format(
-                        CHANGE_EMAIL_SECURITY_EMAIL_HTML_TEMPLATE,
+                        InfrastructureMessageConstants.EmailMessages.CHANGE_EMAIL_SECURITY_EMAIL_HTML_TEMPLATE,
                         request.OldEmail,
                         request.NewEmail,
                         supportEmail),
@@ -368,8 +381,8 @@ public class AuthenticationService : IAuthenticationService
         if (string.IsNullOrWhiteSpace(request.RefreshToken))
         {
             throw new ApiException(
-                INVALID_REFRESH_TOKEN_MESSAGE,
-                AUTH_INVALID_REFRESH_TOKEN,
+                ApplicationErrorConstants.AccountErrors.INVALID_REFRESH_TOKEN_MESSAGE,
+                ApplicationErrorConstants.TokenErrorCodes.AUTH_INVALID_REFRESH_TOKEN,
                 StatusCodes.Status401Unauthorized);
         }
 
@@ -385,14 +398,15 @@ public class AuthenticationService : IAuthenticationService
             || !AuthenticationFlowHelper.CanLogin(existingToken.User))
         {
             throw new ApiException(
-                INVALID_REFRESH_TOKEN_MESSAGE,
-                AUTH_INVALID_REFRESH_TOKEN,
+                ApplicationErrorConstants.AccountErrors.INVALID_REFRESH_TOKEN_MESSAGE,
+                ApplicationErrorConstants.TokenErrorCodes.AUTH_INVALID_REFRESH_TOKEN,
                 StatusCodes.Status401Unauthorized);
         }
 
         if (!string.Equals(existingToken.TokenHash, refreshTokenHash, StringComparison.Ordinal))
         {
-            // Reusing the immediately previous refresh token revokes the current client session and rejects the request.
+            // Reusing the immediately previous refresh token revokes the current client session
+            // and rejects the request.
             existingToken.RevokedAt = DateTime.UtcNow;
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             _logger.LogWarning(
@@ -400,14 +414,16 @@ public class AuthenticationService : IAuthenticationService
                 existingToken.User.PublicId,
                 existingToken.SessionPublicId);
             throw new ApiException(
-                INVALID_REFRESH_TOKEN_MESSAGE,
-                AUTH_INVALID_REFRESH_TOKEN,
+                ApplicationErrorConstants.AccountErrors.INVALID_REFRESH_TOKEN_MESSAGE,
+                ApplicationErrorConstants.TokenErrorCodes.AUTH_INVALID_REFRESH_TOKEN,
                 StatusCodes.Status401Unauthorized);
         }
 
         // Refresh rotates the token hash in place and keeps the same server-issued session id.
         var replacementRefreshToken = AuthSessionHelper.GenerateRefreshToken();
         var deviceContext = _clientDeviceContextAccessor.GetCurrent();
+
+        // Reissue the token pair while preserving the existing session identifier for this client instance.
         var response = await IssueAsync(
             new AuthSessionIssueRequestModel
             {
@@ -444,7 +460,7 @@ public class AuthenticationService : IAuthenticationService
         // Resolve the public user id to the internal user id used by refresh-token rows.
         var user = await _repositories.UserRepository.GetByPublicIdAsync(currentUserPublicId, cancellationToken)
                    ?? throw new HttpStatusCodeException(
-                       ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                        UNAUTHORIZED,
                        StatusCodes.Status401Unauthorized);
 
@@ -458,7 +474,8 @@ public class AuthenticationService : IAuthenticationService
             currentSessionPublicId,
             currentUserPublicId);
 
-        return OperationStatusResponseHelper.Success(LOGOUT_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.SessionMessages.LOGOUT_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -473,13 +490,18 @@ public class AuthenticationService : IAuthenticationService
     {
         // Load password state from the verified reset-session email.
         var user = await _repositories.UserRepository.GetPasswordIdentityByEmailAsync(request.Email, cancellationToken);
+
         if (user is null)
         {
-            throw new ApiException(RESET_SESSION_INVALID_MESSAGE, AUTH_RESET_SESSION_INVALID);
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.RESET_SESSION_INVALID_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
         }
 
         // Forgot-password completion rotates the password and invalidates every existing session.
         var authResetAt = DateTime.UtcNow;
+
+        // Persist the new password, write the auth-reset marker, and revoke every active client session together.
         await ResetPasswordAuthStateAndRevokeClientSessionsAsync(
             user,
             _passwordHasher.HashPassword(user, request.NewPassword),
@@ -490,7 +512,8 @@ public class AuthenticationService : IAuthenticationService
             InfrastructureLogConstants.PasswordLogs.FORGOT_PASSWORD_CHANGED,
             user.PublicId);
 
-        return OperationStatusResponseHelper.Success(PASSWORD_CHANGED_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.PasswordMessages.PASSWORD_CHANGED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -506,9 +529,11 @@ public class AuthenticationService : IAuthenticationService
         CancellationToken cancellationToken = default)
     {
         // Load current password state from the authenticated public user id.
-        var user = await _repositories.UserRepository.GetPasswordIdentityByPublicIdAsync(currentUserPublicId, cancellationToken)
+        var user = await _repositories.UserRepository.GetPasswordIdentityByPublicIdAsync(
+                       currentUserPublicId,
+                       cancellationToken)
                    ?? throw new HttpStatusCodeException(
-                       ApplicationConstants.UNAUTHORIZED_REQUEST_MESSAGE,
+                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                        UNAUTHORIZED,
                        StatusCodes.Status401Unauthorized);
         if (string.IsNullOrWhiteSpace(user.PasswordHash)
@@ -517,11 +542,15 @@ public class AuthenticationService : IAuthenticationService
                 user.PasswordHash,
                 request.CurrentPassword) == PasswordVerificationResult.Failed)
         {
-            throw new ApiException(CURRENT_PASSWORD_INVALID_MESSAGE, AUTH_INVALID_CREDENTIALS);
+            throw new ApiException(
+                ApplicationErrorConstants.PasswordErrors.CURRENT_PASSWORD_INVALID_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_INVALID_CREDENTIALS);
         }
 
         // Authenticated password change rotates the password and invalidates every existing session.
         var authResetAt = DateTime.UtcNow;
+
+        // Persist the new password, write the auth-reset marker, and revoke every active client session together.
         await ResetPasswordAuthStateAndRevokeClientSessionsAsync(
             user,
             _passwordHasher.HashPassword(user, request.NewPassword),
@@ -532,7 +561,8 @@ public class AuthenticationService : IAuthenticationService
             InfrastructureLogConstants.PasswordLogs.PASSWORD_CHANGED,
             currentUserPublicId);
 
-        return OperationStatusResponseHelper.Success(PASSWORD_CHANGED_SUCCESS_MESSAGE);
+        return OperationStatusResponseHelper.Success(
+            ApplicationMessageConstants.PasswordMessages.PASSWORD_CHANGED_SUCCESS_MESSAGE);
     }
 
     /// <summary>
@@ -561,7 +591,10 @@ public class AuthenticationService : IAuthenticationService
             await _repositories.RefreshTokenRepository.UpdateAsync(issueModel.RefreshToken);
         }
 
+        // Commit refresh-token state before publishing the auth-reset marker used to invalidate issued access tokens.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Seed the reset marker after persistence so the cache never represents an uncommitted auth state.
         await TrySeedAuthResetMarkerAsync(request.User.PublicId, request.User.AuthResetAt, cancellationToken);
 
         return issueModel.LoginResponse;
@@ -685,6 +718,7 @@ public class AuthenticationService : IAuthenticationService
     {
         // Current-session logout marks only the active refresh-token row behind the trusted session id.
         var revokedAt = DateTime.UtcNow;
+
         await _repositories.RefreshTokenRepository.StageActiveRevocationsByUserAndSessionPublicIdAsync(
             userId,
             sessionPublicId,

@@ -9,7 +9,7 @@ public interface IPartyIdentifierRepository : IGenericRepository<PartyIdentifier
     /// Loads one identifier by type and identifier value.
     /// </summary>
     /// <param name="identifierTypeId">The identifier type master-data value id.</param>
-    /// <param name="identifierValue">The normalized identifier value.</param>
+    /// <param name="identifierValue">The submitted identifier value.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched identifier; otherwise <c>null</c>.</returns>
     Task<PartyIdentifier> GetByTypeAndValueAsync(

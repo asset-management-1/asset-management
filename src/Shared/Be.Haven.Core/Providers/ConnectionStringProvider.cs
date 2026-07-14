@@ -49,11 +49,11 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
 
         // Fall back to local configuration when no initialized secret-backed value exists yet.
         cs = _configuration.GetConnectionString(connectionName);
-        
+
         if (string.IsNullOrWhiteSpace(cs))
             throw new InvalidOperationException(
                 string.Format(DatabaseConnectionConstants.ERR_CONNECTION_NOT_INITIALIZED, connectionName));
-        
+
         _lkg[connectionName] = cs;
         return cs;
 

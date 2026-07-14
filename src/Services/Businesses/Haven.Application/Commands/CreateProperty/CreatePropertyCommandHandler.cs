@@ -26,10 +26,10 @@ public class CreatePropertyCommandHandler : ICommandHandler<CreatePropertyComman
     }
 
     /// <summary>
-    /// Creates a property and generated rooms.
+    /// Creates a property from the final floor and room structure submitted by the UI.
     /// </summary>
     /// <param name="request">The create property command.</param>
-    /// <param name="cancellationToken">The token used to cancel the write.</param>
+    /// <param name="cancellationToken">The token used to cancel property creation.</param>
     /// <returns>The standardized created-property response.</returns>
     public async ValueTask<ResponseDto<CreatedPropertyResponseDto>> Handle(
         CreatePropertyCommand request,
@@ -42,8 +42,9 @@ public class CreatePropertyCommandHandler : ICommandHandler<CreatePropertyComman
 
         // Infrastructure service owns master-data/location resolution and transactional persistence.
         var response = await _propertyService.CreatePropertyAsync(propertyRequest, cancellationToken);
+
         _logger.LogInformation(
-            LOG_PROPERTY_CREATE_COMMAND_COMPLETED,
+            ApplicationLogConstants.PropertyLogs.PROPERTY_CREATE_COMMAND_COMPLETED,
             response.Id,
             currentParty.PartyPublicId);
 

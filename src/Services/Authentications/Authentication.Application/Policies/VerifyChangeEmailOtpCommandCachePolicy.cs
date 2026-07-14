@@ -25,12 +25,16 @@ public class VerifyChangeEmailOtpCommandCachePolicy : ICacheInvalidationPolicy<V
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        // Resolve the caller after verification because the confirmed email belongs to that user's profile projection.
         var currentUserPublicId = _authService.UserId();
+
         if (!currentUserPublicId.HasValue)
         {
+            // Background executions have no user-scoped profile cache entry to invalidate.
             return [];
         }
 
+        // Invalidate the profile read model so the next read exposes the newly verified email address.
         return [new CacheInvalidationTargetModel(USER_INFO_CACHE_KEY, currentUserPublicId.Value.ToUserCacheScope(), failOnError: true)];
     }
 }

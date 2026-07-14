@@ -23,8 +23,7 @@ public static class InfrastructureLogConstants
         /// <summary>
         /// Logged after a client session is replaced by a new login.
         /// </summary>
-        public const string CLIENT_SESSION_REPLACED_BY_LOGIN =
-            "Client session {SessionPublicId} replaced by login for user {UserPublicId}.";
+        public const string CLIENT_SESSION_REPLACED_BY_LOGIN = "Client session {SessionPublicId} replaced by login for user {UserPublicId}.";
 
         /// <summary>
         /// Logged after a client session is refreshed.
@@ -39,14 +38,12 @@ public static class InfrastructureLogConstants
         /// <summary>
         /// Logged after all active client sessions are revoked by a credential change.
         /// </summary>
-        public const string CLIENT_SESSIONS_REVOKED_BY_CREDENTIAL_CHANGE =
-            "All client sessions revoked by credential change for user {UserPublicId}.";
+        public const string CLIENT_SESSIONS_REVOKED_BY_CREDENTIAL_CHANGE = "All client sessions revoked by credential change for user {UserPublicId}.";
 
         /// <summary>
         /// Logged when an immediate previous refresh token is reused after rotation.
         /// </summary>
-        public const string REFRESH_TOKEN_REUSE_REJECTED =
-            "Refresh token reuse rejected for user {UserPublicId} and client session {SessionPublicId}.";
+        public const string REFRESH_TOKEN_REUSE_REJECTED = "Refresh token reuse rejected for user {UserPublicId} and client session {SessionPublicId}.";
 
         /// <summary>
         /// Logged after a refresh token is rotated and a new token pair is issued.
@@ -59,11 +56,6 @@ public static class InfrastructureLogConstants
         public const string REGISTER_COMPLETED = "User {UserPublicId} completed register email verification.";
 
         /// <summary>
-        /// Logged after a current-session refresh token is revoked.
-        /// </summary>
-        public const string LOGOUT_REFRESH_TOKEN_REVOKED = "Refresh token revoked for user {UserPublicId}.";
-
-        /// <summary>
         /// Logged when auth reset marker write to cache fails.
         /// </summary>
         public const string AUTH_RESET_CACHE_WRITE_FAILED = "Auth reset cache write failed for user {UserPublicId}.";
@@ -71,8 +63,7 @@ public static class InfrastructureLogConstants
         /// <summary>
         /// Logged when best-effort auth reset marker cache seeding fails after token issue.
         /// </summary>
-        public const string AUTH_RESET_CACHE_SEED_FAILED =
-            "Auth reset cache seed failed after token issue for user {UserPublicId}.";
+        public const string AUTH_RESET_CACHE_SEED_FAILED = "Auth reset cache seed failed after token issue for user {UserPublicId}.";
     }
 
     /// <summary>
@@ -151,14 +142,12 @@ public static class InfrastructureLogConstants
         /// <summary>
         /// Logged when a change-email security notification has no old email target.
         /// </summary>
-        public const string CHANGE_EMAIL_SECURITY_NOTIFICATION_SKIPPED =
-            "Change-email security notification skipped because old email is missing.";
+        public const string CHANGE_EMAIL_SECURITY_NOTIFICATION_SKIPPED = "Change-email security notification skipped because old email is missing.";
 
         /// <summary>
         /// Logged when the old-email change-email security notification cannot be delivered.
         /// </summary>
-        public const string CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED =
-            "Change-email security notification email send failed.";
+        public const string CHANGE_EMAIL_SECURITY_NOTIFICATION_FAILED = "Change-email security notification email send failed.";
     }
 
     /// <summary>
@@ -167,7 +156,7 @@ public static class InfrastructureLogConstants
     public static class UserLogs
     {
         /// <summary>
-        /// Logged after current-user information is loaded and normalized.
+        /// Logged after current-user information is loaded.
         /// </summary>
         public const string USER_INFO_LOADED = "User info loaded for user {UserPublicId}.";
 
@@ -199,8 +188,7 @@ public static class InfrastructureLogConstants
         /// <summary>
         /// Logged when profile persistence fails after optional avatar upload.
         /// </summary>
-        public const string USER_INFO_UPDATE_PERSISTENCE_FAILED =
-            "User info update persistence failed for user {UserPublicId}. Uploaded objects will be cleaned up.";
+        public const string USER_INFO_UPDATE_PERSISTENCE_FAILED = "User info update persistence failed for user {UserPublicId}. Uploaded objects will be cleaned up.";
 
         /// <summary>
         /// Logged after a change-email request is validated and prepared.
@@ -220,8 +208,7 @@ public static class InfrastructureLogConstants
         /// <summary>
         /// Logged when a KYC submission is blocked because the account already has an active review state.
         /// </summary>
-        public const string KYC_REUPLOAD_BLOCKED =
-            "KYC re-upload blocked for user {UserPublicId} because current review state is not rejected.";
+        public const string KYC_REUPLOAD_BLOCKED = "KYC re-upload blocked for user {UserPublicId} because current review state is not rejected.";
 
         /// <summary>
         /// Logged when KYC submission starts after the current user is resolved.
@@ -241,8 +228,7 @@ public static class InfrastructureLogConstants
         /// <summary>
         /// Logged when KYC metadata persistence fails after private file upload.
         /// </summary>
-        public const string KYC_SUBMISSION_PERSISTENCE_FAILED =
-            "KYC submission persistence failed for user {UserPublicId}. Uploaded objects will be cleaned up.";
+        public const string KYC_SUBMISSION_PERSISTENCE_FAILED = "KYC submission persistence failed for user {UserPublicId}. Uploaded objects will be cleaned up.";
 
         /// <summary>
         /// Logged when a KYC file upload fails before metadata persistence.
@@ -253,17 +239,6 @@ public static class InfrastructureLogConstants
         /// Logged after both private KYC document uploads complete.
         /// </summary>
         public const string KYC_UPLOAD_COMPLETED = "KYC private file upload completed for user {UserPublicId}.";
-
-        /// <summary>
-        /// Logged when the current user has no active party context.
-        /// </summary>
-        public const string TENANT_CONTEXT_MISSING = "Tenant context missing for user {UserPublicId}.";
-
-        /// <summary>
-        /// Logged when the current party context is not a tenant context.
-        /// </summary>
-        public const string TENANT_CONTEXT_REJECTED =
-            "Tenant context rejected for user {UserPublicId}. PartyId={PartyId}.";
 
         /// <summary>
         /// Logged when uploaded object cleanup fails after persistence does not complete.

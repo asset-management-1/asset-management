@@ -6,12 +6,12 @@ namespace Be.Haven.Core.Models.CodeGeneration;
 public sealed class UniqueCodeGenerationOptions
 {
     /// <summary>
-    /// Gets or sets the business prefix placed before the random segment.
+    /// Gets or sets the business prefix placed before the numeric random segment.
     /// </summary>
     public string Prefix { get; set; }
 
     /// <summary>
-    /// Gets or sets the initial random segment length.
+    /// Gets or sets the initial numeric random segment length.
     /// </summary>
     public int RandomLength { get; set; }
 
@@ -26,7 +26,7 @@ public sealed class UniqueCodeGenerationOptions
     public Func<string, CancellationToken, Task<bool>> ExistsAsync { get; set; }
 
     /// <summary>
-    /// Gets or sets the separator between prefix and random segment.
+    /// Gets or sets the separator between prefix and numeric random segment.
     /// </summary>
     public string Separator { get; set; } = DEFAULT_CODE_SEPARATOR;
 

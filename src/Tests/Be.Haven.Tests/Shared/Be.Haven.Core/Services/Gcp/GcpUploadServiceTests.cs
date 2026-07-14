@@ -1,5 +1,5 @@
-using StorageObject = Google.Apis.Storage.v1.Data.Object;
 using Google.Apis.Auth.OAuth2;
+using StorageObject = Google.Apis.Storage.v1.Data.Object;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Services.Gcp;
 

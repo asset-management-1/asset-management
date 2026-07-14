@@ -23,8 +23,7 @@ public static class AuthenticationSwaggerExampleConstants
     /// <summary>
     /// Example user-agent value shown in Swagger device-header examples.
     /// </summary>
-    public const string EXAMPLE_USER_AGENT =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+    public const string EXAMPLE_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
 
     /// <summary>
     /// Example phone number shown in Swagger profile examples.

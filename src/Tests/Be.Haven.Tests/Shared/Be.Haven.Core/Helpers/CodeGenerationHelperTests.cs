@@ -9,7 +9,7 @@ public sealed class CodeGenerationHelperTests
         var result = CodeGenerationHelper.GenerateCode("prop", 10);
 
         // Assert
-        result.Should().MatchRegex("^prop_[A-F0-9]{10}$");
+        result.Should().MatchRegex("^prop_[0-9]{10}$");
     }
 
     [Fact]
@@ -22,7 +22,7 @@ public sealed class CodeGenerationHelperTests
             separator: ":");
 
         // Assert
-        result.Should().MatchRegex("^unit:[A-F0-9]{4}$");
+        result.Should().MatchRegex("^unit:[0-9]{4}$");
     }
 
     [Fact]
@@ -48,7 +48,7 @@ public sealed class CodeGenerationHelperTests
             });
 
         // Assert
-        result.Should().MatchRegex("^P_[A-F0-9]{4}$");
+        result.Should().MatchRegex("^P_[0-9]{4}$");
         checkedCodes.Should().HaveCount(2);
         checkedCodes[1].Should().Be(result);
     }
@@ -76,7 +76,7 @@ public sealed class CodeGenerationHelperTests
         // Assert
         checkedCodes.Should().HaveCount(3);
         checkedCodes.Take(2).Should().OnlyContain(code => code.Split('_')[1].Length == 2);
-        result.Should().MatchRegex("^P_[A-F0-9]{3}$");
+        result.Should().MatchRegex("^P_[0-9]{3}$");
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class CodeGenerationHelperTests
     }
 
     [Fact]
-    public void GenerateCode_Should_ThrowArgumentOutOfRangeException_When_RandomLengthExceedsGuidHexLength()
+    public void GenerateCode_Should_ThrowArgumentOutOfRangeException_When_RandomLengthExceedsMaximumNumericLength()
     {
         // Act
         var act = () => CodeGenerationHelper.GenerateCode("P", 33);

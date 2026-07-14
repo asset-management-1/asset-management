@@ -17,7 +17,7 @@ public static class ApiConstants
     /// with the second version of the application's API structure.
     /// </summary>
     public const string API_VERSION_2 = "2.0";
-    
+
     /// <summary>
     /// The route segment used as a prefix for Swagger API documentation endpoints.
     /// </summary>
@@ -33,7 +33,7 @@ public static class ApiConstants
     /// versioning in API routes or configurations.
     /// </summary>
     public const char VERSION_CHAR_UPPER = 'V';
-    
+
     /// <summary>
     /// Contains constant values used for configuring Swagger documentation 
     /// in the Haven Portal API.

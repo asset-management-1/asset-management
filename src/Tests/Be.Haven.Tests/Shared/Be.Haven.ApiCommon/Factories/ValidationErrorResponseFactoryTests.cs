@@ -42,7 +42,7 @@ public sealed class ValidationErrorResponseFactoryTests
         httpContext.RequestServices = new ServiceCollection().BuildServiceProvider();
         httpContext.Features.Set(CreateVersioningFeature(new ApiVersion(2, 1)));
         var modelState = new ModelStateDictionary();
-        var metadata = new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider()
+        var metadata = new EmptyModelMetadataProvider()
             .GetMetadataForType(typeof(string));
         modelState.AddModelError("Email", new InvalidOperationException("Email exception."), metadata);
         var context = new ActionContext(httpContext, new RouteData(), new ActionDescriptor(), modelState);

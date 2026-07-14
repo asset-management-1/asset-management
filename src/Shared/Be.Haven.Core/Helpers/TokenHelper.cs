@@ -72,7 +72,7 @@ public static class TokenHelper
 
         return safeExpirationTime > TimeSpan.Zero ? safeExpirationTime : TimeSpan.FromSeconds(PADDING_SECONDS);
     }
-    
+
     /// <summary>
     /// Converts a token remaining lifetime (in seconds) to a safe TimeSpan by subtracting padding.
     /// If result is non-positive, returns the padding as a minimum.
@@ -91,7 +91,7 @@ public static class TokenHelper
 
         // Subtract padding so cache entries expire before the token does.
         var safeSeconds = remainingSeconds.Value - PADDING_SECONDS;
-        
+
         return safeSeconds > 0
             ? TimeSpan.FromSeconds(safeSeconds)
             : TimeSpan.FromSeconds(PADDING_SECONDS);
@@ -179,7 +179,7 @@ public static class TokenHelper
 
         identity.AddClaim(new Claim(claimType, claimValue));
     }
-    
+
     /// <summary>
     /// Returns a safe token prefix for logging.
     /// Never log full token; only prefix is enough for correlation/debugging.

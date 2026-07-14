@@ -1,5 +1,5 @@
-using Google.Cloud.SecretManager.V1;
 using System.Reflection;
+using Google.Cloud.SecretManager.V1;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Extensions.Configurations;
 

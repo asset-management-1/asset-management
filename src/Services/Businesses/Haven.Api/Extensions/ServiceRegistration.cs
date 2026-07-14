@@ -1,5 +1,8 @@
 namespace Haven.Api.Extensions;
 
+/// <summary>
+/// Registers Haven API authentication and mediator transport dependencies.
+/// </summary>
 public static class ServiceRegistration
 {
     /// <summary>

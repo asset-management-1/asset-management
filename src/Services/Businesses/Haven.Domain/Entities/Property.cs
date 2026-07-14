@@ -81,6 +81,21 @@ public class Property : BaseEntity
     public bool IsPublished { get; set; }
 
     /// <summary>
+    /// Gets or sets when the landlord requested property deletion.
+    /// </summary>
+    public DateTime? DeleteRequestedAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets when the pending property deletion becomes eligible for final cleanup.
+    /// </summary>
+    public DateTime? DeleteScheduledAt { get; set; }
+
+    /// <summary>
+    /// Gets or sets the internal party identifier that requested deletion.
+    /// </summary>
+    public long? DeleteRequestedByPartyId { get; set; }
+
+    /// <summary>
     /// Gets the units generated under this property.
     /// </summary>
     public ICollection<Unit> Units { get; } = new List<Unit>();
@@ -94,4 +109,23 @@ public class Property : BaseEntity
     /// Gets the property-level rental charge policies.
     /// </summary>
     public ICollection<RentalChargePolicy> RentalChargePolicies { get; } = new List<RentalChargePolicy>();
+
+    /// <summary>
+    /// Gets the common package templates configured for this property.
+    /// </summary>
+    public ICollection<UnitPackage> UnitPackages { get; } = new List<UnitPackage>();
+
+    /// <summary>
+    /// Recomputes structure counters from the currently tracked active unit graph.
+    /// </summary>
+    public void RecomputeStructureTotals()
+    {
+        // Total floors and rooms are derived snapshots from the active unit collection.
+        TotalFloors = Units
+            .Where(unit => unit.FloorNumber.HasValue)
+            .Select(unit => unit.FloorNumber.Value)
+            .Distinct()
+            .Count();
+        TotalUnits = Units.Count;
+    }
 }

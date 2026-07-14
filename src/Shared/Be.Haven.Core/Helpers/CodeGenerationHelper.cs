@@ -6,10 +6,10 @@ namespace Be.Haven.Core.Helpers;
 public static class CodeGenerationHelper
 {
     /// <summary>
-    /// Generates a formatted code from a prefix and random segment.
+    /// Generates a formatted code from a prefix and numeric random segment.
     /// </summary>
-    /// <param name="prefix">The business prefix to put before the random segment.</param>
-    /// <param name="randomLength">The required random segment length.</param>
+    /// <param name="prefix">The business prefix to put before the numeric segment.</param>
+    /// <param name="randomLength">The required numeric segment length.</param>
     /// <param name="separator">The separator between prefix and random segment.</param>
     /// <returns>The generated code.</returns>
     public static string GenerateCode(
@@ -20,12 +20,10 @@ public static class CodeGenerationHelper
         // Validate the dynamic generation inputs before building a public business code.
         ArgumentException.ThrowIfNullOrWhiteSpace(prefix);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(randomLength);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(randomLength, MAX_GUID_HEX_RANDOM_LENGTH);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(randomLength, MAX_NUMERIC_RANDOM_CODE_LENGTH);
 
         var normalizedSeparator = separator ?? string.Empty;
-        var randomSegment = Guid.NewGuid()
-            .ToString(GUID_HEX_RANDOM_FORMAT, CultureInfo.InvariantCulture)[..randomLength]
-            .ToUpperInvariant();
+        var randomSegment = GenerateNumericSegment(randomLength);
 
         return $"{prefix.Trim()}{normalizedSeparator}{randomSegment}";
     }
@@ -47,9 +45,9 @@ public static class CodeGenerationHelper
 
         var randomLength = options.RandomLength;
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(randomLength);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(randomLength, MAX_GUID_HEX_RANDOM_LENGTH);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(randomLength, MAX_NUMERIC_RANDOM_CODE_LENGTH);
 
-        while (randomLength <= MAX_GUID_HEX_RANDOM_LENGTH)
+        while (randomLength <= MAX_NUMERIC_RANDOM_CODE_LENGTH)
         {
             for (var attempt = 0; attempt < options.MaxAttempts; attempt++)
             {
@@ -73,5 +71,22 @@ public static class CodeGenerationHelper
         // Only fail after every GUID-backed random segment length has been exhausted.
         throw options.ExhaustionExceptionFactory?.Invoke()
               ?? new InvalidOperationException(UNIQUE_CODE_GENERATION_FAILED);
+    }
+
+    /// <summary>
+    /// Generates a numeric segment with exactly the requested length.
+    /// </summary>
+    /// <param name="length">The required segment length.</param>
+    /// <returns>The generated numeric segment.</returns>
+    private static string GenerateNumericSegment(int length)
+    {
+        // Use RandomNumberGenerator so code generation does not share process-global random state.
+        var builder = new StringBuilder(length);
+        for (var index = 0; index < length; index++)
+        {
+            builder.Append(RandomNumberGenerator.GetInt32(0, 10).ToString(CultureInfo.InvariantCulture));
+        }
+
+        return builder.ToString();
     }
 }

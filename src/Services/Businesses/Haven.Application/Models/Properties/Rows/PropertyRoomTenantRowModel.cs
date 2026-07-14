@@ -16,6 +16,11 @@ public class PropertyRoomTenantRowModel
     public Guid UnitPublicId { get; set; }
 
     /// <summary>
+    /// Gets or sets the occupancy public identifier exposed as the row id.
+    /// </summary>
+    public Guid OccupancyPublicId { get; set; }
+
+    /// <summary>
     /// Gets or sets the tenant public identifier exposed to the API response.
     /// </summary>
     public Guid TenantPublicId { get; set; }
@@ -24,6 +29,11 @@ public class PropertyRoomTenantRowModel
     /// Gets or sets the tenant display name.
     /// </summary>
     public string TenantName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the tenant role code derived from the occupancy primary flag.
+    /// </summary>
+    public string RoleCode { get; set; }
 
     /// <summary>
     /// Gets or sets the tenant contract start date.

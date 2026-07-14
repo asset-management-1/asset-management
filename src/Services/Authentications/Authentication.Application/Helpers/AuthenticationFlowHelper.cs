@@ -16,8 +16,7 @@ public static class AuthenticationFlowHelper
         return user is not null
                && !user.IsDeleted
                && user.Status is not null
-               && (string.Equals(user.Status.Code, ACTIVE_STATUS, StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(user.Status.Name, ACTIVE_STATUS, StringComparison.OrdinalIgnoreCase))
+               && string.Equals(user.Status.Code, ACTIVE_STATUS, StringComparison.OrdinalIgnoreCase)
                && user.EmailConfirmed;
     }
 
@@ -44,7 +43,7 @@ public static class AuthenticationFlowHelper
         // Persisted party-type codes map back to API context values for clients.
         var context = ApiEnumContractMapper.ToPartyType(partyType);
 
-        return context.HasValue ? context.Value.ToContextValue() : null;
+        return context.HasValue ? context.Value.ToString().ToLowerInvariant() : null;
     }
 
     /// <summary>

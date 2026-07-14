@@ -46,6 +46,7 @@ public class PartyRepository : GenericRepository<Party>, IPartyRepository
     {
         // De-duplicate ids before querying tracked parties for profile or KYC sync.
         var distinctPartyIds = partyIds?.Distinct().ToList() ?? [];
+
         if (distinctPartyIds.Count == 0)
         {
             return [];

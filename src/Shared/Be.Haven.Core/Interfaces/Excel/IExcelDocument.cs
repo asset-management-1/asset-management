@@ -59,7 +59,7 @@ public interface IExcelDocument : IDisposable
     /// Indicates whether to adjust the row heights in addition to column widths.
     /// </param>
     void AutoFitUsed(bool includeRows = false);
-    
+
     /// <summary>
     /// Adjusts the width of columns in the specified range to fit their content.
     /// Optionally adjusts the height of rows containing used cells within the range to fit their content as well.

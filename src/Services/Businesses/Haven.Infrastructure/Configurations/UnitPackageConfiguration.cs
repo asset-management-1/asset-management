@@ -22,13 +22,25 @@ public class UnitPackageConfiguration : IEntityTypeConfiguration<UnitPackage>
         entity.Property(x => x.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
         entity.Property(x => x.IsDeleted).HasDefaultValue(false);
 
+        entity.HasOne(x => x.Property)
+            .WithMany(x => x.UnitPackages)
+            .HasForeignKey(x => x.PropertyId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         entity.HasOne(x => x.Unit)
             .WithMany(x => x.UnitPackages)
             .HasForeignKey(x => x.UnitId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Restrict)
+            .IsRequired(false);
 
         entity.HasIndex(x => x.PublicId).IsUnique();
-        entity.HasIndex(x => new { x.UnitId, x.PackageCode }).IsUnique();
+        entity.HasIndex(x => new { x.PropertyId, x.PackageCode })
+            .IsUnique()
+            .HasFilter("\"UnitId\" IS NULL AND \"IsDeleted\" = FALSE");
+        entity.HasIndex(x => new { x.UnitId, x.PackageCode })
+            .IsUnique()
+            .HasFilter("\"UnitId\" IS NOT NULL AND \"IsDeleted\" = FALSE");
+        entity.HasIndex(x => x.PropertyId).HasFilter("\"IsDeleted\" = FALSE");
         entity.HasIndex(x => x.UnitId).HasFilter("\"IsDeleted\" = FALSE");
         entity.HasIndex(x => new { x.UnitId, x.PackageTypeId }).HasFilter("\"IsDeleted\" = FALSE");
     }

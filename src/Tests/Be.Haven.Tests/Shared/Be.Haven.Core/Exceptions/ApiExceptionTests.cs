@@ -48,14 +48,40 @@ public sealed class ApiExceptionTests
     public void Constructor_Should_KeepExplicitStatusCode_When_StatusIsProvided()
     {
         // Arrange
-        var statusCode = StatusCodes.Status409Conflict;
+        var statusCode = StatusCodes.Status403Forbidden;
 
         // Act
-        var result = new ApiException("Conflict", "error_conflict", statusCode);
+        var result = new ApiException("Forbidden", "error_forbidden", statusCode);
 
         // Assert
         result.StatusCode.Should().Be(statusCode);
-        result.ErrorCode.Should().Be("error_conflict");
+        result.ErrorCode.Should().Be("error_forbidden");
+    }
+
+    [Fact]
+    public void Constructor_Should_KeepPublicSafeDetails_When_DetailsAreProvided()
+    {
+        // Arrange
+        var details = new List<ErrorDetailDto>
+        {
+            new()
+            {
+                Field = "action",
+                Issue = "selection_required"
+            }
+        };
+
+        // Act
+        var result = new ApiException(
+            "Selection is required",
+            "error_selection_required",
+            StatusCodes.Status400BadRequest,
+            details);
+
+        // Assert
+        result.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        result.ErrorCode.Should().Be("error_selection_required");
+        result.Details.Should().BeSameAs(details);
     }
 
     [Fact]

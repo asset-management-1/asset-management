@@ -6,12 +6,7 @@ namespace Haven.Application.Dtos.Properties.Create;
 public class CreatePropertyRoomRequestDto
 {
     /// <summary>
-    /// Gets or sets the room code supplied by the UI.
-    /// </summary>
-    public string Code { get; set; }
-
-    /// <summary>
-    /// Gets or sets the room display name.
+    /// Gets or sets the room display name supplied by the UI.
     /// </summary>
     public string Name { get; set; }
 

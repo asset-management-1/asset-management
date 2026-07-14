@@ -16,7 +16,14 @@ public sealed class GcpPubSubPublisherClientService : IGcpPubSubPublisherClient
         _publisherClient = publisherClient;
     }
 
-    /// <inheritdoc />
-    public Task<string> PublishAsync(PubsubMessage message) =>
-        _publisherClient.PublishAsync(message);
+    /// <summary>
+    /// Publishes one Pub/Sub message through the wrapped Google client.
+    /// </summary>
+    /// <param name="message">The Pub/Sub message to publish.</param>
+    /// <returns>The published message identifier returned by Google Pub/Sub.</returns>
+    public Task<string> PublishAsync(PubsubMessage message)
+    {
+        // Keep the provider-specific call behind the shared publisher abstraction.
+        return _publisherClient.PublishAsync(message);
+    }
 }

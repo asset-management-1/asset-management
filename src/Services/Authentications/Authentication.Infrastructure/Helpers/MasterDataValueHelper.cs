@@ -17,6 +17,7 @@ internal static class MasterDataValueHelper
     {
         // Missing master data maps to either a business error or a server configuration error.
         var key = new MasterDataValueKeyModel(request.Type, request.Value);
+
         if (masterDataValues.TryGetValue(key, out var masterDataValue))
         {
             return masterDataValue;

@@ -2,9 +2,6 @@ namespace Be.Haven.Tests.Shared.Be.Haven.Core.Services;
 
 public sealed class ThirdPartyApiServiceTests
 {
-    private static readonly object MappingLock = new();
-    private static bool _isMappingRegistered;
-
     [Fact]
     public async Task HandleApiData_Should_ReturnContent_When_ResponseIsSuccessful()
     {
@@ -114,7 +111,6 @@ public sealed class ThirdPartyApiServiceTests
     public async Task HandleDynamicHttpRequest_Should_MapRequestAndDispatchPost_When_MethodIsPost()
     {
         // Arrange
-        EnsureMappingRegistered();
         BaseHttpRequest captured = null;
         var file = CreateFormFile("avatar.jpg", "image/jpeg", "image");
         var request = new BaseThirdPartyApiRequest
@@ -181,7 +177,6 @@ public sealed class ThirdPartyApiServiceTests
     public async Task HandleDynamicHttpRequest_Should_DispatchToConfiguredRestMethod_When_MethodIsSupported(string method)
     {
         // Arrange
-        EnsureMappingRegistered();
         var request = new BaseThirdPartyApiRequest
         {
             Method = method
@@ -240,17 +235,4 @@ public sealed class ThirdPartyApiServiceTests
         };
     }
 
-    private static void EnsureMappingRegistered()
-    {
-        lock (MappingLock)
-        {
-            if (_isMappingRegistered)
-            {
-                return;
-            }
-
-            new BaseMappingConfig().Register(TypeAdapterConfig.GlobalSettings);
-            _isMappingRegistered = true;
-        }
-    }
 }

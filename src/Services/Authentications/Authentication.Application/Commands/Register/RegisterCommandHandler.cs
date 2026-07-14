@@ -45,23 +45,23 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
             cancellationToken));
         if (hasOtpCooldown)
         {
-            _logger.LogInformation(REGISTER_FLOW_SKIPPED_COOLDOWN);
+            _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_SKIPPED_COOLDOWN);
             throw new ApiException(
-                OTP_COOLDOWN_MESSAGE,
-                AUTH_OTP_COOLDOWN,
+                ApplicationErrorConstants.OtpErrors.OTP_COOLDOWN_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_COOLDOWN,
                 StatusCodes.Status429TooManyRequests);
         }
 
-        _logger.LogInformation(REGISTER_FLOW_STEP1_REQUEST_NORMALIZED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP1_REQUEST_NORMALIZED);
 
         // Count accepted OTP requests before doing heavier user uniqueness and password-hash work.
         await CheckOtpThrottleAsync(REGISTER_PURPOSE, normalizedEmail, REGISTER_OTP_LIMIT, cancellationToken);
-        _logger.LogInformation(REGISTER_FLOW_STEP2_THROTTLE_ACCEPTED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP2_THROTTLE_ACCEPTED);
 
         var pendingRegister = await _authenticationService.BuildPendingRegisterAsync(
             registerRequest,
             cancellationToken);
-        _logger.LogInformation(REGISTER_FLOW_STEP3_PENDING_BUILT);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP3_PENDING_BUILT);
 
         var otpCode = AuthenticationFlowHelper.GenerateOtp();
         var otpCacheResponse = new OtpCacheRequestDto
@@ -86,14 +86,14 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
             registerSession,
             otpTtl,
             cancellationToken);
-        _logger.LogInformation(REGISTER_FLOW_STEP4_SESSION_CACHED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP4_SESSION_CACHED);
 
         // Email delivery is the boundary where cached register session state becomes useful to the user.
         var sent = await _authenticationService.SendOtpEmailAsync(
             new OtpEmailRequestDto
             {
                 Email = normalizedEmail,
-                Subject = EMAIL_SUBJECT_VERIFY_ACCOUNT,
+                Subject = ApplicationMessageConstants.EmailMessages.EMAIL_SUBJECT_VERIFY_ACCOUNT,
                 OtpCode = otpCode,
                 Purpose = REGISTER_PURPOSE
             },
@@ -104,14 +104,14 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
             await _cachingService.RemoveAsync(
                 registerSessionKey,
                 cancellationToken);
-            _logger.LogWarning(REGISTER_FLOW_ROLLBACK_OTP_SEND_FAILED);
+            _logger.LogWarning(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_ROLLBACK_OTP_SEND_FAILED);
             throw new ApiException(
-                OTP_SEND_FAILED_MESSAGE,
-                AUTH_FORBIDDEN_OPERATION,
+                ApplicationErrorConstants.OtpErrors.OTP_SEND_FAILED_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_FORBIDDEN_OPERATION,
                 StatusCodes.Status503ServiceUnavailable);
         }
 
-        _logger.LogInformation(REGISTER_FLOW_STEP5_OTP_SENT);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP5_OTP_SENT);
 
         // Cooldown is stored only after successful delivery so failed sends can be retried immediately.
         await _cachingService.SetAbsoluteAsync(
@@ -119,10 +119,10 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
             OTP_COOLDOWN_VALUE,
             TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
             cancellationToken);
-        _logger.LogInformation(REGISTER_FLOW_COMPLETED);
+        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_COMPLETED);
 
         return new ResponseDto<OperationStatusResponseDto>(
-            OperationStatusResponseHelper.Success(OTP_SENT_MESSAGE));
+            OperationStatusResponseHelper.Success(ApplicationMessageConstants.OtpMessages.OTP_SENT_MESSAGE));
     }
 
     /// <summary>
@@ -139,19 +139,25 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
         int limit,
         CancellationToken cancellationToken)
     {
+        // Read the current request count from the purpose-and-email-specific rate-limit bucket.
         var currentLimit = await _cachingService.GetAsync<int?>(
             AuthenticationFlowHelper.BuildOtpLimitKey(purpose, normalizedEmail),
             cancellationToken) ?? 0;
+
+        // Count the pending request before deciding whether this OTP window can accept it.
         currentLimit++;
+
         if (currentLimit > limit)
         {
-            _logger.LogInformation(REGISTER_FLOW_SKIPPED_THROTTLED);
+            // Reject excess requests without resetting the existing bucket or extending its rate-limit window.
+            _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_SKIPPED_THROTTLED);
             throw new ApiException(
-                OTP_RATE_LIMIT_MESSAGE,
-                AUTH_OTP_RATE_LIMIT,
+                ApplicationErrorConstants.OtpErrors.OTP_RATE_LIMIT_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_RATE_LIMIT,
                 StatusCodes.Status429TooManyRequests);
         }
 
+        // Persist the accepted count with the configured OTP rate-limit lifetime.
         await _cachingService.SetAbsoluteAsync(
             AuthenticationFlowHelper.BuildOtpLimitKey(purpose, normalizedEmail),
             currentLimit,

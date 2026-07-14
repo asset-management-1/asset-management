@@ -1,8 +1,7 @@
 namespace Be.Haven.Core.Exceptions;
 
 /// <summary>
-/// Represents an application-level API error that includes an optional
-/// custom error code for more precise error identification.
+/// Represents a client-safe API error with an optional application error code.
 /// </summary>
 public class ApiException : Exception
 {
@@ -17,6 +16,11 @@ public class ApiException : Exception
     /// Gets the HTTP status code that should be used for the API error response.
     /// </summary>
     public int StatusCode { get; }
+
+    /// <summary>
+    /// Gets optional public-safe business details for contract-approved cases.
+    /// </summary>
+    public IReadOnlyList<ErrorDetailDto> Details { get; } = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ApiException"/> class.
@@ -66,6 +70,26 @@ public class ApiException : Exception
         // Preserve the business error code while carrying the HTTP status for the response middleware.
         ErrorCode = errorCode;
         StatusCode = statusCode;
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ApiException"/> class with a message, error code, status, and public-safe details.
+    /// </summary>
+    /// <param name="message">The error message describing the issue.</param>
+    /// <param name="errorCode">The application error code used to identify this error type.</param>
+    /// <param name="statusCode">The HTTP status code that should be returned to the caller.</param>
+    /// <param name="details">Public-safe structured details for a contract-approved response payload.</param>
+    public ApiException(
+        string message,
+        string errorCode,
+        int statusCode,
+        IReadOnlyList<ErrorDetailDto> details)
+        : base(message)
+    {
+        // Details are reserved for public-safe contracts, not diagnostic or internal guard data.
+        ErrorCode = errorCode;
+        StatusCode = statusCode;
+        Details = details ?? [];
     }
 
     /// <summary>

@@ -36,13 +36,13 @@ public class SwitchPartyCommandHandler : ICommandHandler<SwitchPartyCommand, Res
         // Context switching uses the authenticated account and creates the target party context only when missing.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
         var result = await _userService.SwitchPartyAsync(
             request.Adapt<SwitchPartyRequestDto>(),
             cancellationToken);
-        _logger.LogInformation(CONTEXT_SWITCHED, result.CurrentContext, currentUserPublicId);
+        _logger.LogInformation(ApplicationLogConstants.ContextLogs.CONTEXT_SWITCHED, result.CurrentContext, currentUserPublicId);
 
         return new ResponseDto<SwitchPartyResponseDto>(result);
     }

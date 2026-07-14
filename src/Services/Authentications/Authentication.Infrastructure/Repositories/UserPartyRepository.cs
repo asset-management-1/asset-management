@@ -39,8 +39,7 @@ public class UserPartyRepository : GenericRepository<UserParty>, IUserPartyRepos
                     PartyType = new MasterDataValue
                     {
                         Id = x.Party.PartyType.Id,
-                        Code = x.Party.PartyType.Code,
-                        Name = x.Party.PartyType.Name
+                        Code = x.Party.PartyType.Code
                     }
                 }
             })
@@ -51,7 +50,7 @@ public class UserPartyRepository : GenericRepository<UserParty>, IUserPartyRepos
     /// Loads one active user-party mapping by user and party-type code.
     /// </summary>
     /// <param name="userId">The internal user identifier.</param>
-    /// <param name="partyType">The party-type code or name, such as TENANT or LANDLORD.</param>
+    /// <param name="partyType">The canonical party-type code, such as TENANT or LANDLORD.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched user-party mapping; otherwise <c>null</c>.</returns>
     public Task<UserParty> GetByUserIdAndPartyTypeAsync(long userId, string partyType, CancellationToken cancellationToken = default)
@@ -70,7 +69,7 @@ public class UserPartyRepository : GenericRepository<UserParty>, IUserPartyRepos
                      && x.UserId == userId
                      && !x.Party.IsDeleted
                      && !x.Party.PartyType.IsDeleted
-                     && (x.Party.PartyType.Code == partyType || x.Party.PartyType.Name == partyType))
+                     && x.Party.PartyType.Code == partyType)
             .Select(x => new UserParty
             {
                 Id = x.Id,

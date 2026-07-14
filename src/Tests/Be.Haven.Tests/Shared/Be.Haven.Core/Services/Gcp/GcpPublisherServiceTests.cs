@@ -1,5 +1,5 @@
-using PubSubTopicName = Google.Cloud.PubSub.V1.TopicName;
 using PubsubMessage = Google.Cloud.PubSub.V1.PubsubMessage;
+using PubSubTopicName = Google.Cloud.PubSub.V1.TopicName;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Services.Gcp;
 

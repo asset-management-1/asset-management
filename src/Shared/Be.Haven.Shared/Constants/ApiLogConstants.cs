@@ -20,7 +20,19 @@ public static class ApiLogConstants
         /// </summary>
         public const string LOG_VERSION_MISMATCH = "API version mismatch detected. RequestedVersion=v{RequestedVersion}, Path={Path}";
     }
-    
+
+    /// <summary>
+    /// Log templates for the global exception handler.
+    /// </summary>
+    public static class ErrorHandlerLogs
+    {
+        /// <summary>
+        /// Logged when the global exception handler converts an exception into an API error response.
+        /// </summary>
+        public const string LOG_EXCEPTION_MAPPED =
+            "Global exception handler mapped exception. StatusCode={StatusCode}, ErrorCode={ErrorCode}, Path={Path}, Method={Method}";
+    }
+
     /// <summary>
     /// Log templates for NA token authentication lifecycle.
     /// </summary>
@@ -30,7 +42,7 @@ public static class ApiLogConstants
         /// Logged when authentication is skipped for health check endpoint.
         /// </summary>
         public const string LOG_AUTH_SKIPPED_HEALTH = "NA auth skipped for health check endpoint. Path={Path}, Method={Method}";
-        
+
         /// <summary>
         /// Logged when authentication is failed due to missing or invalid Authorization header.
         /// </summary>

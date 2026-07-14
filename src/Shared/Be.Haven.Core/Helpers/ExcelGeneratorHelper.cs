@@ -18,7 +18,7 @@ public static class ExcelGeneratorHelper
         byte[] content,
         string fileName,
         string contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    {    
+    {
         var stream = new MemoryStream(content);
         stream.Position = 0;
 

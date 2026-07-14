@@ -10,12 +10,15 @@ public class VerifyForgotPasswordOtpCommandValidator : AbstractValidator<VerifyF
     /// </summary>
     public VerifyForgotPasswordOtpCommandValidator()
     {
+        // Email identifies the pending reset session that owns the OTP.
         RuleFor(x => x.Email)
             .Required()
-            .EmailAddress();
+            .EmailFormat()
+            .MaxLen(255);
 
+        // OTP length is fixed so the cache lookup and verification path stay predictable.
         RuleFor(x => x.Otp)
             .Required()
-            .Length(OTP_LENGTH);
+            .BetweenLen(OTP_LENGTH, OTP_LENGTH);
     }
 }

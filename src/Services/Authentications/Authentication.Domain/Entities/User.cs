@@ -1,5 +1,8 @@
 namespace Authentication.Domain.Entities;
 
+/// <summary>
+/// Represents a Haven login identity that may activate one of several linked business party contexts.
+/// </summary>
 public class User : BaseEntity
 {
     /// <summary>

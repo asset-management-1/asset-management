@@ -64,7 +64,7 @@ public class ErrorHandlerMiddleware
     {
         // Initialize a response model
         var currentActivity = Activity.Current;
-        
+
         // API version (if any) for this request
         var version = context.Features.Get<IApiVersioningFeature>()?.RequestedApiVersion;
         string versionData = null;
@@ -95,7 +95,8 @@ public class ErrorHandlerMiddleware
                 {
                     Code = apiError.ErrorCode ?? BAD_REQUEST,
                     StatusCode = apiError.StatusCode,
-                    Message = error.Message
+                    Message = error.Message,
+                    Details = apiError.Details?.ToList() ?? []
                 };
                 _logger.LogError(error, apiError.ErrorCode ?? BAD_REQUEST);
                 break;
@@ -187,7 +188,7 @@ public class ErrorHandlerMiddleware
 
         return response;
     }
-
+    
     /// <summary>
     /// Helper method to create and write the response asynchronously.
     /// </summary>
@@ -208,7 +209,7 @@ public class ErrorHandlerMiddleware
                     context.Request.Method);
                 return;
             }
-            
+
             if (context.Response.HasStarted)
             {
                 _logger.LogWarning(RESPONSE_ALREADY_STARTED);

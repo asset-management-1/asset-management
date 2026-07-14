@@ -85,16 +85,16 @@ public static class ServiceRegistration
 
             // Keep Swagger UI clean and consistent
             options.OrderActionsBy(apiDesc => $"{apiDesc.HttpMethod} {apiDesc.RelativePath}");
-            
+
             IncludeXmlCommentsFromOutput(options);
-            
+
             // Enables Swagger annotations to enrich endpoint metadata in Swagger UI.
             options.EnableAnnotations();
 
             // Include only endpoints of the current API version
             options.DocInclusionPredicate((docName, apiDesc) =>
                 apiDesc.GroupName == null || apiDesc.GroupName == docName);
-            
+
             // Ensure consistent path parameter naming in Swagger.
             options.OperationFilter<KebabCaseSwaggerFilter>();
             options.OperationFilter<SwaggerExampleOperationFilter>();
@@ -116,7 +116,7 @@ public static class ServiceRegistration
             options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
         }
     }
-    
+
     /// <summary>
     /// Configures and adds OpenTelemetry services such as tracing, metrics, and logging
     /// to the service collection based on provided configuration settings.
@@ -136,15 +136,15 @@ public static class ServiceRegistration
                                       .AddEnvironmentVariableDetector()
                                       .AddAttributes(new Dictionary<string, object>
                                       {
-                                          [OTL_SERVICE_ENVIRONMENT]   = env,
-                                          [OTL_INSTANCE_ENVIRONMENT]   = Environment.MachineName,
+                                          [OTL_SERVICE_ENVIRONMENT] = env,
+                                          [OTL_INSTANCE_ENVIRONMENT] = Environment.MachineName,
                                           [OTL_DEPLOYMENT_ENVIRONMENT] = env
                                       });
-        
+
         var otelBuilder = services.AddOpenTelemetry();
         OpenTelemetryHelper.Configure(otelBuilder, resource, otel);
     }
-    
+
     /// <summary>
     /// Configures Serilog programmatically (instead of reading from appsettings),
     /// applying the same settings defined in the Serilog section of the configuration file.
@@ -158,7 +158,7 @@ public static class ServiceRegistration
         // Load GCP / OpenTelemetry settings if needed
         var opts = configuration.GetSection(GCP_SETTINGS).Get<GcpOptions>() ?? new GcpOptions();
         var logging = opts.LoggingSettings;
-        
+
         // Build Serilog pipeline programmatically (equivalent to appsettings.json)
         var loggerConfig = new LoggerConfiguration()
                            .MinimumLevel.Information()
@@ -183,7 +183,7 @@ public static class ServiceRegistration
         Log.Logger = logger;
 
         services.AddSingleton(_ => new DiagnosticContext(Log.Logger));
-        
+
         // Replace default .NET logging with Serilog
         services.AddLogging(lb =>
         {
@@ -191,7 +191,7 @@ public static class ServiceRegistration
             lb.AddSerilog(logger, dispose: true); // Register Serilog as the logging pipeline
         });
     }
-    
+
     /// <summary>
     /// Configures and adds API versioning services to the service collection.
     /// </summary>
@@ -220,7 +220,7 @@ public static class ServiceRegistration
             options.SubstituteApiVersionInUrl = true;  // thay {version} trong url
         });
     }
-    
+
     /// <summary>
     /// Registers health checks with a default "self" check and allows custom configuration
     /// for additional health checks per service.
@@ -242,5 +242,5 @@ public static class ServiceRegistration
         // Apply any custom health checks provided via delegate
         configure?.Invoke(builder);
     }
-    
+
 }

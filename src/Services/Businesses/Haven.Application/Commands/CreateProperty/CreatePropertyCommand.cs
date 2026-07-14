@@ -1,7 +1,7 @@
 namespace Haven.Application.Commands.CreateProperty;
 
 /// <summary>
-/// Represents a request to create a landlord property/building with generated units.
+/// Represents a request to create a landlord property/building from a final room structure.
 /// </summary>
 public class CreatePropertyCommand : ICommand<ResponseDto<CreatedPropertyResponseDto>>
 {
@@ -51,7 +51,7 @@ public class CreatePropertyCommand : ICommand<ResponseDto<CreatedPropertyRespons
     public decimal? Longitude { get; set; }
 
     /// <summary>
-    /// Gets or sets the generated structure setup.
+    /// Gets or sets the final floor and room structure submitted by the frontend.
     /// </summary>
     public CreatePropertyStructureRequestDto StructureSetup { get; set; }
 
@@ -61,7 +61,7 @@ public class CreatePropertyCommand : ICommand<ResponseDto<CreatedPropertyRespons
     public IReadOnlyList<CreatePropertyChargePolicyRequestDto> ChargePolicies { get; set; } = [];
 
     /// <summary>
-    /// Gets or sets optional service/furniture packages copied to each generated room.
+    /// Gets or sets optional common service and furniture packages for the property.
     /// </summary>
     public IReadOnlyList<CreatePropertyPackageRequestDto> Packages { get; set; } = [];
 }

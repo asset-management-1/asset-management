@@ -240,7 +240,7 @@ public sealed class GcpSecretService : IGcpSecretService
         {
             var ver = ResolveVersion(version);
             var cacheKey = BuildCacheKey(secretId, ver); // "{secretId}/versions/{ver}"
-        
+
             // 1) Cache-first (unless disabled)
             var cached = await _cachingService.GetAsync<string>(cacheKey, ct);
             if (!string.IsNullOrWhiteSpace(cached))
@@ -264,7 +264,7 @@ public sealed class GcpSecretService : IGcpSecretService
             var bytes = await GetBytesAsync(secretId, version, ct);
             value = UTF8.GetString(bytes);
         }
-        
+
         return value;
     }
 

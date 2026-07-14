@@ -42,7 +42,7 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
         // Session state must match the submitted email so an older OTP cannot verify a newer target.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
         var verifyRequest = request.Adapt<VerifyChangeEmailOtpRequestDto>();
@@ -55,28 +55,28 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
             || changeEmailSession.Otp is null
             || !string.Equals(changeEmailSession.NewEmail, normalizedEmail, StringComparison.OrdinalIgnoreCase))
         {
-            throw new ApiException(CHANGE_EMAIL_SESSION_EXPIRED_MESSAGE, AUTH_RESET_SESSION_INVALID);
+            throw new ApiException(ApplicationErrorConstants.ProfileErrors.CHANGE_EMAIL_SESSION_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
         }
 
-        _logger.LogInformation(VERIFY_CHANGE_EMAIL_FLOW_STEP1_SESSION_VALIDATED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP1_SESSION_VALIDATED);
 
         await VerifyOtpAsync(changeEmailSessionKey, changeEmailSession, verifyRequest.Otp, cancellationToken);
-        _logger.LogInformation(VERIFY_CHANGE_EMAIL_FLOW_STEP2_OTP_VERIFIED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP2_OTP_VERIFIED);
 
         // Only after OTP ownership is confirmed do we update the account email and linked party snapshots.
         var result = await _userService.VerifyChangeEmailAsync(
             verifyRequest,
             currentUserPublicId,
             cancellationToken);
-        _logger.LogInformation(VERIFY_CHANGE_EMAIL_FLOW_STEP3_EMAIL_UPDATED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP3_EMAIL_UPDATED);
 
         // Cleanup removes both session state and cooldown so a later email-change flow starts fresh.
         await _cachingService.RemoveAsync(changeEmailSessionKey, cancellationToken);
         await _cachingService.RemoveAsync(
             AuthenticationFlowHelper.BuildChangeEmailCooldownKey(currentUserPublicId),
             cancellationToken);
-        _logger.LogInformation(VERIFY_CHANGE_EMAIL_FLOW_STEP4_STATE_CLEANED);
-        _logger.LogInformation(VERIFY_CHANGE_EMAIL_FLOW_COMPLETED, currentUserPublicId);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP4_STATE_CLEANED);
+        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_COMPLETED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
@@ -95,17 +95,22 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
         string otp,
         CancellationToken cancellationToken)
     {
+        // Read the cached OTP once because each rejection branch either consumes or preserves this same session state.
         var otpEntry = changeEmailSession.Otp;
+
+        // Reject incomplete cached sessions so missing OTP state can never be treated as a valid verification.
         if (otpEntry is null || string.IsNullOrWhiteSpace(otpEntry.Code))
         {
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
         var remainingTtl = otpEntry.ExpiresAtUtc - DateTime.UtcNow;
+
+        // Remove expired state before rejecting it so stale OTP sessions cannot be retried.
         if (remainingTtl <= TimeSpan.Zero)
         {
             await _cachingService.RemoveAsync(changeEmailSessionKey, cancellationToken);
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
         if (!string.Equals(otpEntry.Code, otp, StringComparison.Ordinal))
@@ -115,7 +120,7 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
             if (otpEntry.Attempts >= OTP_MAX_VERIFY_ATTEMPTS)
             {
                 await _cachingService.RemoveAsync(changeEmailSessionKey, cancellationToken);
-                _logger.LogInformation(VERIFY_CHANGE_EMAIL_FLOW_OTP_LOCKED);
+                _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_OTP_LOCKED);
             }
             else
             {
@@ -124,10 +129,10 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
                     changeEmailSession,
                     remainingTtl,
                     cancellationToken);
-                _logger.LogInformation(VERIFY_CHANGE_EMAIL_FLOW_OTP_ATTEMPT_RECORDED);
+                _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_OTP_ATTEMPT_RECORDED);
             }
 
-            throw new ApiException(OTP_INVALID_OR_EXPIRED_MESSAGE, AUTH_OTP_INVALID);
+            throw new ApiException(ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
     }
 }

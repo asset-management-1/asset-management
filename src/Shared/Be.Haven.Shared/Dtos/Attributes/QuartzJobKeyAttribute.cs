@@ -4,6 +4,6 @@ namespace Be.Haven.Shared.Dtos.Attributes;
 public sealed class QuartzJobKeyAttribute : Attribute
 {
     public QuartzJobKeyAttribute(string key) => Key = key;
-    
+
     public string Key { get; }
 }

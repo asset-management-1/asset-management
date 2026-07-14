@@ -41,12 +41,52 @@ public class PropertyDetailBasicInfoResponseDto
     public string StatusName { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the property is published.
+    /// Gets or sets the province code.
     /// </summary>
-    public bool IsPublished { get; set; }
+    public string ProvinceCode { get; set; }
 
     /// <summary>
-    /// Gets or sets the thumbnail URL.
+    /// Gets or sets the province display name.
     /// </summary>
-    public string ThumbnailUrl { get; set; }
+    public string ProvinceName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the district code.
+    /// </summary>
+    public string DistrictCode { get; set; }
+
+    /// <summary>
+    /// Gets or sets the district display name.
+    /// </summary>
+    public string DistrictName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ward code.
+    /// </summary>
+    public string WardCode { get; set; }
+
+    /// <summary>
+    /// Gets or sets the ward display name.
+    /// </summary>
+    public string WardName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the street address.
+    /// </summary>
+    public string StreetAddress { get; set; }
+
+    /// <summary>
+    /// Gets or sets the formatted address.
+    /// </summary>
+    public string FormattedAddress { get; set; }
+
+    /// <summary>
+    /// Gets or sets latitude.
+    /// </summary>
+    public decimal? Latitude { get; set; }
+
+    /// <summary>
+    /// Gets or sets longitude.
+    /// </summary>
+    public decimal? Longitude { get; set; }
 }

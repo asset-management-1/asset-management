@@ -1,26 +1,37 @@
+using Be.Haven.Core.Interfaces.Repositories;
 using Haven.Application.Commands.CreateProperty;
-using Haven.Application.Dtos.Properties.Common;
 using Haven.Application.Dtos.Properties.Create;
 using Haven.Application.Dtos.Properties.Detail;
 using Haven.Application.Dtos.Properties.List;
+using Haven.Application.Dtos.Properties.Update;
 using Haven.Application.Interfaces.Repositories;
 using Haven.Application.Interfaces.Services;
-using Haven.Application.Mappings;
+using Haven.Application.Mappings.Properties;
+using Haven.Application.Mappings.Rooms;
+using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
 using Haven.Application.Models.Properties.Create;
+using Haven.Application.Models.Properties.Delete;
 using Haven.Application.Models.Properties.Detail;
 using Haven.Application.Models.Properties.List;
+using Haven.Application.Models.Properties.Mutation;
 using Haven.Application.Models.Properties.QueryParameters;
 using Haven.Application.Models.Properties.Rows;
+using Haven.Application.Models.Properties.Update;
 using Haven.Application.Queries.GetProperties;
 using Haven.Application.Queries.GetPropertyDetail;
 using Haven.Domain.Entities;
 using Haven.Domain.Enums;
 using Haven.Infrastructure.Dependencies;
-using Haven.Infrastructure.Services;
-using Be.Haven.Core.Interfaces.Repositories;
+using Haven.Infrastructure.Mappings.Rooms;
+using Haven.Infrastructure.Services.Locations;
+using Haven.Infrastructure.Services.MasterData;
+using Haven.Infrastructure.Services.Parties;
+using Haven.Infrastructure.Services.Properties;
+using Haven.Infrastructure.Services.Rooms;
+using Haven.Infrastructure.Services.Tenants;
 using Mapster;
 using Microsoft.AspNetCore.Http;
 using static Haven.Application.Constants.ApplicationConstants;
@@ -31,7 +42,134 @@ public sealed class PropertyServiceTests
 {
     static PropertyServiceTests()
     {
-        new PropertyMapping().Register(TypeAdapterConfig.GlobalSettings);
+    }
+
+    [Theory]
+    [InlineData(MASTER_CODE_RENTAL_MODE_WHOLE_UNIT, null, null, 103)]
+    [InlineData(MASTER_CODE_RENTAL_MODE_SHARED_BED, 4, 4, 111)]
+    public async Task UpdatePropertyAsync_Should_CreateSubmittedRoomThroughSharedMapper(
+        string rentalModeCode,
+        int? totalBeds,
+        int? expectedBeds,
+        long expectedRentalModeId)
+    {
+        var propertyPublicId = Guid.NewGuid();
+        var currentParty = new CurrentPartyContextModel
+        {
+            PartyId = 123,
+            PartyPublicId = Guid.NewGuid()
+        };
+        var property = new Property
+        {
+            Id = 10,
+            PublicId = propertyPublicId,
+            PropertyCode = "PROP_TEST",
+            Name = "Atlas Plaza"
+        };
+        var propertyRepository = new Mock<IPropertyRepository>();
+        var unitRepository = new Mock<IUnitRepository>();
+        var masterDataService = new Mock<IMasterDataService>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        Unit capturedUnit = null;
+
+        propertyRepository
+            .Setup(x => x.GetPropertyDetailHeaderAsync(It.IsAny<PropertyScopedQueryParametersModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildPropertyRow(propertyPublicId));
+        propertyRepository
+            .Setup(x => x.GetPropertyGraphByPublicIdAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(property);
+        propertyRepository
+            .Setup(x => x.GetUnitMutationGuardsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        propertyRepository
+            .Setup(x => x.GetFloorsAsync(It.IsAny<PropertyChildRowsQueryParametersModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        propertyRepository
+            .Setup(x => x.GetRoomsAsync(It.IsAny<PropertyChildRowsQueryParametersModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        propertyRepository
+            .Setup(x => x.GetChargePoliciesAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        propertyRepository
+            .Setup(x => x.GetPackageTemplatesAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        propertyRepository
+            .Setup(x => x.GetWholeBuildingRentalAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PropertyWholeBuildingRentalRowModel)null);
+        masterDataService
+            .Setup(x => x.GetValuesAsync(It.IsAny<IReadOnlyCollection<MasterDataKeyModel>>(), It.IsAny<CancellationToken>()))
+            .Returns<IReadOnlyCollection<MasterDataKeyModel>, CancellationToken>(
+                (keys, token) => Task.FromResult(ResolveMasterData(keys, token)));
+        unitRepository
+            .Setup(x => x.ExistsUnitCodeAsync(property.Id, It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        unitRepository
+            .Setup(x => x.AddAsync(It.IsAny<Unit>(), It.IsAny<CancellationToken>()))
+            .Callback<Unit, CancellationToken>((unit, _) => capturedUnit = unit)
+            .ReturnsAsync((Unit unit, CancellationToken _) => unit);
+        unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()))
+            .Returns<Func<CancellationToken, Task>, CancellationToken>((action, token) => action(token));
+
+        var service = new PropertyService(
+            new PropertyRepositoryDependencies(
+                propertyRepository.Object,
+                unitRepository.Object,
+                Mock.Of<IUnitPackageRepository>(),
+                Mock.Of<IUnitPackageItemRepository>(),
+                Mock.Of<IPropertyPartyRepository>(),
+                Mock.Of<IRentalChargePolicyRepository>()),
+            masterDataService.Object,
+            Mock.Of<ILocationService>(),
+            unitOfWork.Object,
+            Mock.Of<ILogger<PropertyService>>());
+        var request = new PropertyUpdateRequestModel
+        {
+            PropertyPublicId = propertyPublicId,
+            CurrentParty = currentParty,
+            Structure = new UpdatePropertyStructureRequestDto
+            {
+                Floors =
+                [
+                    new UpdatePropertyFloorRequestDto
+                    {
+                        FloorNumber = 2,
+                        Rooms =
+                        [
+                            new UpdatePropertyRoomRequestDto
+                            {
+                                Name = "Phòng 201",
+                                TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
+                                RentalModeCode = rentalModeCode,
+                                AreaSqm = 32,
+                                BaseRentAmount = 6_500_000,
+                                DefaultDepositAmount = 6_500_000,
+                                TotalBeds = totalBeds,
+                                IsPetAllowed = true
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        await service.UpdatePropertyAsync(request);
+
+        capturedUnit.Should().NotBeNull();
+        capturedUnit.PublicId.Should().NotBeEmpty();
+        capturedUnit.Property.Should().BeSameAs(property);
+        capturedUnit.UnitCode.Should().StartWith($"{ROOM_CODE_PREFIX}_");
+        capturedUnit.UnitName.Should().Be("Phòng 201");
+        capturedUnit.FloorNumber.Should().Be(2);
+        capturedUnit.UnitTypeId.Should().Be(102);
+        capturedUnit.RentalModeId.Should().Be(expectedRentalModeId);
+        capturedUnit.StatusId.Should().Be(104);
+        capturedUnit.AreaSqm.Should().Be(32);
+        capturedUnit.BaseRentAmount.Should().Be(6_500_000);
+        capturedUnit.DefaultDepositAmount.Should().Be(6_500_000);
+        capturedUnit.BedCount.Should().Be(expectedBeds);
+        capturedUnit.IsPetAllowed.Should().BeTrue();
+        capturedUnit.IsPublished.Should().BeFalse();
     }
 
     [Fact]
@@ -133,21 +271,24 @@ public sealed class PropertyServiceTests
         capturedProperty.TotalUnits.Should().Be(4);
 
         capturedUnits.Should().HaveCount(4);
-        capturedUnits.Select(x => x.UnitCode).Should().BeEquivalentTo(["101", "102", "201", "202"]);
+        capturedUnits.Select(x => x.UnitCode).Should().OnlyContain(code => code.StartsWith($"{ROOM_CODE_PREFIX}_", StringComparison.Ordinal));
+        capturedUnits.Select(x => x.UnitCode).Should().OnlyHaveUniqueItems();
         capturedUnits.Should().OnlyContain(x => x.Property == capturedProperty);
         capturedUnits.Should().OnlyContain(x => x.IsPublished == false);
         capturedUnits.Should().OnlyContain(x => x.StatusId == 104);
         capturedUnits.Select(x => x.FloorNumber).Should().BeEquivalentTo([1, 1, 2, 2]);
 
-        capturedUnitPackages.Should().HaveCount(4);
+        capturedUnitPackages.Should().ContainSingle();
         capturedUnitPackages.Should().OnlyContain(x => x.PackageCode == MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE);
         capturedUnitPackages.Should().OnlyContain(x => x.PackageName == MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE);
         capturedUnitPackages.Should().OnlyContain(x => x.PriceAdjustment == 0 && x.StatusId == 109);
-        capturedUnitPackages.Select(x => x.Unit).Should().BeEquivalentTo(capturedUnits);
+        capturedUnitPackages.Should().OnlyContain(x => x.Property == capturedProperty && x.Unit == null && x.UnitId == null);
         capturedUnitPackageItems.Should().BeEmpty();
+
+        // Empty package-item collections are still passed to the repository so services do not own persistence guards.
         unitPackageItemRepository.Verify(
             x => x.AddRangeAsync(It.IsAny<IEnumerable<UnitPackageItem>>(), It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Once);
 
         capturedPropertyParty.Should().NotBeNull();
         capturedPropertyParty.Property.Should().Be(capturedProperty);
@@ -257,7 +398,6 @@ public sealed class PropertyServiceTests
                     [
                         new CreatePropertyRoomRequestDto
                         {
-                            Code = "A101",
                             Name = "Phòng A101",
                             TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
                             RentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
@@ -274,7 +414,6 @@ public sealed class PropertyServiceTests
                     [
                         new CreatePropertyRoomRequestDto
                         {
-                            Code = "A201",
                             Name = "Phòng A201",
                             TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
                             RentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
@@ -290,18 +429,20 @@ public sealed class PropertyServiceTests
         capturedProperty.TotalFloors.Should().Be(2);
         capturedProperty.TotalUnits.Should().Be(2);
         capturedUnits.Should().HaveCount(2);
-        capturedUnits.Select(unit => unit.UnitCode).Should().Equal("A101", "A201");
+        var generatedUnitCodes = capturedUnits.Select(unit => unit.UnitCode).ToArray();
+        generatedUnitCodes.Should().OnlyContain(code => code.StartsWith($"{ROOM_CODE_PREFIX}_", StringComparison.Ordinal));
+        generatedUnitCodes.Should().OnlyHaveUniqueItems();
         capturedUnits[0].UnitName.Should().Be("Phòng A101");
         capturedUnits[0].FloorNumber.Should().Be(1);
         capturedUnits[0].DefaultDepositAmount.Should().Be(6_000_000);
         capturedUnits[0].IsPetAllowed.Should().BeTrue();
         capturedUnits[1].FloorNumber.Should().Be(2);
         capturedUnits[1].BaseRentAmount.Should().Be(7_000_000);
-        capturedUnitPackages.Should().HaveCount(2);
+        capturedUnitPackages.Should().ContainSingle();
         capturedUnitPackages.Should().OnlyContain(package => package.PackageCode == MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE);
         result.TotalFloors.Should().Be(2);
         result.TotalRooms.Should().Be(2);
-        result.Floors.SelectMany(floor => floor.RoomCodes).Should().Equal("A101", "A201");
+        result.Floors.SelectMany(floor => floor.RoomCodes).Should().BeEquivalentTo(generatedUnitCodes);
     }
 
     [Fact]
@@ -387,13 +528,15 @@ public sealed class PropertyServiceTests
 
         var result = await service.CreatePropertyAsync(request);
 
-        capturedUnitPackages.Should().HaveCount(8);
-        capturedUnitPackages.Count(package => package.PackageCode == MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE).Should().Be(4);
-        capturedUnitPackages.Count(package => package.PackageCode == "PKG-001").Should().Be(4);
-        capturedUnitPackages.Where(package => package.PackageCode == "PKG-001")
-            .Should().OnlyContain(package => package.PackageName == "Gói Full Nội thất" && package.PriceAdjustment == 1_500_000);
-        capturedUnitPackageItems.Should().HaveCount(8);
-        capturedUnitPackageItems.Should().OnlyContain(item => item.UnitPackage.PackageCode == "PKG-001");
+        capturedUnitPackages.Should().HaveCount(2);
+        capturedUnitPackages.Count(package => package.PackageCode == MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE).Should().Be(1);
+        var customPackage = capturedUnitPackages.Single(package => package.PackageCode != MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE);
+        customPackage.PackageCode.Should().MatchRegex("^PKG_\\d+$");
+        capturedUnitPackages.Should().OnlyContain(package => package.Property != null && package.Unit == null && package.UnitId == null);
+        customPackage.PackageName.Should().Be("Gói Full Nội thất");
+        customPackage.PriceAdjustment.Should().Be(1_500_000);
+        capturedUnitPackageItems.Should().HaveCount(2);
+        capturedUnitPackageItems.Should().OnlyContain(item => item.UnitPackage == customPackage);
         result.Floors.Should().HaveCount(2);
     }
 
@@ -436,7 +579,7 @@ public sealed class PropertyServiceTests
         await act.Should()
             .ThrowAsync<ApiException>()
             .Where(exception =>
-                exception.Message == ERROR_PROPERTY_CODE_GENERATION_FAILED
+                exception.Message == global::Haven.Application.Constants.ApplicationErrorConstants.PropertyErrors.ERROR_PROPERTY_CODE_GENERATION_FAILED
                 && exception.ErrorCode == INTERNAL_SERVER
                 && exception.StatusCode == StatusCodes.Status500InternalServerError);
         var expectedAttempts = (32 - PROPERTY_CODE_RANDOM_LENGTH + 1) * PROPERTY_CODE_MAX_ATTEMPTS;
@@ -651,6 +794,190 @@ public sealed class PropertyServiceTests
             .Where(exception => exception.StatusCode == StatusCodes.Status404NotFound);
     }
 
+    [Fact]
+    public async Task DeletePropertyAsync_Should_SetPendingDelete_When_NoBlockingDependenciesExist()
+    {
+        var currentParty = new CurrentPartyContextModel
+        {
+            PartyId = 123,
+            PartyPublicId = Guid.NewGuid()
+        };
+        var propertyPublicId = Guid.NewGuid();
+        var property = BuildPropertyGraph(propertyPublicId);
+        var propertyRepository = new Mock<IPropertyRepository>();
+        var unitRepository = new Mock<IUnitRepository>();
+        var unitPackageRepository = new Mock<IUnitPackageRepository>();
+        var unitPackageItemRepository = new Mock<IUnitPackageItemRepository>();
+        var propertyPartyRepository = new Mock<IPropertyPartyRepository>();
+        var rentalChargePolicyRepository = new Mock<IRentalChargePolicyRepository>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+
+        propertyRepository
+            .Setup(x => x.GetPropertyDetailHeaderAsync(It.IsAny<PropertyScopedQueryParametersModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildPropertyRow(propertyPublicId));
+        propertyRepository
+            .Setup(x => x.GetPropertyGraphByPublicIdAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(property);
+        propertyRepository
+            .Setup(x => x.GetPropertyMutationGuardAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyMutationGuardModel());
+        propertyRepository
+            .Setup(x => x.UpdateAsync(property))
+            .Returns(Task.CompletedTask);
+        unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(
+                It.IsAny<Func<CancellationToken, Task>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<CancellationToken, Task>, CancellationToken>((action, token) => action(token));
+        var service = new PropertyService(
+            new PropertyRepositoryDependencies(
+                propertyRepository.Object,
+                unitRepository.Object,
+                unitPackageRepository.Object,
+                unitPackageItemRepository.Object,
+                propertyPartyRepository.Object,
+                rentalChargePolicyRepository.Object),
+            Mock.Of<IMasterDataService>(),
+            Mock.Of<ILocationService>(),
+            unitOfWork.Object,
+            Mock.Of<ILogger<PropertyService>>());
+
+        var result = await service.DeletePropertyAsync(
+            new PropertyDeleteRequestModel
+            {
+                CurrentParty = currentParty,
+                PropertyPublicId = propertyPublicId
+            });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Message.Should().Be(global::Haven.Application.Constants.ApplicationMessageConstants.PropertyMessages.PROPERTY_DELETE_SUCCESS_MESSAGE);
+        property.DeleteRequestedAt.Should().NotBeNull();
+        property.DeleteScheduledAt.Should().NotBeNull();
+        property.DeleteScheduledAt.Value.Should().BeCloseTo(
+            property.DeleteRequestedAt.Value.AddDays(PROPERTY_PENDING_DELETE_DAYS),
+            TimeSpan.FromSeconds(2));
+        property.DeleteRequestedByPartyId.Should().Be(currentParty.PartyId);
+        propertyRepository.Verify(x => x.UpdateAsync(property), Times.Once);
+        unitPackageItemRepository.Verify(
+            x => x.DeleteRangeAsync(It.IsAny<List<UnitPackageItem>>()),
+            Times.Never);
+        unitPackageRepository.Verify(
+            x => x.DeleteRangeAsync(It.IsAny<List<UnitPackage>>()),
+            Times.Never);
+        unitRepository.Verify(
+            x => x.DeleteRangeAsync(It.IsAny<List<Unit>>()),
+            Times.Never);
+        propertyPartyRepository.Verify(
+            x => x.DeleteRangeAsync(It.IsAny<List<PropertyParty>>()),
+            Times.Never);
+        rentalChargePolicyRepository.Verify(
+            x => x.DeleteRangeAsync(It.IsAny<List<RentalChargePolicy>>()),
+            Times.Never);
+        propertyRepository.Verify(x => x.DeleteAsync(property), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeletePropertyAsync_Should_ThrowBadRequest_When_PropertyHasDependencies()
+    {
+        var propertyPublicId = Guid.NewGuid();
+        var propertyRepository = new Mock<IPropertyRepository>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var service = new PropertyService(
+            new PropertyRepositoryDependencies(
+                propertyRepository.Object,
+                Mock.Of<IUnitRepository>(),
+                Mock.Of<IUnitPackageRepository>(),
+                Mock.Of<IUnitPackageItemRepository>(),
+                Mock.Of<IPropertyPartyRepository>(),
+                Mock.Of<IRentalChargePolicyRepository>()),
+            Mock.Of<IMasterDataService>(),
+            Mock.Of<ILocationService>(),
+            unitOfWork.Object,
+            Mock.Of<ILogger<PropertyService>>());
+
+        propertyRepository
+            .Setup(x => x.GetPropertyDetailHeaderAsync(It.IsAny<PropertyScopedQueryParametersModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildPropertyRow(propertyPublicId));
+        propertyRepository
+            .Setup(x => x.GetPropertyGraphByPublicIdAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildPropertyGraph(propertyPublicId));
+        propertyRepository
+            .Setup(x => x.GetPropertyMutationGuardAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PropertyMutationGuardModel { ContractCount = 1 });
+
+        var act = () => service.DeletePropertyAsync(
+            new PropertyDeleteRequestModel
+            {
+                CurrentParty = new CurrentPartyContextModel { PartyId = 123, PartyPublicId = Guid.NewGuid() },
+                PropertyPublicId = propertyPublicId
+            });
+
+        await act.Should()
+            .ThrowAsync<ApiException>()
+            .Where(exception => exception.StatusCode == StatusCodes.Status400BadRequest);
+        unitOfWork.Verify(
+            x => x.ExecuteInTransactionAsync(It.IsAny<Func<CancellationToken, Task>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task RestorePropertyDeleteAsync_Should_ClearPendingDeleteFields_When_PropertyBelongsToLandlord()
+    {
+        var currentParty = new CurrentPartyContextModel
+        {
+            PartyId = 123,
+            PartyPublicId = Guid.NewGuid()
+        };
+        var propertyPublicId = Guid.NewGuid();
+        var property = BuildPropertyGraph(propertyPublicId);
+        property.DeleteRequestedAt = DateTime.UtcNow.AddDays(-1);
+        property.DeleteScheduledAt = DateTime.UtcNow.AddDays(6);
+        property.DeleteRequestedByPartyId = currentParty.PartyId;
+        var propertyRepository = new Mock<IPropertyRepository>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var service = new PropertyService(
+            new PropertyRepositoryDependencies(
+                propertyRepository.Object,
+                Mock.Of<IUnitRepository>(),
+                Mock.Of<IUnitPackageRepository>(),
+                Mock.Of<IUnitPackageItemRepository>(),
+                Mock.Of<IPropertyPartyRepository>(),
+                Mock.Of<IRentalChargePolicyRepository>()),
+            Mock.Of<IMasterDataService>(),
+            Mock.Of<ILocationService>(),
+            unitOfWork.Object,
+            Mock.Of<ILogger<PropertyService>>());
+
+        propertyRepository
+            .Setup(x => x.GetPropertyDetailHeaderAsync(It.IsAny<PropertyScopedQueryParametersModel>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildPropertyRow(propertyPublicId));
+        propertyRepository
+            .Setup(x => x.GetPropertyGraphByPublicIdAsync(propertyPublicId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(property);
+        propertyRepository
+            .Setup(x => x.UpdateAsync(property))
+            .Returns(Task.CompletedTask);
+        unitOfWork
+            .Setup(x => x.ExecuteInTransactionAsync(
+                It.IsAny<Func<CancellationToken, Task>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<CancellationToken, Task>, CancellationToken>((action, token) => action(token));
+
+        var result = await service.RestorePropertyDeleteAsync(
+            new PropertyDeleteRequestModel
+            {
+                CurrentParty = currentParty,
+                PropertyPublicId = propertyPublicId
+            });
+
+        result.IsSuccess.Should().BeTrue();
+        result.Message.Should().Be(global::Haven.Application.Constants.ApplicationMessageConstants.PropertyMessages.PROPERTY_RESTORE_DELETE_SUCCESS_MESSAGE);
+        property.DeleteRequestedAt.Should().BeNull();
+        property.DeleteScheduledAt.Should().BeNull();
+        property.DeleteRequestedByPartyId.Should().BeNull();
+        propertyRepository.Verify(x => x.UpdateAsync(property), Times.Once);
+    }
+
     private static CreatePropertyCommand BuildValidCommand()
     {
         return new CreatePropertyCommand
@@ -666,13 +993,55 @@ public sealed class PropertyServiceTests
             Longitude = 106.7m,
             StructureSetup = new CreatePropertyStructureRequestDto
             {
-                TotalFloors = 2,
-                RoomsPerFloor = 2,
-                RoomNumberingPattern = DEFAULT_ROOM_NUMBERING_PATTERN,
-                DefaultUnitTypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
-                DefaultRentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
-                DefaultBaseRentAmount = 5_500_000,
-                DefaultDepositAmount = 5_500_000
+                Floors =
+                [
+                    new CreatePropertyFloorRequestDto
+                    {
+                        FloorNumber = 1,
+                        Rooms =
+                        [
+                            new CreatePropertyRoomRequestDto
+                            {
+                                Name = "Phòng 101",
+                                TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
+                                RentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
+                                BaseRentAmount = 5_500_000,
+                                DefaultDepositAmount = 5_500_000
+                            },
+                            new CreatePropertyRoomRequestDto
+                            {
+                                Name = "Phòng 102",
+                                TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
+                                RentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
+                                BaseRentAmount = 5_500_000,
+                                DefaultDepositAmount = 5_500_000
+                            }
+                        ]
+                    },
+                    new CreatePropertyFloorRequestDto
+                    {
+                        FloorNumber = 2,
+                        Rooms =
+                        [
+                            new CreatePropertyRoomRequestDto
+                            {
+                                Name = "Phòng 201",
+                                TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
+                                RentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
+                                BaseRentAmount = 5_500_000,
+                                DefaultDepositAmount = 5_500_000
+                            },
+                            new CreatePropertyRoomRequestDto
+                            {
+                                Name = "Phòng 202",
+                                TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
+                                RentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
+                                BaseRentAmount = 5_500_000,
+                                DefaultDepositAmount = 5_500_000
+                            }
+                        ]
+                    }
+                ]
             },
             ChargePolicies =
             [
@@ -693,17 +1062,18 @@ public sealed class PropertyServiceTests
     {
         var ids = new Dictionary<(string Type, string Code), long>
         {
-            [(MASTER_TYPE_PROPERTY_TYPE, "BUILDING")] = 100,
-            [(MASTER_TYPE_PROPERTY_STATUS, MASTER_CODE_PROPERTY_STATUS_DRAFT)] = 101,
-            [(MASTER_TYPE_UNIT_TYPE, MASTER_CODE_UNIT_TYPE_ROOM)] = 102,
-            [(MASTER_TYPE_UNIT_RENTAL_MODE, MASTER_CODE_RENTAL_MODE_WHOLE_UNIT)] = 103,
-            [(MASTER_TYPE_UNIT_STATUS, MASTER_CODE_UNIT_STATUS_AVAILABLE)] = 104,
-            [(MASTER_TYPE_PROPERTY_RELATIONSHIP_TYPE, PropertyRelationshipTypeEnum.Landlord.ToMasterDataCode())] = 105,
-            [(MASTER_TYPE_COMMON_STATUS, MASTER_CODE_ACTIVE)] = 106,
-            [(MASTER_TYPE_INVOICE_LINE_TYPE, "ELECTRIC")] = 107,
-            [(MASTER_TYPE_UNIT_PACKAGE_TYPE, MASTER_CODE_UNIT_PACKAGE_TYPE_CUSTOM)] = 110,
-            [(MASTER_TYPE_UNIT_PACKAGE_TYPE, MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE)] = 108,
-            [(MASTER_TYPE_UNIT_PACKAGE_STATUS, MASTER_CODE_UNIT_PACKAGE_STATUS_ACTIVE)] = 109
+            [(MasterDataTypeEnum.PropertyType.ToString(), "BUILDING")] = 100,
+            [(MasterDataTypeEnum.PropertyStatus.ToString(), MASTER_CODE_PROPERTY_STATUS_DRAFT)] = 101,
+            [(MasterDataTypeEnum.UnitType.ToString(), MASTER_CODE_UNIT_TYPE_ROOM)] = 102,
+            [(MasterDataTypeEnum.UnitRentalMode.ToString(), MASTER_CODE_RENTAL_MODE_WHOLE_UNIT)] = 103,
+            [(MasterDataTypeEnum.UnitRentalMode.ToString(), MASTER_CODE_RENTAL_MODE_SHARED_BED)] = 111,
+            [(MasterDataTypeEnum.UnitStatus.ToString(), MASTER_CODE_UNIT_STATUS_AVAILABLE)] = 104,
+            [(MasterDataTypeEnum.PropertyRelationshipType.ToString(), PropertyRelationshipTypeEnum.Landlord.ToMasterDataCode())] = 105,
+            [(MasterDataTypeEnum.CommonStatus.ToString(), MASTER_CODE_ACTIVE)] = 106,
+            [(MasterDataTypeEnum.InvoiceLineType.ToString(), "ELECTRIC")] = 107,
+            [(MasterDataTypeEnum.UnitPackageType.ToString(), MASTER_CODE_UNIT_PACKAGE_TYPE_CUSTOM)] = 110,
+            [(MasterDataTypeEnum.UnitPackageType.ToString(), MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE)] = 108,
+            [(MasterDataTypeEnum.UnitPackageStatus.ToString(), MASTER_CODE_UNIT_PACKAGE_STATUS_ACTIVE)] = 109
         };
 
         return keys.ToDictionary(
@@ -714,7 +1084,7 @@ public sealed class PropertyServiceTests
                 Type = key.Type,
                 Code = key.Code,
                 Name = key.Code,
-                Description = key.Type == MASTER_TYPE_UNIT_PACKAGE_TYPE ? "Default zero-price package." : null
+                Description = key.Type == MasterDataTypeEnum.UnitPackageType.ToString() ? "Default zero-price package." : null
             });
     }
 
@@ -745,6 +1115,10 @@ public sealed class PropertyServiceTests
 
     private static PropertyService CreateService(Mock<IPropertyRepository> propertyRepository)
     {
+        propertyRepository
+            .Setup(x => x.GetWholeBuildingRentalAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((PropertyWholeBuildingRentalRowModel)null);
+
         return new PropertyService(
             new PropertyRepositoryDependencies(
                 propertyRepository.Object,
@@ -782,5 +1156,53 @@ public sealed class PropertyServiceTests
             TotalUnits = 1,
             AvailableUnitCount = 1
         };
+    }
+
+    private static Property BuildPropertyGraph(Guid propertyPublicId)
+    {
+        var property = new Property
+        {
+            PublicId = propertyPublicId,
+            Name = "Tòa nhà A",
+            PropertyCode = "PROP_TEST"
+        };
+        var unit = new Unit
+        {
+            PublicId = Guid.NewGuid(),
+            Property = property,
+            UnitCode = "101",
+            UnitName = "Phòng 101"
+        };
+        var unitPackage = new UnitPackage
+        {
+            PublicId = Guid.NewGuid(),
+            Unit = unit,
+            PackageCode = MASTER_CODE_UNIT_PACKAGE_TYPE_NO_FURNITURE,
+            PackageName = "Không nội thất"
+        };
+        var item = new UnitPackageItem
+        {
+            PublicId = Guid.NewGuid(),
+            UnitPackage = unitPackage,
+            ItemName = "Giường ngủ"
+        };
+
+        unitPackage.Items.Add(item);
+        unit.UnitPackages.Add(unitPackage);
+        property.Units.Add(unit);
+        property.PropertyParties.Add(new PropertyParty
+        {
+            PublicId = Guid.NewGuid(),
+            Property = property,
+            PartyId = 123
+        });
+        property.RentalChargePolicies.Add(new RentalChargePolicy
+        {
+            PublicId = Guid.NewGuid(),
+            Property = property,
+            ChargeName = "Tiền điện"
+        });
+
+        return property;
     }
 }

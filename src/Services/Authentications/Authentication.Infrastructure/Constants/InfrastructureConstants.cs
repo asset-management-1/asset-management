@@ -16,11 +16,6 @@ public static class InfrastructureConstants
     public const string FORGOT_PASSWORD_PURPOSE = "forgot-password";
 
     /// <summary>
-    /// Master-data code for the active status value.
-    /// </summary>
-    public const string ACTIVE_STATUS = "ACTIVE";
-
-    /// <summary>
     /// Master-data type code for user-account status values.
     /// </summary>
     public const string USER_STATUS_TYPE = "UserStatus";
@@ -126,11 +121,6 @@ public static class InfrastructureConstants
     public const string PARTY_CONTEXT_DISPLAY_NAME_SUFFIX_FORMAT = "{0} ({1})";
 
     /// <summary>
-    /// Error message used when a party context value cannot be mapped to the public enum contract.
-    /// </summary>
-    public const string UNSUPPORTED_PARTY_CONTEXT_VALUE_MESSAGE = "Unsupported party context value '{0}'.";
-
-    /// <summary>
     /// Default username prefix used for externally provisioned users.
     /// </summary>
     public const string DEFAULT_EXTERNAL_USER_NAME = "user";
@@ -194,32 +184,6 @@ public static class InfrastructureConstants
     /// Sentinel cache value used to mark an active OTP cooldown entry.
     /// </summary>
     public const string OTP_COOLDOWN_VALUE = "1";
-
-    /// <summary>
-    /// Email subject used when sending register verification OTP emails.
-    /// </summary>
-    public const string EMAIL_SUBJECT_VERIFY_ACCOUNT = "Verify your Haven account";
-
-    /// <summary>
-    /// Email subject used when sending forgot-password OTP emails.
-    /// </summary>
-    public const string EMAIL_SUBJECT_RESET_PASSWORD = "Reset your Haven password";
-
-    /// <summary>
-    /// Plain-text email template used for OTP delivery.
-    /// </summary>
-    public const string OTP_EMAIL_TEXT_TEMPLATE = "Your Haven OTP is {0}. It expires in 5 minutes.";
-
-    /// <summary>
-    /// HTML email template used for OTP delivery.
-    /// </summary>
-    public const string OTP_EMAIL_HTML_TEMPLATE = "<p>Your Haven OTP is <strong>{0}</strong>. It expires in 5 minutes.</p>";
-
-    /// <summary>
-    /// HTML email template used for old-email security notification during change-email flow.
-    /// </summary>
-    public const string CHANGE_EMAIL_SECURITY_EMAIL_HTML_TEMPLATE =
-        "<p>A request was made to change your Haven account email from <strong>{0}</strong> to <strong>{1}</strong>.</p><p>If this was not you, contact Haven support immediately at <strong>{2}</strong>.</p>";
 
     /// <summary>
     /// Redis key pattern for OTP cache entries.

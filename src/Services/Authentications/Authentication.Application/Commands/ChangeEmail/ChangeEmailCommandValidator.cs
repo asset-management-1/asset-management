@@ -6,13 +6,14 @@ namespace Authentication.Application.Commands.ChangeEmail;
 public class ChangeEmailCommandValidator : AbstractValidator<ChangeEmailCommand>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="ChangeEmailCommandValidator"/> class.
+    /// Creates validation rules for the email address that will receive the change-email OTP.
     /// </summary>
     public ChangeEmailCommandValidator()
     {
+        // New email must be deliverable and bounded before OTP is issued.
         RuleFor(x => x.NewEmail)
             .Required()
-            .EmailAddress()
-            .MaximumLength(255);
+            .EmailFormat()
+            .MaxLen(255);
     }
 }

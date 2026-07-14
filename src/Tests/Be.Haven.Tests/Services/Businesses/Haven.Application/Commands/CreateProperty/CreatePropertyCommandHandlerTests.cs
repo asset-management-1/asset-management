@@ -1,10 +1,11 @@
 using Haven.Application.Commands.CreateProperty;
-using Haven.Application.Dtos.Properties.Common;
 using Haven.Application.Dtos.Properties.Create;
 using Haven.Application.Dtos.Properties.Detail;
 using Haven.Application.Dtos.Properties.List;
 using Haven.Application.Interfaces.Services;
-using Haven.Application.Mappings;
+using Haven.Application.Mappings.Properties;
+using Haven.Application.Mappings.Rooms;
+using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
@@ -22,7 +23,6 @@ public sealed class CreatePropertyCommandHandlerTests
 {
     static CreatePropertyCommandHandlerTests()
     {
-        new PropertyMapping().Register(TypeAdapterConfig.GlobalSettings);
     }
 
     [Fact]
@@ -57,8 +57,8 @@ public sealed class CreatePropertyCommandHandlerTests
                 It.Is<PropertyCreationRequestModel>(request =>
                     request.CurrentParty == currentParty
                     && request.Name == command.Name
-                    && request.StructureSetup.TotalFloors == command.StructureSetup.TotalFloors
-                    && request.StructureSetup.RoomsPerFloor == command.StructureSetup.RoomsPerFloor),
+                    && request.StructureSetup.Floors.Count == command.StructureSetup.Floors.Count
+                    && request.StructureSetup.Floors[0].Rooms.Count == command.StructureSetup.Floors[0].Rooms.Count),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(response);
 
@@ -79,11 +79,23 @@ public sealed class CreatePropertyCommandHandlerTests
             PropertyTypeCode = "BUILDING",
             StructureSetup = new CreatePropertyStructureRequestDto
             {
-                TotalFloors = 1,
-                RoomsPerFloor = 1,
-                RoomNumberingPattern = DEFAULT_ROOM_NUMBERING_PATTERN,
-                DefaultUnitTypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
-                DefaultRentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT
+                Floors =
+                [
+                    new CreatePropertyFloorRequestDto
+                    {
+                        FloorNumber = 1,
+                        Rooms =
+                        [
+                            new CreatePropertyRoomRequestDto
+                            {
+                                Name = "Phòng 101",
+                                TypeCode = MASTER_CODE_UNIT_TYPE_ROOM,
+                                RentalModeCode = MASTER_CODE_RENTAL_MODE_WHOLE_UNIT,
+                                BaseRentAmount = 5_500_000
+                            }
+                        ]
+                    }
+                ]
             }
         };
     }

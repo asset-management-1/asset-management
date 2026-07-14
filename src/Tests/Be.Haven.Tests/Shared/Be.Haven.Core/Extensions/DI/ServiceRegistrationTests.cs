@@ -1,8 +1,8 @@
+using System.Reflection;
 using Be.Haven.Core.Extensions.DI;
 using Be.Haven.Core.Interfaces.Repositories;
 using Google.Cloud.SecretManager.V1;
 using Microsoft.Extensions.Hosting;
-using System.Reflection;
 using CoreServiceRegistration = Be.Haven.Core.Extensions.DI.ServiceRegistration;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Extensions.DI;
@@ -391,13 +391,16 @@ public sealed class ServiceRegistrationTests
         try
         {
             // Act
-            CoreServiceRegistration.AddGcpSecretManagerInfrastructure(services, configuration);
-            using var provider = services.BuildServiceProvider();
-            var result = provider.GetRequiredService<IGcpSecretService>();
+            GcpCredentialTestGuard.ExecuteOrSkip(() =>
+            {
+                CoreServiceRegistration.AddGcpSecretManagerInfrastructure(services, configuration);
+                using var provider = services.BuildServiceProvider();
+                var result = provider.GetRequiredService<IGcpSecretService>();
 
-            // Assert
-            result.Should().BeOfType<GcpSecretService>();
-            provider.GetRequiredService<SecretManagerServiceClient>().Should().NotBeNull();
+                // Assert
+                result.Should().BeOfType<GcpSecretService>();
+                provider.GetRequiredService<SecretManagerServiceClient>().Should().NotBeNull();
+            });
         }
         finally
         {
@@ -412,7 +415,9 @@ public sealed class ServiceRegistrationTests
         var services = new ServiceCollection();
         var configuration = BuildConfiguration(new Dictionary<string, string>
         {
-            [$"{EMAIL_SETTINGS}:FromEmail"] = "no-reply@example.test"
+            [$"{EMAIL_SETTINGS}:ApiKey"] = "test-api-key",
+            [$"{EMAIL_SETTINGS}:FromEmail"] = "no-reply@example.test",
+            [$"{EMAIL_SETTINGS}:FromName"] = "Haven Tests"
         });
 
         // Act
@@ -425,6 +430,19 @@ public sealed class ServiceRegistrationTests
             descriptor.ServiceType == typeof(IEmailService) &&
             descriptor.ImplementationType == typeof(EmailService));
         provider.GetRequiredService<IOptions<EmailOptions>>().Value.FromEmail.Should().Be("no-reply@example.test");
+    }
+
+    [Fact]
+    public void AddEmailService_Should_RejectMissingRequiredConfiguration()
+    {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(new Dictionary<string, string>());
+        CoreServiceRegistration.AddEmailService(services, configuration);
+        using var provider = services.BuildServiceProvider();
+
+        var action = () => provider.GetRequiredService<IOptions<EmailOptions>>().Value;
+
+        action.Should().Throw<OptionsValidationException>();
     }
 
     [Fact]
@@ -454,7 +472,10 @@ public sealed class ServiceRegistrationTests
         var services = new ServiceCollection();
         var configuration = BuildConfiguration(new Dictionary<string, string>
         {
-            [$"{R2_STORAGE_SETTINGS}:BucketName"] = "haven-assets"
+            [$"{R2_STORAGE_SETTINGS}:Endpoint"] = "https://r2.example.test",
+            [$"{R2_STORAGE_SETTINGS}:BucketName"] = "haven-assets",
+            [$"{R2_STORAGE_SETTINGS}:AccessKeyId"] = "test-access-key",
+            [$"{R2_STORAGE_SETTINGS}:SecretAccessKey"] = "test-secret-key"
         });
 
         // Act
@@ -467,6 +488,19 @@ public sealed class ServiceRegistrationTests
             descriptor.ServiceType == typeof(IObjectStorageService) &&
             descriptor.ImplementationType == typeof(R2ObjectStorageService));
         provider.GetRequiredService<IOptions<R2StorageOptions>>().Value.BucketName.Should().Be("haven-assets");
+    }
+
+    [Fact]
+    public void AddR2ObjectStorageService_Should_RejectMissingRequiredConfiguration()
+    {
+        var services = new ServiceCollection();
+        var configuration = BuildConfiguration(new Dictionary<string, string>());
+        CoreServiceRegistration.AddR2ObjectStorageService(services, configuration);
+        using var provider = services.BuildServiceProvider();
+
+        var action = () => provider.GetRequiredService<IOptions<R2StorageOptions>>().Value;
+
+        action.Should().Throw<OptionsValidationException>();
     }
 
     [Fact]
@@ -559,11 +593,14 @@ public sealed class ServiceRegistrationTests
         try
         {
             // Act
-            using var provider = services.BuildServiceProvider();
-            var result = provider.GetRequiredService<IGcpUploadService>();
+            GcpCredentialTestGuard.ExecuteOrSkip(() =>
+            {
+                using var provider = services.BuildServiceProvider();
+                var result = provider.GetRequiredService<IGcpUploadService>();
 
-            // Assert
-            result.Should().BeOfType<GcpUploadService>();
+                // Assert
+                result.Should().BeOfType<GcpUploadService>();
+            });
         }
         finally
         {

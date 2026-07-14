@@ -21,6 +21,11 @@ public class RentalChargePolicy : BaseEntity
     public long? UnitId { get; set; }
 
     /// <summary>
+    /// Gets or sets the optional unit navigation for room-specific policy overrides.
+    /// </summary>
+    public Unit Unit { get; set; }
+
+    /// <summary>
     /// Gets or sets the invoice line type master-data identifier.
     /// </summary>
     public long LineTypeId { get; set; }

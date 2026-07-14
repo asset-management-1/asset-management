@@ -38,7 +38,7 @@ public class LinkExternalProviderCommandHandler : ICommandHandler<LinkExternalPr
         // Provider links are owned by the authenticated account, so identity comes from the normalized token only.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
 
@@ -47,7 +47,7 @@ public class LinkExternalProviderCommandHandler : ICommandHandler<LinkExternalPr
             request.Adapt<LinkExternalProviderRequestDto>(),
             currentUserPublicId,
             cancellationToken);
-        _logger.LogInformation(PROVIDER_LINKED, request.Provider, currentUserPublicId);
+        _logger.LogInformation(ApplicationLogConstants.ExternalProviderLogs.PROVIDER_LINKED, request.Provider, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

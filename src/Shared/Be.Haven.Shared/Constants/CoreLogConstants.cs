@@ -3,6 +3,29 @@ namespace Be.Haven.Shared.Constants;
 public static class CoreLogConstants
 {
     /// <summary>
+    /// Contains structured logs emitted by the shared image optimization pipeline.
+    /// </summary>
+    public static class ImageOptimizationLogs
+    {
+        /// <summary>
+        /// Logged after submitted content is decoded and accepted as a supported image.
+        /// </summary>
+        public const string IMAGE_CONTENT_VALIDATED = "Image content validation completed. InputFormat={InputFormat}, InputBytes={InputBytes}, Width={Width}, Height={Height}.";
+
+        /// <summary>
+        /// Logged after an image is decoded, normalized, resized when needed, and encoded.
+        /// </summary>
+        public const string IMAGE_OPTIMIZATION_COMPLETED =
+            "Image optimization completed. InputFormat={InputFormat}, InputBytes={InputBytes}, OutputBytes={OutputBytes}, OriginalWidth={OriginalWidth}, OriginalHeight={OriginalHeight}, OutputWidth={OutputWidth}, OutputHeight={OutputHeight}, Quality={Quality}.";
+
+        /// <summary>
+        /// Logged when submitted content cannot be decoded as a supported image.
+        /// </summary>
+        public const string IMAGE_OPTIMIZATION_REJECTED =
+            "Image optimization rejected invalid or unsupported content. InputBytes={InputBytes}.";
+    }
+
+    /// <summary>
     /// Centralized log message templates for Quartz jobs.
     /// Keep templates stable to make log search/alerting consistent.
     /// </summary>
@@ -49,37 +72,37 @@ public static class CoreLogConstants
         /// The job execution will be skipped by the caller.
         /// </summary>
         public const string LOG_JOB_LOCK_WAITING_CANCELLED = "Quartz: Lock wait cancelled. LockKey={LockKey}, Attempts={Attempts}";
-        
+
         /// <summary>
         /// Log template for indicating that a job execution was prevented
         /// because the job is explicitly disabled in the configuration settings.
         /// </summary>
         public const string LOG_JOB_DISABLED_BY_CONFIGURATION = "Job is disabled by configuration. JobKey={JobKey}";
-        
+
         /// <summary>
         /// Log when a job successfully acquires the distributed lock.
         /// Placeholders: {JobKey}, {Pod}, {LockKey}.
         /// </summary>
-        public const string LOG_JOB_LOCK_ACQUIRED ="Job lock acquired. Job={JobKey}, Pod={Pod}, LockKey={LockKey}.";
+        public const string LOG_JOB_LOCK_ACQUIRED = "Job lock acquired. Job={JobKey}, Pod={Pod}, LockKey={LockKey}.";
 
         /// <summary>
         /// Log when a job execution is completed successfully.
         /// Placeholders: {JobKey}, {Pod}.
         /// </summary>
-        public const string LOG_JOB_EXECUTION_COMPLETED ="Job execution completed. Job={JobKey}, Pod={Pod}.";
+        public const string LOG_JOB_EXECUTION_COMPLETED = "Job execution completed. Job={JobKey}, Pod={Pod}.";
 
         /// <summary>
         /// Log when a job is cancelled due to application shutdown.
         /// Placeholders: {JobKey}, {Pod}.
         /// </summary>
-        public const string LOG_JOB_CANCELLED_DURING_SHUTDOWN ="Job cancelled during shutdown. Job={JobKey}, Pod={Pod}.";
+        public const string LOG_JOB_CANCELLED_DURING_SHUTDOWN = "Job cancelled during shutdown. Job={JobKey}, Pod={Pod}.";
 
         /// <summary>
         /// Log when a job execution fails with an exception.
         /// Placeholders: {JobKey}, {Pod}.
         /// </summary>
-        public const string LOG_JOB_EXECUTION_FAILED ="Job execution failed. Job={JobKey}, Pod={Pod}.";
-        
+        public const string LOG_JOB_EXECUTION_FAILED = "Job execution failed. Job={JobKey}, Pod={Pod}.";
+
         /// <summary>
         /// Log when a job execution is requested (triggered by scheduler).
         /// Placeholders: {JobKey}, {Pod}, {LockKey}.
@@ -93,7 +116,7 @@ public static class CoreLogConstants
         public const string LOG_JOB_SKIPPED_LOCK_HELD = "Job skipped because lock is held. Job={JobKey}, Pod={Pod}, LockKey={LockKey}.";
 
     }
-    
+
     /// <summary>
     /// Centralized log message templates for cache versioning.
     /// Keep templates stable to make log search/alerting consistent.
@@ -160,7 +183,7 @@ public static class CoreLogConstants
         /// </summary>
         public const string LOG_CACHE_VERSION_TTL_SET_FAILED = "CacheVersion: Failed to set TTL. Epoch={Epoch}, Key={Key}, TtlSeconds={TtlSeconds}, NewVersion={NewVersion}.";
     }
-    
+
     /// <summary>
     /// Centralized log message templates for caching pipeline behaviors.
     /// Keep templates stable to make log search/alerting consistent.
@@ -271,7 +294,7 @@ public static class CoreLogConstants
         public const string R2_DELETE_FAILED =
             "Cloudflare R2 delete failed. BucketName={BucketName}, StatusCode={StatusCode}, ResponseContent={ResponseContent}.";
     }
-    
+
     /// <summary>
     /// Centralized log message templates for operations related to
     /// retrieving and processing embedded Excel resources.
@@ -352,7 +375,7 @@ public static class CoreLogConstants
         /// Typically indicates an issue with resolving the connection string for the specified connection name.
         /// </summary>
         public const string ERR_DB_CONN_HOST_FAILED = "DbConnectionHostService failed to initialize DB connection string. ConnectionName={0}.";
-        
+
         /// <summary>
         /// Logged when a connection string is initialized from the GCP Secret Manager.
         /// </summary>
@@ -367,12 +390,12 @@ public static class CoreLogConstants
         /// Logged when refreshing the connection string fails after a DB connection failure.
         /// </summary>
         public const string LOG_DB_CONN_REFRESH_FAILED_AFTER_FAILURE = "Refresh connection string failed after DB connection failure. ConnectionName={ConnectionName}, ConnectionId={ConnectionId}";
-        
+
         /// <summary>
         /// Logged when the connection string is refreshed from the source and the last-known-good value is updated.
         /// </summary>
         public const string LOG_CONNECTION_STRING_REFRESHED = "Connection string refreshed and LKG updated. ConnectionName={ConnectionName}";
-        
+
         /// <summary>
         /// Logged when a connection string is initialized from the application configuration.
         /// </summary>
@@ -394,7 +417,7 @@ public static class CoreLogConstants
         /// </summary>
         public const string ERR_CONNECTION_NOT_INITIALIZED = "Connection string '{0}' has not been set. Ensure IConnectionStringProvider.InitializeAsync() is executed during application startup.";
     }
-    
+
     /// <summary>
     /// Contains log message constants used by email services.
     /// </summary>

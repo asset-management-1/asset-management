@@ -7,7 +7,12 @@ using Haven.Application.Models.Properties.Detail;
 using Haven.Application.Models.Properties.List;
 using Haven.Application.Models.Properties.QueryParameters;
 using Haven.Application.Models.Properties.Rows;
-using Haven.Infrastructure.Services;
+using Haven.Infrastructure.Services.Locations;
+using Haven.Infrastructure.Services.MasterData;
+using Haven.Infrastructure.Services.Parties;
+using Haven.Infrastructure.Services.Properties;
+using Haven.Infrastructure.Services.Rooms;
+using Haven.Infrastructure.Services.Tenants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Infrastructure.Services;
 

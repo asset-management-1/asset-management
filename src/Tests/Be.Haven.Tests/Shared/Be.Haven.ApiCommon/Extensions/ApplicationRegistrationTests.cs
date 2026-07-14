@@ -1,11 +1,11 @@
-using ApiCommonApplicationRegistration = Be.Haven.ApiCommon.Extensions.ApplicationRegistration;
-using ApiCommonServiceRegistration = Be.Haven.ApiCommon.Extensions.ServiceRegistration;
+using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using System.Reflection;
 using Serilog.Extensions.Hosting;
+using ApiCommonApplicationRegistration = Be.Haven.ApiCommon.Extensions.ApplicationRegistration;
+using ApiCommonServiceRegistration = Be.Haven.ApiCommon.Extensions.ServiceRegistration;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.ApiCommon.Extensions;
 

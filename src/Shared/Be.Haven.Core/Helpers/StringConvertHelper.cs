@@ -116,7 +116,7 @@ public static class StringConvertHelper
 
         return url.Replace(Prefix, string.Empty);
     }
-    
+
     /// <summary>
     /// Truncates the given string if its length exceeds the specified maximum length.
     /// </summary>

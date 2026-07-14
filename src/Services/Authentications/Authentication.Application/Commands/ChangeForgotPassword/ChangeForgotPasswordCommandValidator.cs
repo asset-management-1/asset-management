@@ -13,16 +13,14 @@ public class ChangeForgotPasswordCommandValidator : AbstractValidator<ChangeForg
         // Validate reset-session input and password strength before the handler checks cached reset state.
         RuleFor(x => x.Email)
             .Required()
-            .EmailAddress();
+            .EmailFormat();
 
         RuleFor(x => x.NewPassword)
             .Required()
-            .MinimumLength(8)
-            .Matches("[A-Z]")
-            .Matches("[a-z]")
-            .Matches("[0-9]")
-            .Matches("[@$!%*?&]")
-            .WithMessage(PASSWORD_COMPLEXITY_RULES);
-
+            .MinLen(PASSWORD_MINIMUM_LENGTH, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_UPPERCASE_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_LOWERCASE_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_NUMBER_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES)
+            .MatchesRegex(PASSWORD_SPECIAL_CHARACTER_PATTERN, ApplicationErrorConstants.ValidationErrors.PASSWORD_COMPLEXITY_RULES);
     }
 }

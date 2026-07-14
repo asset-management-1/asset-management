@@ -111,11 +111,6 @@ public class PropertyRowModel
     public decimal? Longitude { get; set; }
 
     /// <summary>
-    /// Gets or sets the thumbnail URL.
-    /// </summary>
-    public string ThumbnailUrl { get; set; }
-
-    /// <summary>
     /// Gets or sets total floors.
     /// </summary>
     public int TotalFloors { get; set; }

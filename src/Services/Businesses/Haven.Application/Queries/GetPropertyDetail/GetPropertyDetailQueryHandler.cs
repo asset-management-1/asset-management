@@ -42,8 +42,9 @@ public class GetPropertyDetailQueryHandler : IQueryHandler<GetPropertyDetailQuer
 
         // Infrastructure service hides missing and unauthorized properties through the same not-found path.
         var response = await _propertyService.GetPropertyDetailAsync(propertyRequest, cancellationToken);
+
         _logger.LogInformation(
-            LOG_PROPERTY_DETAIL_QUERY_COMPLETED,
+            ApplicationLogConstants.PropertyLogs.PROPERTY_DETAIL_QUERY_COMPLETED,
             request.PropertyPublicId,
             currentParty.PartyPublicId);
 

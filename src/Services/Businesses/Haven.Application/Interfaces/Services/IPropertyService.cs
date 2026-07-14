@@ -1,7 +1,7 @@
 namespace Haven.Application.Interfaces.Services;
 
 /// <summary>
-/// Provides landlord property list, detail, and creation workflows.
+/// Provides landlord property list, detail, creation, update, and delete workflows.
 /// </summary>
 public interface IPropertyService
 {
@@ -26,12 +26,42 @@ public interface IPropertyService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Creates a property with generated unit structure and optional charge policies.
+    /// Creates a property from the final frontend-submitted unit structure and optional charge policies.
     /// </summary>
     /// <param name="request">The party-scoped creation request.</param>
-    /// <param name="cancellationToken">The token used to cancel the write.</param>
+    /// <param name="cancellationToken">The token used to cancel property creation.</param>
     /// <returns>The created property summary.</returns>
     Task<CreatedPropertyResponseDto> CreatePropertyAsync(
         PropertyCreationRequestModel request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates a property edit form and returns refreshed property detail.
+    /// </summary>
+    /// <param name="request">The party-scoped update request.</param>
+    /// <param name="cancellationToken">The token used to cancel the property mutation.</param>
+    /// <returns>The refreshed property detail response.</returns>
+    Task<PropertyDetailResponseDto> UpdatePropertyAsync(
+        PropertyUpdateRequestModel request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Soft-deletes a property when it has no protected dependencies.
+    /// </summary>
+    /// <param name="request">The party-scoped delete request.</param>
+    /// <param name="cancellationToken">The token used to cancel the delete scheduling.</param>
+    /// <returns>The operation status response.</returns>
+    Task<OperationStatusResponseDto> DeletePropertyAsync(
+        PropertyDeleteRequestModel request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Restores a pending property delete request.
+    /// </summary>
+    /// <param name="request">The party-scoped restore-delete request.</param>
+    /// <param name="cancellationToken">The token used to cancel the delete restoration.</param>
+    /// <returns>The operation status response.</returns>
+    Task<OperationStatusResponseDto> RestorePropertyDeleteAsync(
+        PropertyDeleteRequestModel request,
         CancellationToken cancellationToken = default);
 }

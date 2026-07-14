@@ -2,14 +2,9 @@ using Haven.Infrastructure.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var env = builder.Environment.EnvironmentName;
-
-IConfiguration configuration = new ConfigurationBuilder()
-                    .AddJsonFile(APPSETTING_JSON, optional: false, reloadOnChange: true)
-                    .AddJsonFile(string.Format(APPSETTING_DEVELOPMENT_JSON, env), optional: true, reloadOnChange: true)
-                    .AddEnvironmentVariables()
-                    .Build();
-configuration = await configuration.ApplySecretsAsync();
+// Preserve the host configuration pipeline, including local overrides, before applying the
+// optional Secret Manager overlay.
+IConfiguration configuration = await builder.Configuration.ApplySecretsAsync();
 
 // Observability
 builder.Services.AddConfiguredLogging(configuration);
@@ -23,11 +18,12 @@ builder.Services.AddAuthServices();
 builder.Services.AddDistributedCache(configuration);
 builder.Services.AddGcpSecretManagerInfrastructure(configuration);
 builder.Services.AddUploadGcpService(configuration);
+builder.Services.AddR2ObjectStorageService(configuration);
 
 // Core infra + app layers
 builder.Services.AddCoreInfrastructure();
 builder.Services.AddApiVersioningInfrastructure();
-builder.Services.AddInfrastructure(configuration);
+builder.Services.AddInfrastructure();
 builder.Services.AddApplication();
 builder.Services.AddMediatorServices();
 

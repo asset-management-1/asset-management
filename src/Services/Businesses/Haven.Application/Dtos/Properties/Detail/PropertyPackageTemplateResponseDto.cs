@@ -6,9 +6,9 @@ namespace Haven.Application.Dtos.Properties.Detail;
 public class PropertyPackageTemplateResponseDto
 {
     /// <summary>
-    /// Gets or sets the package code.
+    /// Gets or sets the package identifier.
     /// </summary>
-    public string Code { get; set; }
+    public Guid Id { get; set; }
 
     /// <summary>
     /// Gets or sets the package display name.

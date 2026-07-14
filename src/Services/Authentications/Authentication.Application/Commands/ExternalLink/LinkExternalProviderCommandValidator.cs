@@ -10,10 +10,14 @@ public class LinkExternalProviderCommandValidator : AbstractValidator<LinkExtern
     /// </summary>
     public LinkExternalProviderCommandValidator()
     {
+        // Provider is matched by code, so keep it present and bounded before token validation.
         RuleFor(x => x.Provider)
-            .Required();
+            .Required()
+            .MaxLen(50);
 
+        // External token can be large but must stay within a safe request boundary.
         RuleFor(x => x.ExternalToken)
-            .Required();
+            .Required()
+            .MaxLen(4000);
     }
 }

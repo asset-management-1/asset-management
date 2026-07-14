@@ -8,16 +8,19 @@ public class AuthOptions
     /// <summary>
     /// JWT issuer value.
     /// </summary>
+    [Required]
     public string Issuer { get; set; }
 
     /// <summary>
     /// Allowed JWT audiences.
     /// </summary>
+    [Required, MinLength(1)]
     public List<string> Audiences { get; set; } = [];
 
     /// <summary>
-    /// JWT signature secret value, or the Secret Manager key when secret resolution is enabled.
+    /// Resolved JWT signature secret used to sign and validate tokens.
     /// </summary>
+    [Required, MinLength(32)]
     public string SecretKey { get; set; }
 
     /// <summary>

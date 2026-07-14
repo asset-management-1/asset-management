@@ -38,7 +38,7 @@ public class UnlinkExternalProviderCommandHandler : ICommandHandler<UnlinkExtern
         // Unlinking is scoped to the authenticated account and must not trust user identity from the request body.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
-                                      UNAUTHORIZED_REQUEST_MESSAGE,
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
 
@@ -47,7 +47,7 @@ public class UnlinkExternalProviderCommandHandler : ICommandHandler<UnlinkExtern
             request.Adapt<UnlinkExternalProviderRequestDto>(),
             currentUserPublicId,
             cancellationToken);
-        _logger.LogInformation(PROVIDER_UNLINKED, request.Provider, currentUserPublicId);
+        _logger.LogInformation(ApplicationLogConstants.ExternalProviderLogs.PROVIDER_UNLINKED, request.Provider, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

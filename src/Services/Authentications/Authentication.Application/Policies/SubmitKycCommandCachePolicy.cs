@@ -25,12 +25,16 @@ public class SubmitKycCommandCachePolicy : ICacheInvalidationPolicy<SubmitKycCom
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        // Resolve the caller after submission because KYC state belongs to that user's profile projection.
         var currentUserPublicId = _authService.UserId();
+
         if (!currentUserPublicId.HasValue)
         {
+            // Background executions have no user-scoped profile cache entry to invalidate.
             return [];
         }
 
+        // Invalidate the profile read model so the next read returns the current KYC state.
         return [new CacheInvalidationTargetModel(USER_INFO_CACHE_KEY, currentUserPublicId.Value.ToUserCacheScope(), failOnError: true)];
     }
 }

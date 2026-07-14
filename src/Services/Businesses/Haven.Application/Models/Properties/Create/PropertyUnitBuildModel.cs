@@ -1,7 +1,7 @@
 namespace Haven.Application.Models.Properties.Create;
 
 /// <summary>
-/// Represents the resolved input used to map one generated unit entity.
+/// Represents the resolved input used to map one submitted room into a unit entity.
 /// </summary>
 public class PropertyUnitBuildModel
 {

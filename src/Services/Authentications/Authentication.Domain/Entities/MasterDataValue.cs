@@ -1,5 +1,8 @@
 namespace Authentication.Domain.Entities;
 
+/// <summary>
+/// Stores one dynamic value belonging to an authentication master-data category.
+/// </summary>
 public class MasterDataValue : BaseEntity
 {
     /// <summary>

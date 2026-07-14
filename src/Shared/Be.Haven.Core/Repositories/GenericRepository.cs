@@ -222,7 +222,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
                                .Where(predicate)
                                .ToListAsync(ct);
     }
-    
+
     /// <summary>
     /// Asynchronously retrieves a list of projected results of type <typeparamref name="TResult"/> that satisfy the specified criteria.
     /// </summary>
@@ -243,7 +243,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
                                .Select(selector)
                                .ToListAsync(ct);
     }
-    
+
     /// <summary>
     /// Retrieves a paginated response of entities based on the specified parameters.
     /// </summary>
@@ -349,7 +349,7 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
 
         return response;
     }
-    
+
     /// <summary>
     /// Retrieves a paged response of a specific model based on the provided query, parameters, and configuration.
     /// </summary>

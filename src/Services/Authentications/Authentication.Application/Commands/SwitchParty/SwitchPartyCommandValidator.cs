@@ -10,7 +10,8 @@ public class SwitchPartyCommandValidator : AbstractValidator<SwitchPartyCommand>
     /// </summary>
     public SwitchPartyCommandValidator()
     {
+        // Party switch is limited to supported account contexts exposed by the API enum.
         RuleFor(x => x.TargetContext)
-            .IsInEnum();
+            .ValidEnum();
     }
 }

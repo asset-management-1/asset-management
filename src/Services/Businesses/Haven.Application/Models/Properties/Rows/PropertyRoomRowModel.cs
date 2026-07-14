@@ -104,5 +104,16 @@ public class PropertyRoomRowModel
     /// Gets or sets active occupied bed/slot count.
     /// </summary>
     public int OccupiedBedCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this room currently uses property-level charge policies.
+    /// </summary>
+    public bool UsesCommonChargePolicies { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this room currently uses property-level package templates.
+    /// </summary>
+    public bool UsesCommonPackages { get; set; }
+
 }
 
