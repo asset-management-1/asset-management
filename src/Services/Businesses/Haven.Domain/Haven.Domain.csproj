@@ -8,7 +8,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\..\Shared\Be.Haven.Core\Be.Haven.Core.csproj" />
-      <ProjectReference Include="..\..\..\Shared\Be.Haven.EventBus\Be.Haven.EventBus.csproj" />
       <ProjectReference Include="..\..\..\Shared\Be.Haven.Shared\Be.Haven.Shared.csproj" />
     </ItemGroup>
 

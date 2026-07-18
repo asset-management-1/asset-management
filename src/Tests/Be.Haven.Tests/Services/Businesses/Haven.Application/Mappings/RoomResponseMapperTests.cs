@@ -1,10 +1,7 @@
 using Haven.Application.Dtos.Rooms.Detail;
 using Haven.Application.Dtos.Rooms.List;
-using Haven.Application.Mappings.Properties;
 using Haven.Application.Mappings.Rooms;
-using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Rooms.Rows;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Mappings;
 

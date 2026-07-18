@@ -51,14 +51,14 @@ public class CreateMeterCommandValidator : AbstractValidator<CreateMeterCommand>
 
         // Each utility accepts a bounded image collection; Core decodes bytes instead of trusting mobile MIME metadata.
         RuleFor(x => x.ElectricImages)
-            .MaxCount(ObjectStorageConstants.MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
+            .MaxCount(MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
 
         RuleForEach(x => x.ElectricImages)
             .OptionalImageFile()
             .OptionalImageContent(imageValidationService);
 
         RuleFor(x => x.WaterImages)
-            .MaxCount(ObjectStorageConstants.MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
+            .MaxCount(MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
 
         RuleForEach(x => x.WaterImages)
             .OptionalImageFile()

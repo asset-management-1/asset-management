@@ -15,16 +15,16 @@ public class QuartzJobConfigOptions
 
     /// <summary>
     /// Specifies the interval in seconds for executing a Quartz job when a simple interval trigger is used.
-    /// If not specified, a default value of 300 seconds will be applied.
+    /// If not specified, the scheduler applies a 300-second default interval.
     /// </summary>
     public int? IntervalSeconds { get; set; }
 
     /// <summary>
-    /// Specifies the time-to-live (TTL) for the distributed lock associated with the Quartz job,
-    /// in seconds. This determines how long a lock will be held before it is automatically released,
-    /// preventing concurrent execution across distributed instances.
+    /// Specifies the initial lease duration for the distributed lock associated with the Quartz job.
+    /// A lease represents temporary lock ownership, not cache-data lifetime or maximum job runtime.
+    /// The provider renews ownership while the job still holds the lock handle.
     /// </summary>
-    public int? LockTtlSeconds { get; set; }
+    public int? LockLeaseSeconds { get; set; }
 
     /// <summary>
     /// Specifies the maximum time in seconds to wait for acquiring a lock before timing out.

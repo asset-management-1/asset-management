@@ -70,6 +70,29 @@ public class RefreshTokenRepository : GenericRepository<RefreshToken>, IRefreshT
     }
 
     /// <summary>
+    /// Loads the active refresh-token session identified by its owner and public session identifier.
+    /// </summary>
+    /// <param name="userId">The internal user identifier that owns the session.</param>
+    /// <param name="sessionPublicId">The public session identifier carried by the access token.</param>
+    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
+    /// <returns>The active tracked refresh-token session when found; otherwise, <c>null</c>.</returns>
+    public Task<RefreshToken> GetByUserAndSessionPublicIdAsync(
+        long userId,
+        Guid sessionPublicId,
+        CancellationToken cancellationToken = default)
+    {
+        // Session-scoped mutations must update only the refresh-token row named by the access-token sid claim.
+        return _authenticationDbContext.RefreshTokens
+            .FirstOrDefaultAsync(
+                x => x.UserId == userId
+                     && x.SessionPublicId == sessionPublicId
+                     && !x.IsDeleted
+                     && !x.RevokedAt.HasValue
+                     && x.ExpiresAt > DateTime.UtcNow,
+                cancellationToken);
+    }
+
+    /// <summary>
     /// Stages one refresh-token revocation by marking only revocation columns as modified.
     /// </summary>
     /// <param name="refreshTokenId">The internal refresh-token identifier.</param>

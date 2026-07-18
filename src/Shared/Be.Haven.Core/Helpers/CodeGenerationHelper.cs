@@ -6,6 +6,26 @@ namespace Be.Haven.Core.Helpers;
 public static class CodeGenerationHelper
 {
     /// <summary>
+    /// Generates a cryptographically secure numeric code with exactly the requested length.
+    /// </summary>
+    /// <param name="length">The required number of digits.</param>
+    /// <returns>The generated zero-preserving numeric code.</returns>
+    public static string GenerateNumericCode(int length)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(length);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(length, MAX_NUMERIC_RANDOM_CODE_LENGTH);
+
+        // Build one digit at a time so leading zeroes remain part of the generated code.
+        var builder = new StringBuilder(length);
+        for (var index = 0; index < length; index++)
+        {
+            builder.Append(RandomNumberGenerator.GetInt32(0, 10).ToString(CultureInfo.InvariantCulture));
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
     /// Generates a formatted code from a prefix and numeric random segment.
     /// </summary>
     /// <param name="prefix">The business prefix to put before the numeric segment.</param>
@@ -23,7 +43,7 @@ public static class CodeGenerationHelper
         ArgumentOutOfRangeException.ThrowIfGreaterThan(randomLength, MAX_NUMERIC_RANDOM_CODE_LENGTH);
 
         var normalizedSeparator = separator ?? string.Empty;
-        var randomSegment = GenerateNumericSegment(randomLength);
+        var randomSegment = GenerateNumericCode(randomLength);
 
         return $"{prefix.Trim()}{normalizedSeparator}{randomSegment}";
     }
@@ -73,20 +93,4 @@ public static class CodeGenerationHelper
               ?? new InvalidOperationException(UNIQUE_CODE_GENERATION_FAILED);
     }
 
-    /// <summary>
-    /// Generates a numeric segment with exactly the requested length.
-    /// </summary>
-    /// <param name="length">The required segment length.</param>
-    /// <returns>The generated numeric segment.</returns>
-    private static string GenerateNumericSegment(int length)
-    {
-        // Use RandomNumberGenerator so code generation does not share process-global random state.
-        var builder = new StringBuilder(length);
-        for (var index = 0; index < length; index++)
-        {
-            builder.Append(RandomNumberGenerator.GetInt32(0, 10).ToString(CultureInfo.InvariantCulture));
-        }
-
-        return builder.ToString();
-    }
 }

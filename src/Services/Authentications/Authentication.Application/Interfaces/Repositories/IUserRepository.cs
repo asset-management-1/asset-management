@@ -104,9 +104,23 @@ public interface IUserRepository : IGenericRepository<User>
     /// Loads the user-info response model by public identifier using an optimized read query.
     /// </summary>
     /// <param name="userPublicId">The public identifier of the user to load.</param>
+    /// <param name="sessionPublicId">The authenticated client-session identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The assembled user-info response, or <c>null</c> when the user is not found.</returns>
-    Task<UserInfoResponseDto> GetUserInfoResponseByPublicIdAsync(Guid userPublicId, CancellationToken cancellationToken = default);
+    Task<UserInfoResponseDto> GetUserInfoResponseByPublicIdAsync(
+        Guid userPublicId,
+        Guid sessionPublicId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads and locks one active user row for a security-sensitive mutation.
+    /// </summary>
+    /// <param name="userPublicId">The public user identifier.</param>
+    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
+    /// <returns>The tracked locked user; otherwise <c>null</c>.</returns>
+    Task<User> GetTrackedByPublicIdForUpdateAsync(
+        Guid userPublicId,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Determines whether a username already exists.

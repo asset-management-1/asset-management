@@ -1,7 +1,5 @@
 namespace Be.Haven.Shared.Dtos.Options.Storage;
 
-using System.ComponentModel.DataAnnotations;
-
 /// <summary>
 /// Represents Cloudflare R2 private bucket configuration.
 /// </summary>

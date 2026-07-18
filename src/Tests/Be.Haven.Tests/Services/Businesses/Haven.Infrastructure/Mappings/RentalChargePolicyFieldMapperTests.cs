@@ -1,10 +1,7 @@
 using Haven.Application.Dtos.Rooms.Update;
-using Haven.Application.Mappings.Rooms;
 using Haven.Application.Models.RentalChargePolicies;
 using Haven.Domain.Entities;
 using Haven.Infrastructure.Mappings.RentalChargePolicies;
-using Mapster;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Infrastructure.Mappings;
 

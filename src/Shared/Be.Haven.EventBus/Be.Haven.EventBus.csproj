@@ -7,8 +7,4 @@
         <LangVersion>14</LangVersion>
     </PropertyGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\Be.Haven.Core\Be.Haven.Core.csproj" />
-    </ItemGroup>
-
 </Project>

@@ -32,10 +32,11 @@ public class PartyService : IPartyService
     /// <returns>The current party context.</returns>
     public async Task<CurrentPartyContextModel> GetCurrentPartyAsync(CancellationToken cancellationToken = default)
     {
-        // Current-party reads require an authenticated user before the database lookup is meaningful.
+        // Step 1: Require both token identifiers because Party context belongs to the current session, not globally to the User.
         var userPublicId = _authService.UserId();
+        var sessionPublicId = _authService.SessionId();
 
-        if (!userPublicId.HasValue)
+        if (!userPublicId.HasValue || !sessionPublicId.HasValue)
         {
             _logger.LogWarning(InfrastructureLogConstants.PartyLogs.CURRENT_PARTY_USER_MISSING);
 
@@ -45,9 +46,10 @@ public class PartyService : IPartyService
                 StatusCodes.Status401Unauthorized);
         }
 
-        // Current party is small and security-sensitive enough to read directly from the source of truth.
-        var currentParty = await _partyRepository.GetCurrentPartyByUserPublicIdAsync(
+        // Step 2: Resolve the live membership selected by this session so two devices may hold independent contexts.
+        var currentParty = await _partyRepository.GetCurrentPartyBySessionAsync(
             userPublicId.Value,
+            sessionPublicId.Value,
             cancellationToken);
 
         if (currentParty is null)
@@ -77,10 +79,10 @@ public class PartyService : IPartyService
     /// <returns>The current active landlord party context.</returns>
     public async Task<CurrentPartyContextModel> GetCurrentLandlordAsync(CancellationToken cancellationToken = default)
     {
-        // Load the active party context first, then enforce the landlord-only service boundary.
+        // Step 1: Load the active session-scoped Party context before enforcing a feature-specific Party type.
         var currentParty = await GetCurrentPartyAsync(cancellationToken);
 
-        // A non-landlord current party is a valid account context but invalid for Haven landlord workflows.
+        // Step 2: A non-landlord Party is valid for Auth, but it cannot enter landlord-owned Haven workflows.
         if (!string.Equals(currentParty.PartyTypeCode, MASTER_CODE_PARTY_TYPE_LANDLORD, StringComparison.OrdinalIgnoreCase)
             || !string.Equals(currentParty.StatusCode, MASTER_CODE_ACTIVE, StringComparison.OrdinalIgnoreCase))
         {

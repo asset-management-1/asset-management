@@ -153,10 +153,10 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
                     ex,
                     LOG_TRANSACTIONAL_BLOCK_ERROR,
                     ContextName);
-                
+
                 // Roll back the transaction before preserving the original exception contract for global middleware.
                 await RollbackTransactionAsync(execCt);
-                
+
                 throw;
             }
         }, ct);
@@ -216,10 +216,10 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
                     ex,
                     LOG_TRANSACTIONAL_BLOCK_ERROR,
                     ContextName);
-                
+
                 // Roll back the transaction before preserving the original exception contract for global middleware.
                 await RollbackTransactionAsync(execCt);
-                
+
                 throw;
             }
         }, ct);

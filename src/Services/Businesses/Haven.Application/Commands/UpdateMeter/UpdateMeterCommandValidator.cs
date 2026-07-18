@@ -51,14 +51,14 @@ public class UpdateMeterCommandValidator : AbstractValidator<UpdateMeterCommand>
 
         // Each utility accepts a bounded image collection; Core decodes bytes instead of trusting mobile MIME metadata.
         RuleFor(x => x.ElectricImages)
-            .MaxCount(ObjectStorageConstants.MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
+            .MaxCount(MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
 
         RuleForEach(x => x.ElectricImages)
             .OptionalImageFile()
             .OptionalImageContent(imageValidationService);
 
         RuleFor(x => x.WaterImages)
-            .MaxCount(ObjectStorageConstants.MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
+            .MaxCount(MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
 
         RuleForEach(x => x.WaterImages)
             .OptionalImageFile()
@@ -66,12 +66,12 @@ public class UpdateMeterCommandValidator : AbstractValidator<UpdateMeterCommand>
 
         // Delete requests carry only selected evidence identities; the service verifies room and utility ownership in its transaction.
         RuleFor(x => x.DeletedElectricImageIds)
-            .MaxCount(ObjectStorageConstants.MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
+            .MaxCount(MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
 
         RuleForEach(x => x.DeletedElectricImageIds).RequiredGuid();
 
         RuleFor(x => x.DeletedWaterImageIds)
-            .MaxCount(ObjectStorageConstants.MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
+            .MaxCount(MAX_METER_EVIDENCE_IMAGE_COUNT, ApplicationErrorConstants.MeterErrors.ERROR_METER_EVIDENCE_LIMIT);
 
         RuleForEach(x => x.DeletedWaterImageIds).RequiredGuid();
     }

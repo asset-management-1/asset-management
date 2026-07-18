@@ -29,6 +29,11 @@ public class OccupancyConfiguration : IEntityTypeConfiguration<Occupancy>
             .HasForeignKey(x => x.PartyId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        entity.HasOne(x => x.Unit)
+            .WithMany()
+            .HasForeignKey(x => x.UnitId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         entity.HasIndex(x => x.PublicId).IsUnique();
         entity.HasIndex(x => new { x.UnitId, x.StatusId, x.StartDate, x.EndDate })
             .HasFilter("\"IsDeleted\" = FALSE");

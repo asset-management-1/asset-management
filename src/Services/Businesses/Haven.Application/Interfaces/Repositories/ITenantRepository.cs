@@ -54,11 +54,27 @@ public interface ITenantRepository
     /// </summary>
     /// <param name="occupancyPublicId">The occupancy public identifier.</param>
     /// <param name="currentPartyId">The current landlord party identifier.</param>
+    /// <param name="activeStatusId">The active occupancy status identifier.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The tracked occupancy, or <c>null</c>.</returns>
     Task<Occupancy> GetOccupancyForMoveOutAsync(
         Guid occupancyPublicId,
         long currentPartyId,
+        long activeStatusId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the room public identifier for an active landlord-scoped occupancy.
+    /// </summary>
+    /// <param name="occupancyPublicId">The occupancy public identifier.</param>
+    /// <param name="currentPartyId">The current landlord party identifier.</param>
+    /// <param name="activeStatusId">The active occupancy status identifier.</param>
+    /// <param name="cancellationToken">The token used to cancel the query.</param>
+    /// <returns>The room public identifier, or <c>null</c>.</returns>
+    Task<Guid?> GetMoveOutRoomPublicIdAsync(
+        Guid occupancyPublicId,
+        long currentPartyId,
+        long activeStatusId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -125,7 +141,7 @@ public interface ITenantRepository
     /// Stages a new tenant party and its account link.
     /// </summary>
     /// <param name="party">The tenant party to add.</param>
-    /// <param name="userParty">The account-party link to add.</param>
+    /// <param name="userParty">The account-Party relationship to add.</param>
     /// <param name="cancellationToken">The token used to cancel the insert.</param>
     /// <returns>A task representing the operation.</returns>
     Task AddTenantPartyLinkAsync(

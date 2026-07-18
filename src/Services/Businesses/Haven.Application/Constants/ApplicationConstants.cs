@@ -190,6 +190,12 @@ public static class ApplicationConstants
     public const string MASTER_CODE_ENTITY_TYPE_METER = "METER";
     public const string MASTER_CODE_DOCUMENT_LINK_TYPE_METER_PHOTO = "METER_PHOTO";
     public const string MASTER_CODE_DOCUMENT_LINK_STATUS_ACTIVE = "ACTIVE";
+
+    /// <summary>
+    /// Payment-status code that identifies a successfully completed payment.
+    /// </summary>
+    public const string MASTER_CODE_PAYMENT_STATUS_SUCCESS = "SUCCESS";
+
     public const string UTILITY_INVOICE_LINE_DESCRIPTION = "Utility meter reading";
     public const string INVOICE_CODE_PREFIX = "INV";
     public const int INVOICE_CODE_RANDOM_LENGTH = 12;
@@ -201,7 +207,7 @@ public static class ApplicationConstants
     public const string UTILITY_INVOICE_ACTION_REPLACE_ISSUED = "REPLACE_ISSUED";
     public const string UTILITY_INVOICE_ACTION_BLOCKED_PAID = "BLOCKED_PAID";
     public const string METER_LOCK_KEY_PREFIX = "haven:meter:";
-    public const int UTILITY_LOCK_SECONDS = 30;
+    public const int METER_LOCK_LEASE_SECONDS = 30;
     public const string METER_EVIDENCE_SLOT_FORMAT = "{0}-{1}";
 
     /// <summary>
@@ -305,14 +311,19 @@ public static class ApplicationConstants
     public const string TENANT_JOIN_CACHE_KEY_PREFIX = "haven:tenant-join:";
 
     /// <summary>
-    /// Distributed-lock key prefix used to serialize tenant joins for one room.
+    /// Distributed-lock key prefix used to serialize occupancy mutations for one room.
     /// </summary>
-    public const string TENANT_JOIN_ROOM_LOCK_KEY_PREFIX = "haven:tenant-join-room:";
+    public const string ROOM_OCCUPANCY_LOCK_KEY_PREFIX = "haven:room:";
 
     /// <summary>
-    /// Maximum room-join lock lifetime in seconds.
+    /// Distributed-lock key suffix that separates occupancy coordination from other room operations.
     /// </summary>
-    public const int TENANT_JOIN_ROOM_LOCK_SECONDS = 30;
+    public const string ROOM_OCCUPANCY_LOCK_KEY_SUFFIX = ":occupancy";
+
+    /// <summary>
+    /// Initial room occupancy lock lease in seconds.
+    /// </summary>
+    public const int ROOM_OCCUPANCY_LOCK_LEASE_SECONDS = 30;
 
     /// <summary>
     /// Logical object-storage slot for the vehicle registration front image.

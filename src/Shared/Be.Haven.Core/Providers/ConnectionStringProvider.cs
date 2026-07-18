@@ -41,7 +41,7 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
     public string GetConnectionString(string connectionName)
     {
         if (string.IsNullOrWhiteSpace(connectionName))
-            throw new ArgumentException(DatabaseConnectionConstants.ERR_CONNECTION_NAME_REQUIRED, nameof(connectionName));
+            throw new ArgumentException(ERR_CONNECTION_NAME_REQUIRED, nameof(connectionName));
 
         // Prefer last-known-good so transient config or secret issues do not break healthy callers.
         if (_lkg.TryGetValue(connectionName, out var cs) && !string.IsNullOrWhiteSpace(cs))
@@ -52,7 +52,7 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
 
         if (string.IsNullOrWhiteSpace(cs))
             throw new InvalidOperationException(
-                string.Format(DatabaseConnectionConstants.ERR_CONNECTION_NOT_INITIALIZED, connectionName));
+                string.Format(ERR_CONNECTION_NOT_INITIALIZED, connectionName));
 
         _lkg[connectionName] = cs;
         return cs;
@@ -70,7 +70,7 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
     public async Task RefreshAsync(string connectionName, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(connectionName))
-            throw new ArgumentException(DatabaseConnectionConstants.ERR_CONNECTION_NAME_REQUIRED, nameof(connectionName));
+            throw new ArgumentException(ERR_CONNECTION_NAME_REQUIRED, nameof(connectionName));
 
         var gate = _refreshGates.GetOrAdd(connectionName, _ => new SemaphoreSlim(1, 1));
 
@@ -124,7 +124,7 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
 
             if (string.IsNullOrWhiteSpace(cs))
                 throw new InvalidOperationException(
-                    string.Format(DatabaseConnectionConstants.ERR_MISSING_CONNECTION_STRING, connectionName));
+                    string.Format(ERR_MISSING_CONNECTION_STRING, connectionName));
 
             _logger.LogInformation(
                 DatabaseConnectionConstants.LOG_INIT_FROM_GCP,
@@ -137,7 +137,7 @@ public sealed class ConnectionStringProvider : IConnectionStringProvider
         var cfg = _configuration.GetConnectionString(connectionName);
         if (string.IsNullOrWhiteSpace(cfg))
             throw new InvalidOperationException(
-                string.Format(DatabaseConnectionConstants.ERR_MISSING_CONNECTION_STRING, connectionName));
+                string.Format(ERR_MISSING_CONNECTION_STRING, connectionName));
 
         _logger.LogInformation(DatabaseConnectionConstants.LOG_INIT_FROM_CONFIG, connectionName);
         return cfg;

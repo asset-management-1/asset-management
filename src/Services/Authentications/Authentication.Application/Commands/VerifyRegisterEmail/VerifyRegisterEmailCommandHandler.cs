@@ -7,6 +7,7 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly ICachingService _cachingService;
+    private readonly IAtomicCacheService _atomicCacheService;
     private readonly ILogger<VerifyRegisterEmailCommandHandler> _logger;
 
     /// <summary>
@@ -14,14 +15,17 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
     /// </summary>
     /// <param name="authenticationService">The service that completes account creation.</param>
     /// <param name="cachingService">The cache service used for register session state.</param>
+    /// <param name="atomicCacheService">The atomic cache service used for attempts and one-time OTP consumption.</param>
     /// <param name="logger">The logger used for register verification flow tracking.</param>
     public VerifyRegisterEmailCommandHandler(
         IAuthenticationService authenticationService,
         ICachingService cachingService,
+        IAtomicCacheService atomicCacheService,
         ILogger<VerifyRegisterEmailCommandHandler> logger)
     {
         _authenticationService = authenticationService;
         _cachingService = cachingService;
+        _atomicCacheService = atomicCacheService;
         _logger = logger;
     }
 
@@ -35,10 +39,10 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
         VerifyRegisterEmailCommand request,
         CancellationToken cancellationToken)
     {
-        // Register session is the source of truth for the latest register/resend payload and OTP state.
+        // Step 1: Load the latest registration session before accepting any OTP state from the request.
         var verifyRequest = request.Adapt<VerifyRegisterEmailRequestDto>();
         var normalizedEmail = verifyRequest.Email;
-        var registerSessionKey = AuthenticationFlowHelper.BuildRegisterSessionKey(normalizedEmail);
+        var registerSessionKey = string.Format(REGISTER_SESSION_KEY_PATTERN, normalizedEmail);
         var registerSession = await _cachingService.GetAsync<RegisterSessionCacheRequestDto>(
             registerSessionKey,
             cancellationToken);
@@ -49,17 +53,51 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
 
         _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP1_SESSION_LOADED);
 
-        await VerifyOtpAsync(registerSessionKey, registerSession, verifyRequest.Otp, cancellationToken);
+        // Step 2: Verify and atomically claim the OTP before account creation can start.
+        var consumeKey = await VerifyOtpAsync(
+            registerSessionKey,
+            registerSession,
+            verifyRequest.Otp,
+            cancellationToken);
         _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP2_OTP_VERIFIED);
 
-        // Account creation re-checks uniqueness and writes Party + User + UserParty atomically.
-        var result = await _authenticationService.CompleteRegistrationAsync(
-            registerSession.PendingRegister,
-            cancellationToken);
+        OperationStatusResponseDto result;
+        var registrationCompleted = false;
+
+        try
+        {
+            // Step 3: Recheck uniqueness and write User, Party, and UserParty atomically.
+            result = await _authenticationService.CompleteRegistrationAsync(
+                registerSession.PendingRegister,
+                cancellationToken);
+
+            registrationCompleted = true;
+        }
+        finally
+        {
+            if (!registrationCompleted)
+            {
+                // Step 3a: Release the OTP claim after an unsuccessful account write so the caller may retry safely.
+                try
+                {
+                    await _atomicCacheService.RemoveAsync(consumeKey, CancellationToken.None);
+                }
+                catch (Exception cleanupException)
+                {
+                    _logger.LogWarning(
+                        cleanupException,
+                        ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_CONSUME_CLEANUP_FAILED);
+                }
+            }
+        }
+
         _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP3_ACCOUNT_CREATED);
 
-        // Consume the register session only after the account graph is created successfully.
+        // Step 4: Remove pending registration state only after the account graph commits.
         await _cachingService.RemoveAsync(registerSessionKey, cancellationToken);
+        await _atomicCacheService.RemoveAsync(
+            string.Format(OTP_VERIFY_ATTEMPT_KEY_PATTERN, registerSessionKey),
+            cancellationToken);
         _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP4_SESSION_REMOVED);
         _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_COMPLETED);
 
@@ -73,14 +111,14 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
     /// <param name="registerSession">The cached register session containing pending account data and OTP state.</param>
     /// <param name="otp">The OTP supplied by the caller.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>A task that completes when the OTP is valid.</returns>
-    private async Task VerifyOtpAsync(
+    /// <returns>The atomic consume-marker key owned by the successful request.</returns>
+    private async Task<string> VerifyOtpAsync(
         string registerSessionKey,
         RegisterSessionCacheRequestDto registerSession,
         string otp,
         CancellationToken cancellationToken)
     {
-        // The registration session owns both pending account data and the current one-time OTP state.
+        // Step 1: Read the OTP state owned by the registration session.
         var otpEntry = registerSession.Otp;
 
         if (otpEntry is null || string.IsNullOrWhiteSpace(otpEntry.Code))
@@ -90,7 +128,7 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
                 ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
-        // Expired sessions are removed so pending registration data cannot outlive its OTP.
+        // Step 2: Remove expired registration state before rejecting the request.
         var remainingTtl = otpEntry.ExpiresAtUtc - DateTime.UtcNow;
 
         if (remainingTtl <= TimeSpan.Zero)
@@ -101,22 +139,22 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
                 ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
 
-        if (!string.Equals(otpEntry.Code, otp, StringComparison.Ordinal))
+        if (otpEntry.Code != otp)
         {
-            // Persist failed attempts so repeated incorrect OTP values eventually consume the current OTP.
-            otpEntry.Attempts++;
-            if (otpEntry.Attempts >= OTP_MAX_VERIFY_ATTEMPTS)
+            // Step 3: Count failed attempts atomically so concurrent requests cannot bypass the limit.
+            var attemptKey = string.Format(OTP_VERIFY_ATTEMPT_KEY_PATTERN, registerSessionKey);
+            var attempts = await _atomicCacheService.IncrementAsync(
+                attemptKey,
+                remainingTtl,
+                cancellationToken);
+            if (attempts >= OTP_MAX_VERIFY_ATTEMPTS)
             {
                 await _cachingService.RemoveAsync(registerSessionKey, cancellationToken);
+                await _atomicCacheService.RemoveAsync(attemptKey, cancellationToken);
                 _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_OTP_LOCKED);
             }
             else
             {
-                await _cachingService.SetAbsoluteAsync(
-                    registerSessionKey,
-                    registerSession,
-                    remainingTtl,
-                    cancellationToken);
                 _logger.LogInformation(
                     ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_OTP_ATTEMPT_RECORDED);
             }
@@ -125,5 +163,22 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
                 ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
                 ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
         }
+
+        // Step 4: Claim the valid OTP atomically so only one request may complete registration.
+        var consumeKey = string.Format(OTP_CONSUME_KEY_PATTERN, registerSessionKey);
+        var acquired = await _atomicCacheService.TrySetIfAbsentAsync(
+            consumeKey,
+            "1",
+            remainingTtl,
+            cancellationToken);
+
+        if (!acquired)
+        {
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);
+        }
+
+        return consumeKey;
     }
 }

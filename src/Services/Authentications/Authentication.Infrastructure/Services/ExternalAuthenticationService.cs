@@ -94,7 +94,14 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             cancellationToken);
         if (existingMapping is not null)
         {
-            if (!AuthenticationFlowHelper.CanLogin(existingMapping.User))
+            if (existingMapping.User is null
+                || existingMapping.User.IsDeleted
+                || existingMapping.User.Status is null
+                || !string.Equals(
+                    existingMapping.User.Status.Code,
+                    ACTIVE_STATUS,
+                    StringComparison.OrdinalIgnoreCase)
+                || !existingMapping.User.EmailConfirmed)
             {
                 throw new ApiException(
                     ApplicationErrorConstants.AccountErrors.ACCOUNT_INACTIVE_MESSAGE,
@@ -219,35 +226,47 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
                 ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
         }
 
-        if (deletedUserProvider is not null)
+        try
         {
-            // Revive the user's previous soft-deleted provider link so re-link stays idempotent.
-            deletedUserProvider.ProviderKey = profile.ProviderUserId;
-            deletedUserProvider.IsDeleted = false;
-            await _externalLoginRepository.UpdateAsync(deletedUserProvider);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (deletedUserProvider is not null)
+            {
+                // Step 1: Revive the user's previous provider row so relinking stays idempotent.
+                deletedUserProvider.ProviderKey = profile.ProviderUserId;
+                deletedUserProvider.IsDeleted = false;
+                await _externalLoginRepository.UpdateAsync(deletedUserProvider);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation(
-                InfrastructureLogConstants.ExternalProviderLogs.PROVIDER_LINKED,
-                provider.Name,
-                currentUserPublicId);
+                _logger.LogInformation(
+                    InfrastructureLogConstants.ExternalProviderLogs.PROVIDER_LINKED,
+                    provider.Name,
+                    currentUserPublicId);
 
-            return OperationStatusResponseHelper.Success(
-                ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
+                return OperationStatusResponseHelper.Success(
+                    ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE);
+            }
+
+            if (existingMapping is null)
+            {
+                // Step 2: Create the provider row when no active identity mapping exists.
+                await _externalLoginRepository.AddAsync(
+                    new ExternalLogin
+                    {
+                        UserId = user.Id,
+                        LoginProvider = provider.Name,
+                        ProviderKey = profile.ProviderUserId
+                    },
+                    cancellationToken);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
         }
-
-        if (existingMapping is null)
+        catch (DbUpdateException exception)
+            when (PostgreSqlExceptionHelper.GetUniqueConstraintName(exception)
+                is EXTERNAL_PROVIDER_KEY_UNIQUE_CONSTRAINT or EXTERNAL_USER_PROVIDER_UNIQUE_CONSTRAINT)
         {
-            // Create a new provider link when no active mapping exists anywhere else.
-            await _externalLoginRepository.AddAsync(
-                new ExternalLogin
-                {
-                    UserId = user.Id,
-                    LoginProvider = provider.Name,
-                    ProviderKey = profile.ProviderUserId
-                },
-                cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            // Step 3: A concurrent link winner returns the stable provider-conflict contract.
+            throw new ApiException(
+                ApplicationErrorConstants.ExternalProviderErrors.EXTERNAL_PROVIDER_LINK_CONFLICT_MESSAGE,
+                ApplicationErrorConstants.ExternalProviderErrorCodes.AUTH_EXTERNAL_PROVIDER_LINK_CONFLICT);
         }
 
         _logger.LogInformation(
@@ -501,7 +520,6 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
                 // Party + User + UserParty + ExternalLogin.
                 var party = provision.Adapt<Party>();
                 var user = provision.Adapt<User>();
-                user.CurrentParty = party;
                 user.LastLoginAt = DateTime.UtcNow;
 
                 await _repositories.PartyRepository.AddAsync(party, ct);
@@ -580,6 +598,15 @@ public class ExternalAuthenticationService : IExternalAuthenticationService
             cancellationToken);
         var isNewClientSession = sessionRefreshToken is null;
         sessionRefreshToken ??= new RefreshToken();
+
+        // Resolve the Party context independently for this external-login client session.
+        sessionRefreshToken.CurrentPartyId = await _repositories.UserPartyRepository.ResolveSessionPartyIdAsync(
+                                                 user.Id,
+                                                 sessionRefreshToken.CurrentPartyId,
+                                                 cancellationToken)
+                                             ?? throw new ApiException(
+                                                 ApplicationErrorConstants.ContextErrors.PARTY_CONTEXT_NOT_AVAILABLE_MESSAGE,
+                                                 ApplicationErrorConstants.AccountErrorCodes.AUTH_PARTY_CONTEXT_NOT_AVAILABLE);
         var issueModel = AuthSessionHelper.BuildIssueModel(
             new AuthSessionIssueRequestModel
             {

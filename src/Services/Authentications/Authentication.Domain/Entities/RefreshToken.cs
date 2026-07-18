@@ -11,6 +11,11 @@ public class RefreshToken : BaseEntity
     public long UserId { get; set; }
 
     /// <summary>
+    /// Party context selected for this client session.
+    /// </summary>
+    public long CurrentPartyId { get; set; }
+
+    /// <summary>
     /// Server-issued public identifier for the current client-instance session.
     /// </summary>
     public Guid? SessionPublicId { get; set; }
@@ -79,4 +84,9 @@ public class RefreshToken : BaseEntity
     /// Navigation to associated user.
     /// </summary>
     public virtual User User { get; set; }
+
+    /// <summary>
+    /// Navigation to the user-party relation selected by this client session.
+    /// </summary>
+    public virtual UserParty CurrentUserParty { get; set; }
 }

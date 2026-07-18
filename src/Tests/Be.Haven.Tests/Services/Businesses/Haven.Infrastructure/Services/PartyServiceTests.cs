@@ -1,19 +1,6 @@
 using Haven.Application.Interfaces.Repositories;
-using Haven.Application.Models.Locations;
-using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
-using Haven.Application.Models.Properties.Create;
-using Haven.Application.Models.Properties.Detail;
-using Haven.Application.Models.Properties.List;
-using Haven.Application.Models.Properties.QueryParameters;
-using Haven.Application.Models.Properties.Rows;
-using Haven.Infrastructure.Services.Locations;
-using Haven.Infrastructure.Services.MasterData;
 using Haven.Infrastructure.Services.Parties;
-using Haven.Infrastructure.Services.Properties;
-using Haven.Infrastructure.Services.Rooms;
-using Haven.Infrastructure.Services.Tenants;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Infrastructure.Services;
 
@@ -30,7 +17,10 @@ public sealed class PartyServiceTests
 
         result.Should().BeSameAs(currentParty);
         context.PartyRepository.Verify(
-            x => x.GetCurrentPartyByUserPublicIdAsync(userPublicId, It.IsAny<CancellationToken>()),
+            x => x.GetCurrentPartyBySessionAsync(
+                userPublicId,
+                context.SessionPublicId!.Value,
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -46,7 +36,10 @@ public sealed class PartyServiceTests
 
         second.Should().BeSameAs(first);
         context.PartyRepository.Verify(
-            x => x.GetCurrentPartyByUserPublicIdAsync(userPublicId, It.IsAny<CancellationToken>()),
+            x => x.GetCurrentPartyBySessionAsync(
+                userPublicId,
+                context.SessionPublicId!.Value,
+                It.IsAny<CancellationToken>()),
             Times.Exactly(2));
     }
 
@@ -61,7 +54,10 @@ public sealed class PartyServiceTests
             .ThrowAsync<HttpStatusCodeException>()
             .Where(exception => exception.StatusCode == StatusCodes.Status401Unauthorized);
         context.PartyRepository.Verify(
-            x => x.GetCurrentPartyByUserPublicIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            x => x.GetCurrentPartyBySessionAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<Guid>(),
+                It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -77,7 +73,10 @@ public sealed class PartyServiceTests
             .ThrowAsync<ApiException>()
             .Where(exception => exception.StatusCode == StatusCodes.Status403Forbidden);
         context.PartyRepository.Verify(
-            x => x.GetCurrentPartyByUserPublicIdAsync(userPublicId, It.IsAny<CancellationToken>()),
+            x => x.GetCurrentPartyBySessionAsync(
+                userPublicId,
+                context.SessionPublicId!.Value,
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -92,7 +91,10 @@ public sealed class PartyServiceTests
 
         result.Should().BeSameAs(currentParty);
         context.PartyRepository.Verify(
-            x => x.GetCurrentPartyByUserPublicIdAsync(userPublicId, It.IsAny<CancellationToken>()),
+            x => x.GetCurrentPartyBySessionAsync(
+                userPublicId,
+                context.SessionPublicId!.Value,
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -115,17 +117,23 @@ public sealed class PartyServiceTests
     {
         var authService = new Mock<IAuthService>();
         authService.Setup(x => x.UserId()).Returns(userPublicId);
+        Guid? sessionPublicId = userPublicId.HasValue ? Guid.NewGuid() : null;
+        authService.Setup(x => x.SessionId()).Returns(sessionPublicId);
         var partyRepository = new Mock<IPartyRepository>();
-        if (userPublicId.HasValue)
+        if (userPublicId.HasValue && sessionPublicId.HasValue)
         {
             partyRepository
-                .Setup(x => x.GetCurrentPartyByUserPublicIdAsync(userPublicId.Value, It.IsAny<CancellationToken>()))
+                .Setup(x => x.GetCurrentPartyBySessionAsync(
+                    userPublicId.Value,
+                    sessionPublicId.Value,
+                    It.IsAny<CancellationToken>()))
                 .ReturnsAsync(repositoryParty);
         }
 
         return new PartyServiceTestContext
         {
             PartyRepository = partyRepository,
+            SessionPublicId = sessionPublicId,
             Sut = new PartyService(authService.Object, partyRepository.Object, Mock.Of<ILogger<PartyService>>())
         };
     }
@@ -149,7 +157,8 @@ public sealed class PartyServiceTests
     {
         public Mock<IPartyRepository> PartyRepository { get; set; }
 
+        public Guid? SessionPublicId { get; set; }
+
         public PartyService Sut { get; set; }
     }
 }
-

@@ -8,6 +8,7 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
     private readonly IUserService _userService;
     private readonly IAuthenticationService _authenticationService;
     private readonly ICachingService _cachingService;
+    private readonly IAtomicCacheService _atomicCacheService;
     private readonly IAuthService _authService;
     private readonly ILogger<ChangeEmailCommandHandler> _logger;
 
@@ -16,19 +17,22 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
     /// </summary>
     /// <param name="userService">The service that validates current-user email changes.</param>
     /// <param name="authenticationService">The service that sends auth-related emails.</param>
-    /// <param name="cachingService">The cache service used for change-email session and cooldown state.</param>
+    /// <param name="cachingService">The cache service used for change-email session state.</param>
+    /// <param name="atomicCacheService">The atomic cache service used for cooldown reservation.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
     /// <param name="logger">The logger used for non-blocking old-email notification failures.</param>
     public ChangeEmailCommandHandler(
         IUserService userService,
         IAuthenticationService authenticationService,
         ICachingService cachingService,
+        IAtomicCacheService atomicCacheService,
         IAuthService authService,
         ILogger<ChangeEmailCommandHandler> logger)
     {
         _userService = userService;
         _authenticationService = authenticationService;
         _cachingService = cachingService;
+        _atomicCacheService = atomicCacheService;
         _authService = authService;
         _logger = logger;
     }
@@ -50,11 +54,14 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
 
-        // Reject resend while the current user's change-email cooldown marker still exists.
-        var hasCooldown = !string.IsNullOrWhiteSpace(await _cachingService.GetAsync<string>(
-            AuthenticationFlowHelper.BuildChangeEmailCooldownKey(currentUserPublicId),
-            cancellationToken));
-        if (hasCooldown)
+        // Step 1: Reserve the cooldown before preparing or sending concurrent change-email requests.
+        var cooldownKey = string.Format(CHANGE_EMAIL_COOLDOWN_KEY_PATTERN, currentUserPublicId);
+        var reservedCooldown = await _atomicCacheService.TrySetIfAbsentAsync(
+            cooldownKey,
+            OTP_COOLDOWN_VALUE,
+            TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
+            cancellationToken);
+        if (!reservedCooldown)
         {
             throw new ApiException(
                 ApplicationErrorConstants.OtpErrors.OTP_COOLDOWN_MESSAGE,
@@ -70,7 +77,7 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
             cancellationToken);
         _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP2_TARGET_PREPARED);
 
-        var otpCode = AuthenticationFlowHelper.GenerateOtp();
+        var otpCode = CodeGenerationHelper.GenerateNumericCode(OTP_LENGTH);
         var otpCacheResponse = new OtpCacheRequestDto
         {
             Purpose = CHANGE_EMAIL_PURPOSE,
@@ -80,7 +87,7 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
         otpCacheResponse.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(OTP_TTL_MINUTES);
 
         var otpTtl = TimeSpan.FromMinutes(OTP_TTL_MINUTES);
-        var changeEmailSessionKey = AuthenticationFlowHelper.BuildChangeEmailSessionKey(currentUserPublicId);
+        var changeEmailSessionKey = string.Format(CHANGE_EMAIL_SESSION_KEY_PATTERN, currentUserPublicId);
         var changeEmailSession = new ChangeEmailSessionCacheResponseDto
         {
             NewEmail = changeEmail.NewEmail,
@@ -111,6 +118,7 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
             await _cachingService.RemoveAsync(
                 changeEmailSessionKey,
                 cancellationToken);
+            await _atomicCacheService.RemoveAsync(cooldownKey, cancellationToken);
             _logger.LogWarning(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_ROLLBACK_OTP_SEND_FAILED);
             throw new ApiException(
                 ApplicationErrorConstants.OtpErrors.OTP_SEND_FAILED_MESSAGE,
@@ -124,11 +132,6 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
         await TrySendSecurityNotificationAsync(changeEmail, currentUserPublicId, cancellationToken);
         _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP5_SECURITY_NOTIFICATION_ATTEMPTED);
 
-        await _cachingService.SetAbsoluteAsync(
-            AuthenticationFlowHelper.BuildChangeEmailCooldownKey(currentUserPublicId),
-            OTP_COOLDOWN_VALUE,
-            TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
-            cancellationToken);
         _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP6_COOLDOWN_SET);
         _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_COMPLETED, currentUserPublicId);
 

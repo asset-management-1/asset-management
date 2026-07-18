@@ -50,14 +50,22 @@ public class UserService : IUserService
     /// <returns>The current user's profile, context, and external-link state.</returns>
     public async Task<UserInfoResponseDto> GetUserInfoAsync(CancellationToken cancellationToken = default)
     {
-        // Resolve current identity from the authenticated principal before loading account data.
+        // Step 1: Resolve both identity and session claims because Party context belongs to the client session.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
                                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
+        var currentSessionPublicId = _authService.SessionId()
+                                     ?? throw new HttpStatusCodeException(
+                                         ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                         UNAUTHORIZED,
+                                         StatusCodes.Status401Unauthorized);
+
+        // Step 2: Load the session-aware projection without caching it globally by User.
         var response = await _repositories.UserRepository.GetUserInfoResponseByPublicIdAsync(
             currentUserPublicId,
+            currentSessionPublicId,
             cancellationToken);
         if (response is null)
         {
@@ -210,30 +218,47 @@ public class UserService : IUserService
         Guid currentUserPublicId,
         CancellationToken cancellationToken = default)
     {
-        // Load the tracked user after OTP verification so the verified email can be persisted.
-        var user = await _repositories.UserRepository.GetTrackedByPublicIdAsync(currentUserPublicId, cancellationToken)
-                   ?? throw new HttpStatusCodeException(
-                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
-                       UNAUTHORIZED,
-                       StatusCodes.Status401Unauthorized);
         var normalizedNewEmail = request.NewEmail;
-        var oldEmail = user.Email;
 
-        // Re-check uniqueness at commit time to protect against races during the OTP window.
-        await EnsureEmailAvailableAsync(normalizedNewEmail, user.Id, cancellationToken);
-
-        // Update identity email fields and keep username aligned only when it was email-based.
-        user.Email = normalizedNewEmail;
-        user.EmailConfirmed = true;
-        if (string.Equals(user.UserName, oldEmail, StringComparison.OrdinalIgnoreCase))
+        try
         {
-            user.UserName = normalizedNewEmail;
+            await _unitOfWork.ExecuteInTransactionAsync(
+                async ct =>
+                {
+                    // Step 1: Lock the User so concurrent verified-email mutations serialize on one account.
+                    var user = await _repositories.UserRepository.GetTrackedByPublicIdForUpdateAsync(
+                                   currentUserPublicId,
+                                   ct)
+                               ?? throw new HttpStatusCodeException(
+                                   ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                   UNAUTHORIZED,
+                                   StatusCodes.Status401Unauthorized);
+                    var oldEmail = user.Email;
+
+                    // Step 2: Recheck uniqueness after the lock because the OTP window permits competing requests.
+                    await EnsureEmailAvailableAsync(normalizedNewEmail, user.Id, ct);
+
+                    // Step 3: Apply the verified email and preserve legacy email-based usernames when present.
+                    user.Email = normalizedNewEmail;
+                    user.EmailConfirmed = true;
+                    if (string.Equals(user.UserName, oldEmail, StringComparison.OrdinalIgnoreCase))
+                    {
+                        user.UserName = normalizedNewEmail;
+                    }
+
+                    // Step 4: Synchronize Party contact snapshots in the same transaction as the identity row.
+                    SyncPartyProfile(await LoadTrackedUserPartiesAsync(user, ct), null, null, normalizedNewEmail);
+                },
+                cancellationToken);
+        }
+        catch (DbUpdateException exception)
+            when (PostgreSqlExceptionHelper.GetUniqueConstraintName(exception) == USER_EMAIL_UNIQUE_CONSTRAINT)
+        {
+            throw new ApiException(
+                ApplicationErrorConstants.AccountErrors.EMAIL_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS);
         }
 
-        // Party contact snapshots follow the verified email so user-info stays consistent across contexts.
-        SyncPartyProfile(await LoadTrackedUserPartiesAsync(user, cancellationToken), null, null, normalizedNewEmail);
-
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
         _logger.LogInformation(
             InfrastructureLogConstants.UserLogs.CHANGE_EMAIL_VERIFIED,
             currentUserPublicId);
@@ -252,7 +277,7 @@ public class UserService : IUserService
         SubmitKycRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        // Load the current user and parties because KYC is shared across tenant/landlord contexts.
+        // Step 1: Load the current User and all linked Parties for the account-wide KYC guard.
         var user = await LoadTrackedCurrentUserAsync(cancellationToken);
 
         _logger.LogInformation(
@@ -269,7 +294,27 @@ public class UserService : IUserService
                 StatusCodes.Status500InternalServerError);
         }
 
-        // KYC lookup values are resolved in one batch because this flow needs many master-data records.
+        // Step 2: Resolve the Party selected by this client session; KYC persistence must not choose an arbitrary Party.
+        var currentSessionPublicId = _authService.SessionId()
+                                     ?? throw new HttpStatusCodeException(
+                                         ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                         UNAUTHORIZED,
+                                         StatusCodes.Status401Unauthorized);
+        var currentSession = await _repositories.RefreshTokenRepository.GetByUserAndSessionPublicIdAsync(
+                                 user.Id,
+                                 currentSessionPublicId,
+                                 cancellationToken)
+                             ?? throw new HttpStatusCodeException(
+                                 ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                 UNAUTHORIZED,
+                                 StatusCodes.Status401Unauthorized);
+        var currentParty = parties.FirstOrDefault(x => x.Id == currentSession.CurrentPartyId)
+                           ?? throw new ApiException(
+                               ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
+                               ApplicationErrorConstants.KycErrorCodes.AUTH_KYC_INVALID);
+        var persistenceParties = new List<Party> { currentParty };
+
+        // Step 3: Resolve KYC lookup values before applying the account-wide duplicate guard.
         var kycMasterData = await ResolveKycMasterDataAsync(request, cancellationToken);
 
         _logger.LogInformation(
@@ -288,7 +333,7 @@ public class UserService : IUserService
 
         // Identity information is staged for admin review; profile fields are not updated until approval.
         await UpsertPartyIdentifierAsync(
-            parties,
+            persistenceParties,
             request,
             kycMasterData,
             cancellationToken);
@@ -308,7 +353,7 @@ public class UserService : IUserService
             await _unitOfWork.ExecuteInTransactionAsync(
                 async ct =>
                 {
-                    // Persist document metadata and link every submitted scan to each party context owned by the user.
+                    // Persist document metadata and link each scan only to the Party selected by this session.
                     var frontDocument = BuildDocument(
                         new KycDocumentBuildModel
                         {
@@ -335,7 +380,7 @@ public class UserService : IUserService
                     await CreateDocumentLinksAsync(
                         new KycDocumentLinkCreationModel
                         {
-                            Parties = parties,
+                            Parties = persistenceParties,
                             FrontDocument = frontDocument,
                             BackDocument = backDocument,
                             MasterData = kycMasterData
@@ -385,37 +430,67 @@ public class UserService : IUserService
         SwitchPartyRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        // Resolve the requested UI context into the persisted party type used by user-party mappings.
+        // Step 1: Resolve authenticated identifiers before entering the protected context-switch transaction.
         var targetContext = request.TargetContext;
-        var user = await LoadTrackedCurrentUserAsync(cancellationToken);
-        var targetPartyType = AuthenticationFlowHelper.ToMasterDataPartyTypeValue(targetContext);
-        var existingUserParty = await _repositories.UserPartyRepository.GetByUserIdAndPartyTypeAsync(
-            user.Id,
-            targetPartyType,
+        var currentUserPublicId = _authService.UserId()
+                                  ?? throw new HttpStatusCodeException(
+                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                      UNAUTHORIZED,
+                                      StatusCodes.Status401Unauthorized);
+        var currentSessionPublicId = _authService.SessionId()
+                                     ?? throw new HttpStatusCodeException(
+                                         ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                         UNAUTHORIZED,
+                                         StatusCodes.Status401Unauthorized);
+        var targetPartyType = EnumConvertHelper<PartyTypeEnum>
+            .TryConvertStringToEnum(targetContext)?
+            .ToMasterDataCode();
+        User switchedUser = null;
+
+        // Step 2: Lock the User, recheck matching relations, and update only the current refresh-token session.
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                switchedUser = await _repositories.UserRepository.GetTrackedByPublicIdForUpdateAsync(
+                                   currentUserPublicId,
+                                   ct)
+                               ?? throw new HttpStatusCodeException(
+                                   ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                   UNAUTHORIZED,
+                                   StatusCodes.Status401Unauthorized);
+                var session = await _repositories.RefreshTokenRepository.GetByUserAndSessionPublicIdAsync(
+                                  switchedUser.Id,
+                                  currentSessionPublicId,
+                                  ct)
+                              ?? throw new HttpStatusCodeException(
+                                  ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                  UNAUTHORIZED,
+                                  StatusCodes.Status401Unauthorized);
+                var matchingRelations = await _repositories.UserPartyRepository.GetAllByUserIdAndPartyTypeAsync(
+                    switchedUser.Id,
+                    targetPartyType,
+                    ct);
+
+                // Preserve the session Party when it already has the requested type; otherwise use the earliest match.
+                var selectedPartyId = matchingRelations
+                                          .FirstOrDefault(relation => relation.PartyId == session.CurrentPartyId)?
+                                          .PartyId
+                                      ?? matchingRelations.FirstOrDefault()?.PartyId
+                                      ?? await CreatePartyContextAsync(switchedUser, targetPartyType, ct);
+
+                session.CurrentPartyId = selectedPartyId;
+                await _repositories.RefreshTokenRepository.UpdateAsync(session);
+            },
             cancellationToken);
 
-        if (existingUserParty is null)
-        {
-            // First switch into a missing UI context creates a new party and user-party link.
-            await ActivateNewContextAsync(user, targetPartyType, cancellationToken);
-            _logger.LogInformation(
-                InfrastructureLogConstants.ContextLogs.NEW_CONTEXT_CREATED,
-                user.PublicId);
-        }
-        else
-        {
-            // Reusing an existing user-party link only changes the active CurrentPartyId.
-            await ActivateExistingContextAsync(user, existingUserParty.PartyId, cancellationToken);
-            _logger.LogInformation(
-                InfrastructureLogConstants.ContextLogs.EXISTING_CONTEXT_ACTIVATED,
-                user.PublicId);
-        }
-
-        // Rebuild available contexts after the switch so the response reflects newly created contexts.
+        // Step 3: Rebuild available contexts after commit so the response includes a newly created Party type.
         var availableContexts = (await _repositories.UserPartyRepository.GetActiveByUserIdAsync(
-                user.Id,
+                switchedUser.Id,
                 cancellationToken))
-            .Select(x => AuthenticationFlowHelper.ToPartyContextValue(x.Party?.PartyType?.Code))
+            .Select(x => EnumConvertHelper<PartyTypeEnum>
+                .TryConvertStringToEnum(x.Party?.PartyType?.Code)?
+                .ToString()
+                .ToLowerInvariant())
             .Where(x => x is not null)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
@@ -427,18 +502,22 @@ public class UserService : IUserService
         _logger.LogInformation(
             InfrastructureLogConstants.ContextLogs.CONTEXT_SWITCHED,
             targetContext,
-            user.PublicId);
+            switchedUser.PublicId);
 
         return new SwitchPartyResponseDto
         {
             IsSuccess = true,
             Message = ApplicationMessageConstants.AccountMessages.SWITCH_PARTY_SUCCESS_MESSAGE,
-            CurrentContext = ApiEnumContractMapper.ToPartyType(targetContext)
+            CurrentContext = EnumConvertHelper<PartyTypeEnum>.TryConvertStringToEnum(targetContext)
                              ?? throw new InvalidOperationException(
                                  string.Format(
                                      InfrastructureErrorConstants.PartyContextErrors.UNSUPPORTED_PARTY_CONTEXT_VALUE_MESSAGE,
                                      targetContext)),
-            AvailableContexts = ApiEnumContractMapper.ToPartyTypes(availableContexts)
+            AvailableContexts = availableContexts
+                .Select(EnumConvertHelper<PartyTypeEnum>.TryConvertStringToEnum)
+                .Where(context => context.HasValue)
+                .Select(context => context.Value)
+                .ToList()
         };
     }
 
@@ -495,12 +574,6 @@ public class UserService : IUserService
         var partyIds = (await _repositories.UserPartyRepository.GetActiveByUserIdAsync(user.Id, cancellationToken))
             .Select(x => x.PartyId)
             .ToList();
-        if (user.CurrentPartyId.HasValue && !partyIds.Contains(user.CurrentPartyId.Value))
-        {
-            // Include CurrentPartyId defensively even if a legacy mapping row is missing.
-            partyIds.Add(user.CurrentPartyId.Value);
-        }
-
         // Return tracked parties because callers synchronize profile/contact snapshots.
         return await _repositories.PartyRepository.GetTrackedByIdsAsync(partyIds, cancellationToken);
     }
@@ -1092,7 +1165,7 @@ public class UserService : IUserService
     /// <param name="targetPartyType">The target party type master-data value.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that completes when the new context is persisted.</returns>
-    private async Task ActivateNewContextAsync(
+    private async Task<long> CreatePartyContextAsync(
         User user,
         string targetPartyType,
         CancellationToken cancellationToken)
@@ -1119,46 +1192,23 @@ public class UserService : IUserService
                 ApplicationErrorConstants.ContextErrors.REQUIRED_MASTER_DATA_NOT_FOUND_MESSAGE,
                 ApplicationErrorConstants.AccountErrorCodes.AUTH_FORBIDDEN_OPERATION));
 
-        // Create the missing party context, link it to the user, and make it current atomically.
-        await _unitOfWork.ExecuteInTransactionAsync(
-            async ct =>
-            {
-                var party = new Party
-                {
-                    PartyTypeId = partyType.Id,
-                    DisplayName = string.Format(
-                        PARTY_CONTEXT_DISPLAY_NAME_SUFFIX_FORMAT,
-                        user.FullName,
-                        partyType.Name),
-                    PrimaryEmail = user.Email,
-                    PrimaryPhone = user.PhoneNumber,
-                    StatusId = partyStatus.Id
-                };
+        // Stage the first Party of the requested type; the caller transaction persists the relation and session together.
+        var party = new Party
+        {
+            PartyTypeId = partyType.Id,
+            DisplayName = string.Format(
+                PARTY_CONTEXT_DISPLAY_NAME_SUFFIX_FORMAT,
+                user.FullName,
+                partyType.Name),
+            PrimaryEmail = user.Email,
+            PrimaryPhone = user.PhoneNumber,
+            StatusId = partyStatus.Id
+        };
 
-                await _repositories.PartyRepository.AddAsync(party, ct);
-                user.CurrentParty = party;
-                await _repositories.UserRepository.UpdateAsync(user);
-                await _repositories.UserPartyRepository.AddAsync(new UserParty { User = user, Party = party }, ct);
-            },
-            cancellationToken);
-    }
+        await _repositories.PartyRepository.AddAsync(party, cancellationToken);
+        await _repositories.UserPartyRepository.AddAsync(new UserParty { User = user, Party = party }, cancellationToken);
 
-    /// <summary>
-    /// Makes an existing user-party context current for the user.
-    /// </summary>
-    /// <param name="user">The tracked current user entity.</param>
-    /// <param name="partyId">The party identifier to activate.</param>
-    /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>A task that completes when the existing context is persisted.</returns>
-    private async Task ActivateExistingContextAsync(
-        User user,
-        long partyId,
-        CancellationToken cancellationToken = default)
-    {
-        // Existing contexts only need CurrentPartyId changed on the tracked user row.
-        user.CurrentPartyId = partyId;
-        await _repositories.UserRepository.UpdateAsync(user);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return party.Id;
     }
 
     /// <summary>

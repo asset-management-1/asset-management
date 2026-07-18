@@ -31,7 +31,7 @@ public class Party : BaseEntity
     public long StatusId { get; set; }
 
     /// <summary>
-    /// Gets the user links that own or represent this party.
+    /// Gets the User relationships that expose this Party as an available context.
     /// </summary>
     public ICollection<UserParty> UserParties { get; } = new List<UserParty>();
 

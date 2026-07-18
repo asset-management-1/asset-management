@@ -1,8 +1,21 @@
 namespace Be.Haven.Cache.Services;
 
+/// <summary>
+/// Provides process-local epoch-scoped cache versions for memory mode and tests.
+/// </summary>
 public sealed class InMemoryCacheVersionService : ICacheVersionService
 {
     private static readonly ConcurrentDictionary<string, CacheVersionStateModel> VersionsByKey = new(StringComparer.Ordinal);
+    private readonly ILogger<InMemoryCacheVersionService> _logger;
+
+    /// <summary>
+    /// Creates process-local cache-version storage.
+    /// </summary>
+    /// <param name="logger">The logger used for cache-version diagnostics.</param>
+    public InMemoryCacheVersionService(ILogger<InMemoryCacheVersionService> logger)
+    {
+        _logger = logger;
+    }
 
     /// <summary>
     /// Returns the current epoch identifier used to scope the version counter.
@@ -25,6 +38,11 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
 
         if (!VersionsByKey.TryGetValue(key, out var state))
         {
+            _logger.LogInformation(
+                CacheVersionLogs.LOG_CACHE_VERSION_KEY_NOT_FOUND,
+                epoch,
+                DEFAULT_VERSION);
+
             return Task.FromResult(DEFAULT_VERSION);
         }
 
@@ -32,11 +50,22 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
         {
             // Expired version state is removed lazily so the next read starts from the default version.
             VersionsByKey.TryRemove(key, out _);
+
+            _logger.LogInformation(
+                CacheVersionLogs.LOG_CACHE_VERSION_KEY_NOT_FOUND,
+                epoch,
+                DEFAULT_VERSION);
+
             return Task.FromResult(DEFAULT_VERSION);
         }
 
         if (state.Version <= 0)
         {
+            _logger.LogWarning(
+                CacheVersionLogs.LOG_CACHE_VERSION_NON_POSITIVE_VALUE,
+                epoch,
+                state.Version);
+
             throw new InvalidOperationException(string.Format(
                 CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
                 cacheGroup,
@@ -45,6 +74,11 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
                 DEFAULT_VERSION,
                 state.Version));
         }
+
+        _logger.LogInformation(
+            CacheVersionLogs.LOG_CACHE_VERSION_RETRIEVED,
+            epoch,
+            state.Version);
 
         return Task.FromResult(state.Version);
     }
@@ -75,6 +109,11 @@ public sealed class InMemoryCacheVersionService : ICacheVersionService
 
                 return new CacheVersionStateModel(currentVersion + 1, now.Add(versionKeyTtl));
             });
+
+        _logger.LogInformation(
+            CacheVersionLogs.LOG_CACHE_VERSION_BUMPED,
+            epoch,
+            newState.Version);
 
         return Task.FromResult(newState.Version);
     }

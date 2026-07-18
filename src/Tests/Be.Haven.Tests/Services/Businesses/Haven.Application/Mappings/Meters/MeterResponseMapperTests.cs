@@ -1,4 +1,3 @@
-using Haven.Application.Dtos.Meters.Detail;
 using Haven.Application.Mappings.Meters;
 using Haven.Application.Models.Meters.Rows;
 

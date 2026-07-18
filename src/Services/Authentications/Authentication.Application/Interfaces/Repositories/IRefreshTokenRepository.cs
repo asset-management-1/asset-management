@@ -19,6 +19,18 @@ public interface IRefreshTokenRepository : IGenericRepository<RefreshToken>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Loads the tracked refresh-token session identified by the authenticated user and session claim.
+    /// </summary>
+    /// <param name="userId">The internal user identifier.</param>
+    /// <param name="sessionPublicId">The server-issued session identifier.</param>
+    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
+    /// <returns>The tracked session row; otherwise <c>null</c>.</returns>
+    Task<RefreshToken> GetByUserAndSessionPublicIdAsync(
+        long userId,
+        Guid sessionPublicId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Stages one refresh-token revocation without loading or modifying unrelated columns.
     /// </summary>
     Task StageRevocationAsync(long refreshTokenId, DateTime revokedAt, string replacedByTokenHash = null);

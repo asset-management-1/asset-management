@@ -31,25 +31,26 @@ public class ThirdPartyApiService : IThirdPartyApiService
     /// including method, headers, and query parameters.
     /// </param>
     /// <returns>A task that represents the asynchronous operation. The task result contains the response content as a string.</returns>
-    public virtual async Task<string> HandleApiData<TRquest>(TRquest request)
-        where TRquest : BaseThirdPartyApiRequest
+    public virtual async Task<string> HandleApiData<TRequest>(TRequest request)
+        where TRequest : BaseThirdPartyApiRequest
     {
+        // Log only a masked request snapshot so outbound credentials never enter application logs.
         var requestJson = _jsonSerializerService.Serialize(request);
         var maskedRequestJson = LogMaskingHelper.MaskAllSensitiveData(requestJson);
 
         _logger.LogInformation(
             LOG_START_THIRD_PARTY_CALL,
-            typeof(TRquest).Name,
+            typeof(TRequest).Name,
             maskedRequestJson);
 
-        // Handle the request
+        // Dispatch the configured HTTP request before interpreting the provider-specific response body.
         var response = await HandleDynamicHttpRequest(request);
 
-        // Parse the response content
+        // Read the body once; retain only its masked form for diagnostics.
         var content = await response.Content.ReadAsStringAsync();
         var maskedContent = LogMaskingHelper.MaskAllSensitiveData(content);
 
-        // Validate the response only when the flag is enabled
+        // Keep upstream diagnostics in logs and expose one stable public-safe error to API callers.
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError(
@@ -58,15 +59,13 @@ public class ThirdPartyApiService : IThirdPartyApiService
                 response.ReasonPhrase,
                 maskedContent);
 
-            throw new HttpStatusCodeException(
-                string.Format(PROCESS_HANDLE_API_RESPONSE_ERROR,
-                    response.StatusCode, response.ReasonPhrase, content), (int)response.StatusCode
-            );
+            throw new HttpStatusCodeException(THIRD_PARTY_SERVICE_ERROR, (int)response.StatusCode);
         }
 
+        // Successful callers receive the provider payload unchanged for feature-specific parsing.
         _logger.LogInformation(
             LOG_END_THIRD_PARTY_CALL,
-            typeof(TRquest).Name,
+            typeof(TRequest).Name,
             (int)response.StatusCode,
             maskedContent);
 
@@ -77,51 +76,50 @@ public class ThirdPartyApiService : IThirdPartyApiService
     /// Sends a request to a third-party API and handles the response by validating the status and deserializing the content into the specified type.
     /// </summary>
     /// <param name="request">The API request object, containing details such as base URL, endpoint, HTTP method, headers, query parameters, and content for the third-party API call.</param>
-    /// <typeparam name="TRquest">The type of the request, which must inherit from <see cref="BaseThirdPartyApiRequest"/>.</typeparam>
+    /// <typeparam name="TRequest">The type of the request, which must inherit from <see cref="BaseThirdPartyApiRequest"/>.</typeparam>
     /// <typeparam name="TResponse">The type into which the response content will be deserialized.</typeparam>
     /// <returns>A task representing the asynchronous operation, with the result containing the deserialized response object.</returns>
     /// <exception cref="HttpStatusCodeException">
     /// Thrown when the API response status code is not successful. Logs the status code, reason phrase, and response content for error tracking.
     /// </exception>
-    public virtual async Task<TResponse> HandleApiData<TRquest, TResponse>(TRquest request) where TRquest : BaseThirdPartyApiRequest
+    public virtual async Task<TResponse> HandleApiData<TRequest, TResponse>(TRequest request)
+        where TRequest : BaseThirdPartyApiRequest
     {
+        // Log only a masked request snapshot so outbound credentials never enter application logs.
         var requestJson = _jsonSerializerService.Serialize(request);
         var maskedRequestJson = LogMaskingHelper.MaskAllSensitiveData(requestJson);
 
         _logger.LogInformation(
             LOG_START_THIRD_PARTY_CALL,
-            typeof(TRquest).Name,
+            typeof(TRequest).Name,
             maskedRequestJson);
 
-        // Handle the request
+        // Dispatch the configured HTTP request before interpreting the provider-specific response body.
         var response = await HandleDynamicHttpRequest(request);
 
-        // Parse the response content
+        // Read the body once; retain only its masked form for diagnostics.
         var content = await response.Content.ReadAsStringAsync();
         var maskedContent = LogMaskingHelper.MaskAllSensitiveData(content);
 
-        // Validate the response
+        // Keep upstream diagnostics in logs and expose one stable public-safe error to API callers.
         if (!response.IsSuccessStatusCode)
         {
-            // Throw an exception if the response is not successful
             _logger.LogError(
                 LOG_PROCESS_HANDLE_API_RESPONSE_ERROR,
                 response.StatusCode,
                 response.ReasonPhrase,
                 maskedContent);
-            throw new HttpStatusCodeException(
-                string.Format(PROCESS_HANDLE_API_RESPONSE_ERROR,
-                    response.StatusCode, response.ReasonPhrase, content), (int)response.StatusCode
-            );
+
+            throw new HttpStatusCodeException(THIRD_PARTY_SERVICE_ERROR, (int)response.StatusCode);
         }
 
+        // Deserialize only successful payloads into the feature-requested response contract.
         _logger.LogInformation(
             LOG_END_THIRD_PARTY_CALL,
-            typeof(TRquest).Name,
+            typeof(TRequest).Name,
             (int)response.StatusCode,
             maskedContent);
 
-        // Deserialize the response content to the specified type
         var responseData = _jsonSerializerService.Deserialize<TResponse>(content);
 
         return responseData;
@@ -138,7 +136,7 @@ public class ThirdPartyApiService : IThirdPartyApiService
         BaseThirdPartyApiRequest request,
         CancellationToken cancellationToken = default)
     {
-        // Adapt the request to the BaseHttpRequest model
+        // Map the neutral provider request into the shared HTTP transport contract.
         var requestData = request.Adapt<BaseHttpRequest>();
 
         if (request.File is not null)
@@ -152,7 +150,7 @@ public class ThirdPartyApiService : IThirdPartyApiService
             requestData.RequestStream = request.ContentStream;
         }
 
-        // Validate the request
+        // Dispatch through the existing REST client implementation selected by the HTTP verb.
         return request.Method.ToLower() switch
         {
             GET => await _restClientMultipleService.GetAsync(requestData, cancellationToken),
@@ -166,4 +164,5 @@ public class ThirdPartyApiService : IThirdPartyApiService
             _ => throw new ArgumentException(HTTP_METHOD_NOT_SUPPORTED)
         };
     }
+
 }

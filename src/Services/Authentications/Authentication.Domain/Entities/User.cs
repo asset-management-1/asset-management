@@ -6,11 +6,6 @@ namespace Authentication.Domain.Entities;
 public class User : BaseEntity
 {
     /// <summary>
-    /// Active party context currently selected for the user.
-    /// </summary>
-    public long? CurrentPartyId { get; set; }
-
-    /// <summary>
     /// Unique username for login.
     /// </summary>
     public string UserName { get; set; }
@@ -79,11 +74,6 @@ public class User : BaseEntity
     /// Navigation collection of external logins.
     /// </summary>
     public virtual ICollection<ExternalLogin> ExternalLogins { get; set; } = new List<ExternalLogin>();
-
-    /// <summary>
-    /// Navigation to the active party context currently selected by the user.
-    /// </summary>
-    public virtual Party CurrentParty { get; set; }
 
     /// <summary>
     /// Navigation collection of refresh tokens.

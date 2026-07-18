@@ -8,7 +8,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public async Task GetAsync_Should_ReturnDefaultVersion_When_KeyIsMissing()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
 
         // Act
         var result = await sut.GetAsync("group", "user:1", "20260101");
@@ -21,7 +21,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public async Task InvalidateAsync_Should_AdvanceVersion_When_KeyExists()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
         var cacheGroup = $"group-{Guid.NewGuid():N}";
 
         // Act
@@ -39,7 +39,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public async Task InvalidateAsync_Should_ThrowArgumentException_When_GroupIsMissing()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
 
         // Act
         var action = () => sut.InvalidateAsync(string.Empty, "scope", "20260101");
@@ -57,7 +57,7 @@ public sealed class InMemoryCacheVersionServiceTests
         string epoch)
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
 
         // Act
         var action = () => sut.GetAsync(cacheGroup, cacheScope, epoch);
@@ -70,7 +70,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public async Task InvalidateAsync_Should_UseUnscopedVersionKey_When_ScopeIsBlank()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
         var cacheGroup = $"unscoped-{Guid.NewGuid():N}";
 
         // Act
@@ -86,7 +86,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public async Task GetAsync_Should_ReturnDefaultVersionAndRemoveState_When_VersionStateExpired()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
         var cacheGroup = $"expired-{Guid.NewGuid():N}";
         var key = $"ver:{cacheGroup}:user:1:20260101";
         var versions = GetVersionRegistry();
@@ -104,7 +104,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public async Task GetAsync_Should_ThrowInvalidOperationException_When_VersionStateIsUnsafe()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
         var cacheGroup = $"unsafe-{Guid.NewGuid():N}";
         var versions = GetVersionRegistry();
         AddVersionState(
@@ -124,7 +124,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public async Task InvalidateAsync_Should_RestartFromDefaultVersion_When_CurrentVersionStateExpired()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
         var cacheGroup = $"restart-{Guid.NewGuid():N}";
         var versions = GetVersionRegistry();
         AddVersionState(
@@ -144,7 +144,7 @@ public sealed class InMemoryCacheVersionServiceTests
     public void GetEpoch_Should_ReturnUtcDateEpoch_When_Called()
     {
         // Arrange
-        var sut = new InMemoryCacheVersionService();
+        var sut = CreateSut();
 
         // Act
         var result = sut.GetEpoch();
@@ -161,6 +161,11 @@ public sealed class InMemoryCacheVersionServiceTests
             BindingFlags.Static | BindingFlags.NonPublic);
 
         return field.GetValue(null);
+    }
+
+    private static InMemoryCacheVersionService CreateSut()
+    {
+        return new InMemoryCacheVersionService(Mock.Of<ILogger<InMemoryCacheVersionService>>());
     }
 
     private static bool AddVersionState(

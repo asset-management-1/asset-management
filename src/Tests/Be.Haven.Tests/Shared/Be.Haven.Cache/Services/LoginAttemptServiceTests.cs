@@ -1,4 +1,4 @@
-using static Be.Haven.Shared.Constants.RedisConstants.EnvironmentVariables;
+using static Be.Haven.Shared.Constants.Cache.RedisConstants.EnvironmentVariables;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Cache.Services;
 

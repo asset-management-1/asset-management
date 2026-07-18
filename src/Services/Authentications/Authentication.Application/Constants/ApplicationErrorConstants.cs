@@ -47,6 +47,11 @@ public static class ApplicationErrorConstants
         public const string AUTH_FORBIDDEN_OPERATION = "error_auth_forbidden_operation";
 
         /// <summary>
+        /// Error code returned when an account has no active Party context for token issuance.
+        /// </summary>
+        public const string AUTH_PARTY_CONTEXT_NOT_AVAILABLE = "error_auth_party_context_not_available";
+
+        /// <summary>
         /// Error code returned when the target account is inactive.
         /// </summary>
         public const string AUTH_ACCOUNT_INACTIVE = "error_auth_account_inactive";
@@ -191,6 +196,11 @@ public static class ApplicationErrorConstants
         /// Message returned when the default external-user party type cannot be found.
         /// </summary>
         public const string DEFAULT_PARTY_TYPE_NOT_FOUND_MESSAGE = "Default party type was not found.";
+
+        /// <summary>
+        /// Message returned when the account has no active Party context.
+        /// </summary>
+        public const string PARTY_CONTEXT_NOT_AVAILABLE_MESSAGE = "No active party context is available for this account.";
     }
 
     /// <summary>

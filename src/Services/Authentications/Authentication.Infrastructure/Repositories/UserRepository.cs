@@ -335,19 +335,43 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     /// Gets the user-info response model by public identifier using Dapper.
     /// </summary>
     /// <param name="userPublicId">The public user identifier used by API and UI.</param>
+    /// <param name="sessionPublicId">The current refresh-token session identifier used to resolve Party context.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The assembled user-info response; otherwise <c>null</c>.</returns>
     public async Task<UserInfoResponseDto> GetUserInfoResponseByPublicIdAsync(
         Guid userPublicId,
+        Guid sessionPublicId,
         CancellationToken cancellationToken = default)
     {
         // Use the optimized PostgreSQL read model query because user-info assembles several child collections.
         var readModel = await _dapperService.QueryFirstOrDefaultAsync<UserInfoReadModel>(
             InfrastructureQueryConstants.GET_USER_INFO_RESPONSE_BY_PUBLIC_ID_QUERY,
-            new { UserPublicId = userPublicId },
+            new { UserPublicId = userPublicId, SessionPublicId = sessionPublicId },
             DapperCommandOptionsHelper.CreateText(cancellationToken));
 
         return MapUserInfoResponse(readModel);
+    }
+
+    /// <summary>
+    /// Loads and locks one active user for a security-sensitive mutation.
+    /// </summary>
+    /// <param name="userPublicId">The public identifier of the user to lock.</param>
+    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
+    /// <returns>The tracked user when found; otherwise, <c>null</c>.</returns>
+    public Task<User> GetTrackedByPublicIdForUpdateAsync(
+        Guid userPublicId,
+        CancellationToken cancellationToken = default)
+    {
+        // PostgreSQL row locking serializes context creation for the same account across application instances.
+        return _authenticationDbContext.Users
+            .FromSqlInterpolated($$"""
+                SELECT user_row.*
+                FROM "identity"."Users" user_row
+                WHERE user_row."PublicId" = {userPublicId}
+                  AND user_row."IsDeleted" = FALSE
+                FOR UPDATE OF user_row
+                """)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <summary>
@@ -365,6 +389,11 @@ public class UserRepository : GenericRepository<User>, IUserRepository
 
         // PostgreSQL emits child collections as JSON so the query returns one compact user row.
         var availableContexts = _jsonSerializerService.DeserializeList<string>(readModel.AvailableContextsJson);
+        var currentContext = EnumConvertHelper<PartyTypeEnum>.TryConvertStringToEnum(readModel.CurrentContext)
+                             ?? throw new InvalidOperationException(
+                                 string.Format(
+                                     InfrastructureErrorConstants.PartyContextErrors.UNSUPPORTED_PARTY_CONTEXT_VALUE_MESSAGE,
+                                     readModel.CurrentContext));
 
         return new UserInfoResponseDto
         {
@@ -374,16 +403,20 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             PhoneNumber = readModel.PhoneNumber,
             AvatarUrl = readModel.AvatarUrl,
             DateOfBirth = readModel.DateOfBirth,
-            Gender = ApiEnumContractMapper.ToGender(readModel.Gender),
+            Gender = EnumConvertHelper<GenderEnum>.TryConvertStringToEnum(readModel.Gender),
             DisplayName = readModel.DisplayName,
-            CurrentContext = ApiEnumContractMapper.ToPartyType(readModel.CurrentContext),
-            AvailableContexts = ApiEnumContractMapper.ToPartyTypes(availableContexts),
+            CurrentContext = currentContext,
+            AvailableContexts = availableContexts
+                .Select(EnumConvertHelper<PartyTypeEnum>.TryConvertStringToEnum)
+                .Where(context => context.HasValue)
+                .Select(context => context.Value)
+                .ToList(),
             ExternalProviders = _jsonSerializerService.DeserializeList<ExternalProviderResponseDto>(readModel.ExternalProvidersJson),
             KycSummary = new KycSummaryResponseDto
             {
                 IsSubmitted = readModel.KycIsSubmitted,
-                Status = ApiEnumContractMapper.ToKycStatus(readModel.KycStatus),
-                IdentifierType = ApiEnumContractMapper.ToIdentifierType(readModel.KycIdentifierType),
+                Status = EnumConvertHelper<KycStatusEnum>.TryConvertStringToEnum(readModel.KycStatus),
+                IdentifierType = EnumConvertHelper<IdentifierTypeEnum>.TryConvertStringToEnum(readModel.KycIdentifierType),
                 IdentifierTypeDisplayName = readModel.KycIdentifierTypeDisplayName,
                 MaskedIdentifier = readModel.KycMaskedIdentifier,
                 HasFrontFile = readModel.KycHasFrontFile,

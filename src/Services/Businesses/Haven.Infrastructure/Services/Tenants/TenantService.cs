@@ -111,20 +111,15 @@ public class TenantService : ITenantService
         TenantCreateRequestModel request,
         CancellationToken cancellationToken = default)
     {
-        // Resolve only the tenant-flow lookup values needed by this mutation.
+        // Step 1: Resolve the stable lookup values before entering the room critical section.
         var lookups = await LoadTenantMasterDataAsync(cancellationToken);
 
-        // Landlord-created tenants always target one landlord-scoped room.
-        var room = await GetScopedRoomAsync(
-            request.RoomId,
-            request.CurrentParty,
+        // Step 2: Serialize every occupancy mutation for the requested room across application instances.
+        var lockHandle = await _distributedLockService.TryAcquireAsync(
+            $"{ROOM_OCCUPANCY_LOCK_KEY_PREFIX}{request.RoomId:N}{ROOM_OCCUPANCY_LOCK_KEY_SUFFIX}",
+            TimeSpan.FromSeconds(ROOM_OCCUPANCY_LOCK_LEASE_SECONDS),
             cancellationToken);
 
-        // Landlord add and tenant QR join share the same room capacity and must serialize their guards.
-        var lockHandle = await _distributedLockService.TryAcquireAsync(
-            $"{TENANT_JOIN_ROOM_LOCK_KEY_PREFIX}{room.PublicId:N}",
-            TimeSpan.FromSeconds(TENANT_JOIN_ROOM_LOCK_SECONDS),
-            cancellationToken);
         if (lockHandle is null)
         {
             throw new ApiException(ApplicationErrorConstants.TenantErrors.ERROR_TENANT_JOIN_IN_PROGRESS, BAD_REQUEST);
@@ -132,27 +127,36 @@ public class TenantService : ITenantService
 
         await using (lockHandle)
         {
-            // The request may point to an existing tenant party, an account, or a manual profile.
-            var tenantParty = await ResolveTenantPartyAsync(request, lookups, cancellationToken);
+            // Step 3: Re-read scope and live occupancy guards inside the transaction protected by the room lock.
+            return await _unitOfWork.ExecuteInTransactionAsync(async transactionToken =>
+            {
+                var room = await GetScopedRoomAsync(
+                    request.RoomId,
+                    request.CurrentParty,
+                    transactionToken);
 
-            // Reject duplicate room membership before the shared placement flow creates occupancy or a contract.
-            await EnsureTenantNotInRoomAsync(room.Id, tenantParty.Id, lookups, cancellationToken);
+                // The request may point to an existing tenant party, an account, or a manual profile.
+                var tenantParty = await ResolveTenantPartyAsync(request, lookups, transactionToken);
 
-            // Create the primary contract/occupancy or member-only occupancy after the room lock protects capacity.
-            return await CreateTenantOccupancyAsync(
-                new TenantOccupancyCreationContextModel
-                {
-                    Room = room,
-                    LandlordParty = request.CurrentParty,
-                    TenantParty = tenantParty,
-                    RoleCode = request.RoleCode,
-                    ContractStartDate = request.ContractStartDate,
-                    ContractEndDate = request.ContractEndDate,
-                    ContractRentAmount = request.ContractRentAmount,
-                    DepositAmount = request.DepositAmount,
-                    Lookups = lookups
-                },
-                cancellationToken);
+                // Pending and active occupancy rows both block a duplicate room membership.
+                await EnsureTenantNotInRoomAsync(room.Id, tenantParty.Id, lookups, transactionToken);
+
+                // Step 4: Stage the contract and occupancy only after all live room guards pass.
+                return await CreateTenantOccupancyAsync(
+                    new TenantOccupancyCreationContextModel
+                    {
+                        Room = room,
+                        LandlordParty = request.CurrentParty,
+                        TenantParty = tenantParty,
+                        RoleCode = request.RoleCode,
+                        ContractStartDate = request.ContractStartDate,
+                        ContractEndDate = request.ContractEndDate,
+                        ContractRentAmount = request.ContractRentAmount,
+                        DepositAmount = request.DepositAmount,
+                        Lookups = lookups
+                    },
+                    transactionToken);
+            }, cancellationToken);
         }
     }
 
@@ -172,13 +176,14 @@ public class TenantService : ITenantService
         var movedOutStatus = lookups.OccupancyStatusMovedOut;
         var availableStatus = lookups.UnitStatusAvailable;
 
-        // The occupancy must belong to a property managed by the current landlord party.
-        var occupancy = await _tenantRepository.GetOccupancyForMoveOutAsync(
+        // Step 1: Resolve only the room identifier needed for lock selection without tracking stale occupancy state.
+        var roomPublicId = await _tenantRepository.GetMoveOutRoomPublicIdAsync(
             request.OccupancyPublicId,
             request.CurrentParty.PartyId,
+            activeStatus.Id,
             cancellationToken);
 
-        if (occupancy is null)
+        if (!roomPublicId.HasValue)
         {
             throw new ApiException(
                 ApplicationErrorConstants.TenantErrors.ERROR_TENANT_OCCUPANCY_NOT_FOUND,
@@ -186,39 +191,69 @@ public class TenantService : ITenantService
                 StatusCodes.Status404NotFound);
         }
 
-        // Count active occupants before mutation so the room status can be freed only when this was the last one.
-        var activeCount = await _tenantRepository.CountActiveOccupanciesAsync(
-            occupancy.UnitId,
-            activeStatus.Id,
+        // Step 2: Serialize move-out with landlord add and QR join for the same room.
+        var lockHandle = await _distributedLockService.TryAcquireAsync(
+            $"{ROOM_OCCUPANCY_LOCK_KEY_PREFIX}{roomPublicId.Value:N}{ROOM_OCCUPANCY_LOCK_KEY_SUFFIX}",
+            TimeSpan.FromSeconds(ROOM_OCCUPANCY_LOCK_LEASE_SECONDS),
             cancellationToken);
 
-        await _unitOfWork.ExecuteInTransactionAsync(async transactionToken =>
+        if (lockHandle is null)
         {
-            // Mark the occupancy as moved out and clean room-level vehicle links for that tenant.
-            occupancy.StatusId = movedOutStatus.Id;
-            occupancy.EndDate = DateOnly.FromDateTime(DateTime.UtcNow);
+            throw new ApiException(ApplicationErrorConstants.TenantErrors.ERROR_TENANT_JOIN_IN_PROGRESS, BAD_REQUEST);
+        }
 
-            await _tenantRepository.SoftDeleteVehiclesAsync(
-                occupancy.UnitId,
-                occupancy.PartyId,
-                transactionToken);
-
-            if (activeCount <= 1)
+        await using (lockHandle)
+        {
+            // Step 3: Re-read the active tracked occupancy and all move-out guards inside one transaction.
+            await _unitOfWork.ExecuteInTransactionAsync(async transactionToken =>
             {
-                // Only touch room status when the room has no other active occupant after this move-out.
-                var room = await _unitRepository.GetRoomByIdAsync(occupancy.UnitId, transactionToken);
+                // Re-read inside the protected transaction so a repeated request cannot mutate stale tracked state.
+                var occupancy = await _tenantRepository.GetOccupancyForMoveOutAsync(
+                    request.OccupancyPublicId,
+                    request.CurrentParty.PartyId,
+                    activeStatus.Id,
+                    transactionToken);
 
-                if (room is not null)
+                if (occupancy is null)
                 {
-                    room.StatusId = availableStatus.Id;
+                    throw new ApiException(
+                        ApplicationErrorConstants.TenantErrors.ERROR_TENANT_OCCUPANCY_NOT_FOUND,
+                        NOT_FOUND,
+                        StatusCodes.Status404NotFound);
                 }
-            }
 
-            _logger.LogInformation(
-                InfrastructureLogConstants.TenantLogs.TENANT_MOVED_OUT,
-                request.OccupancyPublicId,
-                request.CurrentParty.PartyPublicId);
-        }, cancellationToken);
+                // Count current active occupants only after the lock and transaction establish a stable room snapshot.
+                var activeCount = await _tenantRepository.CountActiveOccupanciesAsync(
+                    occupancy.UnitId,
+                    activeStatus.Id,
+                    transactionToken);
+
+                // Mark the occupancy as moved out and clean room-level vehicle links for that tenant.
+                occupancy.StatusId = movedOutStatus.Id;
+                occupancy.EndDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+                await _tenantRepository.SoftDeleteVehiclesAsync(
+                    occupancy.UnitId,
+                    occupancy.PartyId,
+                    transactionToken);
+
+                if (activeCount <= 1)
+                {
+                    // Only touch room status when the room has no other active occupant after this move-out.
+                    var room = await _unitRepository.GetRoomByIdAsync(occupancy.UnitId, transactionToken);
+
+                    if (room is not null)
+                    {
+                        room.StatusId = availableStatus.Id;
+                    }
+                }
+
+                _logger.LogInformation(
+                    InfrastructureLogConstants.TenantLogs.TENANT_MOVED_OUT,
+                    request.OccupancyPublicId,
+                    request.CurrentParty.PartyPublicId);
+            }, cancellationToken);
+        }
 
         return OperationStatusResponseHelper.Success(
             ApplicationMessageConstants.TenantMessages.TENANT_DELETE_SUCCESS_MESSAGE);
@@ -333,11 +368,11 @@ public class TenantService : ITenantService
                 StatusCodes.Status403Forbidden);
         }
 
-        // Read once to derive the room lock; the token is read again after the lock is acquired.
+        // Step 1: Read once to derive the room lock; the token is validated again after acquisition.
         var initialPayload = await GetValidTenantJoinPayloadAsync(request.Token, cancellationToken);
         var lockHandle = await _distributedLockService.TryAcquireAsync(
-            $"{TENANT_JOIN_ROOM_LOCK_KEY_PREFIX}{initialPayload.RoomPublicId:N}",
-            TimeSpan.FromSeconds(TENANT_JOIN_ROOM_LOCK_SECONDS),
+            $"{ROOM_OCCUPANCY_LOCK_KEY_PREFIX}{initialPayload.RoomPublicId:N}{ROOM_OCCUPANCY_LOCK_KEY_SUFFIX}",
+            TimeSpan.FromSeconds(ROOM_OCCUPANCY_LOCK_LEASE_SECONDS),
             cancellationToken);
 
         if (lockHandle is null)
@@ -347,73 +382,90 @@ public class TenantService : ITenantService
 
         await using (lockHandle)
         {
-            // Re-read the token inside the lock so an expired or consumed token cannot mutate the room.
+            // Step 2: Re-read the token inside the lock so an expired token cannot mutate the room.
             var payload = await GetValidTenantJoinPayloadAsync(request.Token, cancellationToken);
-            // Resolve live status/type IDs only after the lock is held so placement checks use one consistent state.
+
+            // Resolve stable status/type IDs after the lock is held; scoped entities are re-read in the transaction.
             var lookups = await LoadTenantMasterDataAsync(cancellationToken);
 
-            // Read the compact room placement model; QR confirmation does not need a tracked room graph.
-            var room = await _unitRepository.GetTenantJoinRoomAsync(
-                new TenantJoinRoomQueryParametersModel
-                {
-                    LandlordPartyPublicId = payload.LandlordPartyPublicId,
-                    RoomPublicId = payload.RoomPublicId,
-                    RelationshipCodes = PROPERTY_ACCESS_RELATIONSHIP_CODES
-                },
-                cancellationToken);
-
-            if (room is null)
-            {
-                throw new ApiException(
-                    ApplicationErrorConstants.TenantErrors.ERROR_TENANT_JOIN_TOKEN_INVALID,
-                    BAD_REQUEST,
-                    StatusCodes.Status400BadRequest);
-            }
-
-            var tenantParty = await _tenantRepository.GetTenantPartyAsync(
-                request.CurrentParty.PartyPublicId,
-                lookups.TenantPartyType.Id,
-                lookups.PartyActiveStatus.Id,
-                cancellationToken);
-
-            if (tenantParty is null)
-            {
-                throw new ApiException(
-                    ApplicationErrorConstants.TenantErrors.ERROR_TENANT_CONTEXT_REQUIRED,
-                    FORBIDDEN,
-                    StatusCodes.Status403Forbidden);
-            }
-
-            // Complete duplicate and capacity preflight while the room lock is held, before the
-            // one-time token is consumed.
             var normalizedRole = payload.RoleCode.ToUpperInvariant();
-
-            // Reject duplicate membership before consuming the one-time token.
-            await EnsureTenantNotInRoomAsync(room.UnitId, tenantParty.Id, lookups, cancellationToken);
-
-            // Apply primary/occupant and whole-room/shared-bed capacity rules while the room lock is still held.
-            await ValidateTenantPlacementAsync(
-                room.UnitId,
-                room.RentalModeId,
-                room.BedCount,
-                normalizedRole,
-                lookups,
-                cancellationToken);
-
-            // Build the one-time cache key once; the transaction callback owns consume/restore timing.
             var cacheKey = $"{TENANT_JOIN_CACHE_KEY_PREFIX}{request.Token}";
 
-            return await CreatePendingTenantJoinOccupancyAsync(
-                new TenantJoinPendingOccupancyContextModel
+            // Step 3: Re-read room scope, tenant lifecycle, duplicate, and capacity state in the DB transaction.
+            var response = await _unitOfWork.ExecuteInTransactionAsync(async transactionToken =>
+            {
+                var room = await _unitRepository.GetTenantJoinRoomForMutationAsync(
+                    new TenantJoinRoomQueryParametersModel
+                    {
+                        LandlordPartyPublicId = payload.LandlordPartyPublicId,
+                        RoomPublicId = payload.RoomPublicId,
+                        RelationshipCodes = PROPERTY_ACCESS_RELATIONSHIP_CODES
+                    },
+                    transactionToken);
+
+                if (room is null)
                 {
-                    Room = room,
-                    TenantParty = tenantParty,
-                    RoleCode = normalizedRole,
-                    Lookups = lookups,
-                    CacheKey = cacheKey,
-                    Payload = payload
-                },
-                cancellationToken);
+                    throw new ApiException(
+                        ApplicationErrorConstants.TenantErrors.ERROR_TENANT_JOIN_TOKEN_INVALID,
+                        BAD_REQUEST,
+                        StatusCodes.Status400BadRequest);
+                }
+
+                var tenantParty = await _tenantRepository.GetTenantPartyAsync(
+                    request.CurrentParty.PartyPublicId,
+                    lookups.TenantPartyType.Id,
+                    lookups.PartyActiveStatus.Id,
+                    transactionToken);
+
+                if (tenantParty is null)
+                {
+                    throw new ApiException(
+                        ApplicationErrorConstants.TenantErrors.ERROR_TENANT_CONTEXT_REQUIRED,
+                        FORBIDDEN,
+                        StatusCodes.Status403Forbidden);
+                }
+
+                await EnsureTenantNotInRoomAsync(room.UnitId, tenantParty.Id, lookups, transactionToken);
+
+                await ValidateTenantPlacementAsync(
+                    room.UnitId,
+                    room.RentalModeId,
+                    room.BedCount,
+                    normalizedRole,
+                    lookups,
+                    transactionToken);
+
+                return await CreatePendingTenantJoinOccupancyAsync(
+                    new TenantJoinPendingOccupancyContextModel
+                    {
+                        Room = room,
+                        TenantParty = tenantParty,
+                        RoleCode = normalizedRole,
+                        Lookups = lookups
+                    },
+                    transactionToken);
+            }, cancellationToken);
+
+            _logger.LogInformation(
+                InfrastructureLogConstants.TenantLogs.TENANT_CREATED,
+                response.Id,
+                response.Room.Id,
+                payload.LandlordPartyPublicId);
+
+            // Step 4: Consume the one-time token only after the database commit; cache failure cannot undo committed state.
+            try
+            {
+                await _cachingService.RemoveAsync(cacheKey, CancellationToken.None);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    InfrastructureLogConstants.TenantLogs.TENANT_JOIN_TOKEN_REMOVE_FAILED,
+                    response.Room.Id);
+            }
+
+            return response;
         }
     }
 
@@ -493,7 +545,7 @@ public class TenantService : ITenantService
         CancellationToken cancellationToken)
     {
         // Room scope is enforced by repository SQL/EF criteria so services never trust the public id alone.
-        var room = await _unitRepository.GetRoomGraphAsync(
+        var room = await _unitRepository.GetRoomForOccupancyMutationAsync(
             new RoomScopedQueryParametersModel
             {
                 CurrentPartyId = currentParty.PartyId,
@@ -667,7 +719,7 @@ public class TenantService : ITenantService
                 StatusCodes.Status400BadRequest);
         }
 
-        // Recheck role-specific capacity before the transaction creates a new contract or occupancy row.
+        // Recheck role-specific capacity in the caller-owned transaction before staging a contract or occupancy row.
         await ValidateTenantPlacementAsync(
             context.Room.Id,
             context.Room.RentalModeId,
@@ -684,55 +736,51 @@ public class TenantService : ITenantService
         var activeOccupancyStatus = context.Lookups.OccupancyStatusActive;
         var occupiedUnitStatus = context.Lookups.UnitStatusOccupied;
         Contract contract = null;
-        Occupancy occupancy = null;
 
-        await _unitOfWork.ExecuteInTransactionAsync(async transactionToken =>
+        // Primary tenant creation owns the rental contract; occupants attach without a contract.
+        if (string.Equals(normalizedRole, TENANT_ROLE_PRIMARY, StringComparison.Ordinal))
         {
-            // Primary tenant creation owns the rental contract; members attach without a contract.
-            if (string.Equals(normalizedRole, TENANT_ROLE_PRIMARY, StringComparison.Ordinal))
-            {
-                // Create a contract only for the primary tenant who signs for this room.
-                contract = await BuildContractAsync(
-                    new TenantContractCreationContextModel
-                    {
-                        Room = context.Room,
-                        LandlordPartyId = context.LandlordParty.PartyId,
-                        TenantPartyId = context.TenantParty.Id,
-                        StartDate = startDate,
-                        EndDate = endDate,
-                        RentAmount = context.ContractRentAmount,
-                        DepositAmount = context.DepositAmount,
-                        Lookups = context.Lookups
-                    },
-                    transactionToken);
-            }
+            // Create a contract only for the primary tenant who signs for this room.
+            contract = await BuildContractAsync(
+                new TenantContractCreationContextModel
+                {
+                    Room = context.Room,
+                    LandlordPartyId = context.LandlordParty.PartyId,
+                    TenantPartyId = context.TenantParty.Id,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    RentAmount = context.ContractRentAmount,
+                    DepositAmount = context.DepositAmount,
+                    Lookups = context.Lookups
+                },
+                cancellationToken);
+        }
 
-            // The occupancy is the room membership record for both primary tenants and occupants.
-            occupancy = new Occupancy
-            {
-                PublicId = Guid.NewGuid(),
-                Contract = contract,
-                Party = context.TenantParty,
-                PropertyId = context.Room.PropertyId,
-                UnitId = context.Room.Id,
-                StartDate = startDate,
-                EndDate = endDate,
-                StatusId = activeOccupancyStatus.Id,
-                IsPrimaryTenant = string.Equals(normalizedRole, TENANT_ROLE_PRIMARY, StringComparison.Ordinal)
-            };
+        // The occupancy is the room membership record for both primary tenants and occupants.
+        var occupancy = new Occupancy
+        {
+            PublicId = Guid.NewGuid(),
+            Contract = contract,
+            Party = context.TenantParty,
+            PropertyId = context.Room.PropertyId,
+            UnitId = context.Room.Id,
+            StartDate = startDate,
+            EndDate = endDate,
+            StatusId = activeOccupancyStatus.Id,
+            IsPrimaryTenant = string.Equals(normalizedRole, TENANT_ROLE_PRIMARY, StringComparison.Ordinal)
+        };
 
-            // Landlord-created occupancy makes the room occupied immediately.
-            context.Room.StatusId = occupiedUnitStatus.Id;
-            await _tenantRepository.AddTenantOccupancyAsync(occupancy, contract, transactionToken);
+        // Landlord-created occupancy makes the room occupied immediately.
+        context.Room.StatusId = occupiedUnitStatus.Id;
+        await _tenantRepository.AddTenantOccupancyAsync(occupancy, contract, cancellationToken);
 
-            _logger.LogInformation(
-                InfrastructureLogConstants.TenantLogs.TENANT_CREATED,
-                occupancy.PublicId,
-                context.Room.PublicId,
-                context.LandlordParty.PartyPublicId);
-        }, cancellationToken);
+        _logger.LogInformation(
+            InfrastructureLogConstants.TenantLogs.TENANT_CREATED,
+            occupancy.PublicId,
+            context.Room.PublicId,
+            context.LandlordParty.PartyPublicId);
 
-        // Build the response from the committed domain rows so contract fields remain null for member-only occupancy.
+        // The caller commits the staged rows before exposing this response.
         return BuildTenantResponse(
             context.Room,
             context.TenantParty,
@@ -753,93 +801,35 @@ public class TenantService : ITenantService
         CancellationToken cancellationToken)
     {
         var room = context.Room;
-        var payload = context.Payload;
         var pendingStatus = context.Lookups.OccupancyStatusPending;
 
-        // Build the response inside the transaction callback so pre-commit failures can restore the QR token.
-        return await _unitOfWork.ExecuteInTransactionAsync(async transactionToken =>
+        // QR joins stage pending membership only; the caller owns transaction commit and post-commit token cleanup.
+        var occupancy = new Occupancy
         {
-            var tokenConsumed = false;
+            PublicId = Guid.NewGuid(),
+            Party = context.TenantParty,
+            PropertyId = room.PropertyId,
+            UnitId = room.UnitId,
+            StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            StatusId = pendingStatus.Id,
+            IsPrimaryTenant = string.Equals(context.RoleCode, TENANT_ROLE_PRIMARY, StringComparison.Ordinal)
+        };
 
-            try
-            {
-                // Mark the token as consumed before the cache remove call so uncertain remove failures can be restored.
-                tokenConsumed = true;
-                await _cachingService.RemoveAsync(context.CacheKey, transactionToken);
-                if (await _cachingService.GetAsync<TenantJoinPayloadModel>(
-                        context.CacheKey,
-                        transactionToken) is not null)
-                {
-                    tokenConsumed = false;
-                    throw new ApiException(
-                        ApplicationErrorConstants.TenantErrors.ERROR_TENANT_JOIN_IN_PROGRESS,
-                        BAD_REQUEST);
-                }
+        await _tenantRepository.AddTenantOccupancyAsync(occupancy, null, cancellationToken);
 
-                // QR joins create pending membership only.
-                // Contract dates, rent, and deposit remain absent from the response.
-                var occupancy = new Occupancy
-                {
-                    PublicId = Guid.NewGuid(),
-                    Party = context.TenantParty,
-                    PropertyId = room.PropertyId,
-                    UnitId = room.UnitId,
-                    // Occupancy keeps the join request date because its persisted lifecycle requires a start point.
-                    StartDate = DateOnly.FromDateTime(DateTime.UtcNow),
-                    StatusId = pendingStatus.Id,
-                    IsPrimaryTenant = string.Equals(context.RoleCode, TENANT_ROLE_PRIMARY, StringComparison.Ordinal)
-                };
-
-                await _tenantRepository.AddTenantOccupancyAsync(occupancy, null, transactionToken);
-
-                _logger.LogInformation(
-                    InfrastructureLogConstants.TenantLogs.TENANT_CREATED,
-                    occupancy.PublicId,
-                    room.RoomPublicId,
-                    payload.LandlordPartyPublicId);
-
-                return new TenantDetailResponseDto
-                {
-                    Id = occupancy.PublicId,
-                    TenantId = context.TenantParty.PublicId,
-                    Tenant = context.TenantParty.DisplayName,
-                    Phone = context.TenantParty.PrimaryPhone,
-                    Email = context.TenantParty.PrimaryEmail,
-                    RoleCode = context.RoleCode,
-                    Property = room.Adapt<TenantPropertySummaryResponseDto>(),
-                    Room = room.Adapt<TenantRoomSummaryResponseDto>(),
-                    OccupancyStatusCode = pendingStatus.Code,
-                    OccupancyStatusName = pendingStatus.Name
-                };
-            }
-            catch
-            {
-                var remainingTtl = payload.ExpiresAtUtc - DateTimeOffset.UtcNow;
-
-                if (tokenConsumed && remainingTtl > TimeSpan.Zero)
-                {
-                    try
-                    {
-                        // Restore only before the transaction callback succeeds.
-                        // Never reopen a token after commit can start.
-                        await _cachingService.SetAbsoluteAsync(
-                            context.CacheKey,
-                            payload,
-                            remainingTtl,
-                            CancellationToken.None);
-                    }
-                    catch (Exception restoreException)
-                    {
-                        _logger.LogWarning(
-                            restoreException,
-                            InfrastructureLogConstants.TenantLogs.TENANT_JOIN_TOKEN_RESTORE_FAILED,
-                            room.RoomPublicId);
-                    }
-                }
-
-                throw;
-            }
-        }, cancellationToken);
+        return new TenantDetailResponseDto
+        {
+            Id = occupancy.PublicId,
+            TenantId = context.TenantParty.PublicId,
+            Tenant = context.TenantParty.DisplayName,
+            Phone = context.TenantParty.PrimaryPhone,
+            Email = context.TenantParty.PrimaryEmail,
+            RoleCode = context.RoleCode,
+            Property = room.Adapt<TenantPropertySummaryResponseDto>(),
+            Room = room.Adapt<TenantRoomSummaryResponseDto>(),
+            OccupancyStatusCode = pendingStatus.Code,
+            OccupancyStatusName = pendingStatus.Name
+        };
     }
 
     /// <summary>

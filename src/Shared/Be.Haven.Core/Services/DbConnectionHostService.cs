@@ -60,7 +60,7 @@ public class DbConnectionHostService : IHostedService
 
             // Fail-fast: wrap with a clear, actionable message, keep original exception as InnerException.
             throw new InvalidOperationException(
-                string.Format(DatabaseConnectionConstants.ERR_DB_CONN_HOST_FAILED, connectionName),
+                string.Format(ERR_DB_CONN_HOST_FAILED, connectionName),
                 ex);
         }
     }

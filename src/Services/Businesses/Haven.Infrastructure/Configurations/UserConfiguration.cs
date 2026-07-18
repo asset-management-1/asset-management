@@ -15,7 +15,7 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         entity.HasKey(x => x.Id);
         entity.Property(x => x.Id).UseIdentityByDefaultColumn();
         entity.Property(x => x.PublicId).HasDefaultValueSql("gen_random_uuid()");
-        entity.Property(x => x.UserName).HasMaxLength(255).IsRequired();
+        entity.Property(x => x.UserName).HasMaxLength(255);
         entity.Property(x => x.Email).HasMaxLength(255);
         entity.Property(x => x.PhoneNumber).HasMaxLength(50);
         entity.Property(x => x.FullName).HasMaxLength(255).IsRequired();
@@ -24,6 +24,5 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         entity.Property(x => x.IsDeleted).HasDefaultValue(false);
 
         entity.HasIndex(x => x.PublicId).IsUnique();
-        entity.HasIndex(x => x.CurrentPartyId).HasFilter("\"CurrentPartyId\" IS NOT NULL AND \"IsDeleted\" = FALSE");
     }
 }

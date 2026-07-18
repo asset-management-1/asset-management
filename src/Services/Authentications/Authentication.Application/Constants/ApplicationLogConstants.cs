@@ -133,6 +133,11 @@ public static class ApplicationLogConstants
         public const string VERIFY_REGISTER_FLOW_OTP_LOCKED = "Verify register flow: OTP removed after maximum failed attempts.";
 
         /// <summary>
+        /// Warning emitted when the registration consume marker cannot be released after account creation fails.
+        /// </summary>
+        public const string VERIFY_REGISTER_FLOW_CONSUME_CLEANUP_FAILED = "Verify register flow: Account creation failed and the OTP consume marker could not be released.";
+
+        /// <summary>
         /// Logged after register email verification completes.
         /// </summary>
         public const string VERIFY_REGISTER_FLOW_COMPLETED = "Verify register flow completed.";
@@ -244,6 +249,16 @@ public static class ApplicationLogConstants
         /// Logged when forgot-password OTP state is removed after maximum failed attempts.
         /// </summary>
         public const string VERIFY_FORGOT_PASSWORD_FLOW_OTP_LOCKED = "Verify forgot-password OTP flow: OTP removed after maximum failed attempts.";
+
+        /// <summary>
+        /// Warning emitted when obsolete OTP state could not be removed after reset authority was created.
+        /// </summary>
+        public const string VERIFY_FORGOT_PASSWORD_FLOW_OTP_CLEANUP_FAILED = "Verify forgot-password OTP flow: Reset session created, but obsolete OTP cleanup failed.";
+
+        /// <summary>
+        /// Warning emitted when the forgot-password consume marker cannot be released after reset-session creation fails.
+        /// </summary>
+        public const string VERIFY_FORGOT_PASSWORD_FLOW_CONSUME_CLEANUP_FAILED = "Verify forgot-password OTP flow: Reset-session creation failed and the OTP consume marker could not be released.";
 
         /// <summary>
         /// Logged after forgot-password reset session is confirmed before password change.
@@ -367,6 +382,11 @@ public static class ApplicationLogConstants
         /// Logged when change-email OTP state is removed after maximum failed attempts.
         /// </summary>
         public const string VERIFY_CHANGE_EMAIL_FLOW_OTP_LOCKED = "Verify change-email flow: OTP removed after maximum failed attempts.";
+
+        /// <summary>
+        /// Warning emitted when the change-email consume marker cannot be released after persistence fails.
+        /// </summary>
+        public const string VERIFY_CHANGE_EMAIL_FLOW_CONSUME_CLEANUP_FAILED = "Verify change-email flow: Email persistence failed and the OTP consume marker could not be released.";
 
         /// <summary>
         /// Logged after change-email verification completes.

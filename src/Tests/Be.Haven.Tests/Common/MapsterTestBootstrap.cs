@@ -11,12 +11,12 @@ internal static class MapsterTestBootstrap
     [System.Runtime.CompilerServices.ModuleInitializer]
     internal static void Initialize()
     {
-        new Be.Haven.Core.Mappings.BaseMappingConfig().Register(TypeAdapterConfig.GlobalSettings);
+        new BaseMappingConfig().Register(TypeAdapterConfig.GlobalSettings);
 
         TypeAdapterConfig.GlobalSettings.Scan(
             typeof(global::Haven.Application.Mappings.Properties.PropertyRequestMapping).Assembly,
             typeof(global::Haven.Infrastructure.Mappings.Rooms.RoomFieldMutationMapping).Assembly,
-            typeof(global::Authentication.Application.Mappings.Authentications.AuthenticationRequestMapping).Assembly,
-            typeof(global::Authentication.Infrastructure.Mappings.Authentications.AuthSessionMapping).Assembly);
+            typeof(Authentication.Application.Mappings.Authentications.AuthenticationRequestMapping).Assembly,
+            typeof(Authentication.Infrastructure.Mappings.Authentications.AuthSessionMapping).Assembly);
     }
 }

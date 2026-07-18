@@ -30,7 +30,7 @@ public sealed class RoomVehiclesController : BaseApiController
     /// <returns>The created vehicle detail response.</returns>
     [HttpPost]
     [Consumes(MULTIPART_FORM_DATA)]
-    [RequestSizeLimit(Be.Haven.Shared.Constants.ObjectStorageConstants.MAX_VEHICLE_MULTIPART_BODY_BYTES)]
+    [RequestSizeLimit(ObjectStorageConstants.MAX_VEHICLE_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<VehicleDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
@@ -75,7 +75,7 @@ public sealed class RoomVehiclesController : BaseApiController
     [HttpPut]
     [Route(ROOM_VEHICLE_BY_ID)]
     [Consumes(MULTIPART_FORM_DATA)]
-    [RequestSizeLimit(Be.Haven.Shared.Constants.ObjectStorageConstants.MAX_VEHICLE_MULTIPART_BODY_BYTES)]
+    [RequestSizeLimit(ObjectStorageConstants.MAX_VEHICLE_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<VehicleDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]

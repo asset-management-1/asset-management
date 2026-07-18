@@ -88,12 +88,32 @@ public interface IUnitRepository : IGenericRepository<Unit>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the tracked room fields required by a landlord-scoped occupancy mutation.
+    /// </summary>
+    /// <param name="parameters">The scoped room query parameters.</param>
+    /// <param name="cancellationToken">The token used to cancel the query.</param>
+    /// <returns>The tracked room and property, or <c>null</c>.</returns>
+    Task<Unit> GetRoomForOccupancyMutationAsync(
+        RoomScopedQueryParametersModel parameters,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets the minimal room projection scoped by a tenant-join QR payload.
     /// </summary>
     /// <param name="parameters">The tenant-join room scope parameters.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The tenant-join room row, or <c>null</c>.</returns>
     Task<TenantJoinRoomRowModel> GetTenantJoinRoomAsync(
+        TenantJoinRoomQueryParametersModel parameters,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets room state for a tenant-join mutation through the current EF transaction.
+    /// </summary>
+    /// <param name="parameters">The tenant-join room scope parameters.</param>
+    /// <param name="cancellationToken">The token used to cancel the query.</param>
+    /// <returns>The transaction-bound room state, or <c>null</c>.</returns>
+    Task<TenantJoinRoomRowModel> GetTenantJoinRoomForMutationAsync(
         TenantJoinRoomQueryParametersModel parameters,
         CancellationToken cancellationToken = default);
 

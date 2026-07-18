@@ -172,6 +172,12 @@ public sealed class ErrorHandlerMiddlewareTests
                 "domain failed"
             },
             {
+                new DistributedLockUnavailableException(new InvalidOperationException("redis detail")),
+                StatusCodes.Status503ServiceUnavailable,
+                SERVICE_UNAVAILABLE,
+                SERVICE_UNAVAILABLE_MESSAGE
+            },
+            {
                 new ArgumentException("bad argument"),
                 StatusCodes.Status400BadRequest,
                 BAD_REQUEST,
@@ -287,11 +293,8 @@ public sealed class ErrorHandlerMiddlewareTests
 
     private static ErrorHandlerMiddleware CreateSut(RequestDelegate next)
     {
-        var services = new ServiceCollection().BuildServiceProvider();
-
         return new ErrorHandlerMiddleware(
             next,
-            services.GetRequiredService<IServiceScopeFactory>(),
             Mock.Of<ILogger<ErrorHandlerMiddleware>>());
     }
 

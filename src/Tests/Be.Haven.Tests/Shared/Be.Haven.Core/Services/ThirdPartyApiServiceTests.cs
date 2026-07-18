@@ -48,8 +48,11 @@ public sealed class ThirdPartyApiServiceTests
         var action = () => sut.HandleApiData(request);
 
         // Assert
-        await action.Should().ThrowAsync<HttpStatusCodeException>()
-            .Where(x => x.StatusCode == (int)HttpStatusCode.BadGateway);
+        var exception = await action.Should().ThrowAsync<HttpStatusCodeException>();
+
+        exception.Which.StatusCode.Should().Be((int)HttpStatusCode.BadGateway);
+        exception.Which.Message.Should().Be(THIRD_PARTY_SERVICE_ERROR);
+        exception.Which.Message.Should().NotContain("failed");
     }
 
     [Fact]
@@ -103,8 +106,11 @@ public sealed class ThirdPartyApiServiceTests
         var action = () => sut.HandleApiData<BaseThirdPartyApiRequest, CoreSerializationModel>(request);
 
         // Assert
-        await action.Should().ThrowAsync<HttpStatusCodeException>()
-            .Where(x => x.StatusCode == StatusCodes.Status400BadRequest);
+        var exception = await action.Should().ThrowAsync<HttpStatusCodeException>();
+
+        exception.Which.StatusCode.Should().Be(StatusCodes.Status400BadRequest);
+        exception.Which.Message.Should().Be(THIRD_PARTY_SERVICE_ERROR);
+        exception.Which.Message.Should().NotContain("failed");
     }
 
     [Fact]

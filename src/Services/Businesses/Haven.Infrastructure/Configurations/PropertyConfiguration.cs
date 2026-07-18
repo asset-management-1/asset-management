@@ -33,6 +33,14 @@ public class PropertyConfiguration : IEntityTypeConfiguration<Property>
         entity.HasIndex(x => x.PublicId).IsUnique();
         entity.HasIndex(x => x.Name)
             .HasFilter("\"IsDeleted\" = FALSE");
+        entity.HasIndex(x => x.Name, "IX_Asset_Properties_Name_Trgm")
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasFilter("\"IsDeleted\" = FALSE");
+        entity.HasIndex(x => x.FormattedAddress, "IX_Asset_Properties_FormattedAddress_Trgm")
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasFilter("\"FormattedAddress\" IS NOT NULL AND \"IsDeleted\" = FALSE");
         entity.HasIndex(x => new { x.ProvinceId, x.DistrictId, x.WardId })
             .HasFilter("\"IsDeleted\" = FALSE");
         entity.HasIndex(x => new { x.StatusId, x.IsPublished })

@@ -6,7 +6,7 @@ namespace Haven.Infrastructure.Configurations;
 public class UserPartyConfiguration : IEntityTypeConfiguration<UserParty>
 {
     /// <summary>
-    /// Applies the EF Core table, property, relationship, and index mapping.
+    /// Applies the User-Party relationship, audit defaults, and permanent uniqueness constraint.
     /// </summary>
     /// <param name="entity">The entity type builder.</param>
     public void Configure(EntityTypeBuilder<UserParty> entity)
@@ -29,8 +29,6 @@ public class UserPartyConfiguration : IEntityTypeConfiguration<UserParty>
             .OnDelete(DeleteBehavior.Restrict);
 
         entity.HasIndex(x => x.PublicId).IsUnique();
-        entity.HasIndex(x => new { x.UserId, x.PartyId })
-            .IsUnique()
-            .HasFilter("\"IsDeleted\" = FALSE");
+        entity.HasIndex(x => new { x.UserId, x.PartyId }).IsUnique();
     }
 }

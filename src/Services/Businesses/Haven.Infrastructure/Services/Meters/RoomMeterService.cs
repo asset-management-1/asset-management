@@ -20,7 +20,7 @@ public sealed class RoomMeterService : IRoomMeterService
     /// <param name="repositories">The repositories for room meters and invoice utility persistence.</param>
     /// <param name="masterDataService">The exact master-data resolver used by utility mutations.</param>
     /// <param name="unitOfWork">The transaction boundary shared by meters, evidence, and invoices.</param>
-    /// <param name="distributedLockService">The lock service that serialises one room and month.</param>
+    /// <param name="distributedLockService">The lock service that serializes one room and month.</param>
     /// <param name="objectStorageService">The object-storage service used for post-transaction clean-up.</param>
     /// <param name="storageOptions">The configured meter object prefix and public URL.</param>
     /// <param name="logger">The structured utility workflow logger.</param>
@@ -163,10 +163,10 @@ public sealed class RoomMeterService : IRoomMeterService
 
         try
         {
-            // Serialise the room-period mutation only after external uploads have completed.
+            // Serialize the room-period mutation only after external uploads have completed.
             await using var lockHandle = await _distributedLockService.TryAcquireAsync(
                 lockKey,
-                TimeSpan.FromSeconds(UTILITY_LOCK_SECONDS),
+                TimeSpan.FromSeconds(METER_LOCK_LEASE_SECONDS),
                 cancellationToken) ?? throw new ApiException(
                     ApplicationErrorConstants.MeterErrors.ERROR_METER_LOCKED,
                     BAD_REQUEST);
@@ -859,6 +859,7 @@ public sealed class RoomMeterService : IRoomMeterService
         }
 
         var blocked = invoice.PaidAmount > 0
+                      || invoice.HasSuccessfulPayment
                       || invoice.StatusCode is MASTER_CODE_INVOICE_STATUS_PARTIALLY_PAID or MASTER_CODE_INVOICE_STATUS_PAID;
         string actionCode;
         if (blocked)

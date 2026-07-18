@@ -1,7 +1,7 @@
 namespace Haven.Infrastructure.Models.Tenants;
 
 /// <summary>
-/// Carries the scoped room, tenant, lookup, and one-time token state for one pending room join.
+/// Carries the scoped room, tenant, and lookup state for one pending room join.
 /// </summary>
 public class TenantJoinPendingOccupancyContextModel
 {
@@ -25,13 +25,4 @@ public class TenantJoinPendingOccupancyContextModel
     /// </summary>
     public TenantMasterDataContextModel Lookups { get; set; }
 
-    /// <summary>
-    /// Gets or sets the cache key consumed by this join mutation.
-    /// </summary>
-    public string CacheKey { get; set; }
-
-    /// <summary>
-    /// Gets or sets the cached payload retained for bounded pre-commit restoration.
-    /// </summary>
-    public TenantJoinPayloadModel Payload { get; set; }
 }

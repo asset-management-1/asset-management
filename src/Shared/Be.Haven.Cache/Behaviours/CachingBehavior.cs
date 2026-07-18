@@ -86,7 +86,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         var cacheScope = ResolveCacheScope(message);
         if (await _cacheBypassService.ShouldBypassAsync(message.CacheKey, cacheScope, cancellationToken))
         {
-            _logger.LogWarning(CacheLogs.CACHE_SCOPE_BYPASSED_AFTER_INVALIDATION_FAILURE, message.CacheKey, cacheScope);
+            _logger.LogWarning(CacheLogs.CACHE_SCOPE_BYPASSED_AFTER_INVALIDATION_FAILURE);
             return await next(message, cancellationToken);
         }
 
@@ -98,7 +98,7 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, CacheLogs.CACHE_VERSION_READ_BYPASSED, typeof(TRequest).Name, message.CacheKey, cacheScope);
+            _logger.LogWarning(ex, CacheLogs.CACHE_VERSION_READ_BYPASSED, typeof(TRequest).Name);
             return await next(message, cancellationToken);
         }
 
@@ -112,15 +112,13 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, CacheLogs.CACHE_READ_BYPASSED, typeof(TRequest).Name, key);
+            _logger.LogWarning(ex, CacheLogs.CACHE_READ_BYPASSED, typeof(TRequest).Name);
             return await next(message, cancellationToken);
         }
 
         if (cached is not null)
         {
-            _logger.LogInformation(
-                FETCHED_FROM_CACHE,
-                key);
+            _logger.LogInformation(CacheLogs.CACHE_VALUE_FETCHED);
 
             return _serializer.Deserialize<TResponse>(Encoding.UTF8.GetString(cached));
         }
@@ -128,7 +126,9 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
         // 2) Cache miss -> execute handler (DB / external calls)
         _logger.LogDebug(
             CacheLogs.LOG_CACHE_MISS,
-            typeof(TRequest).Name, key, epoch, ver);
+            typeof(TRequest).Name,
+            epoch,
+            ver);
 
         var response = await next(message, cancellationToken);
 
@@ -149,13 +149,11 @@ public class CachingBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, 
                 },
                 cancellationToken);
 
-            _logger.LogInformation(
-                ADDED_TO_CACHE,
-                key);
+            _logger.LogInformation(CacheLogs.CACHE_VALUE_ADDED);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, CacheLogs.CACHE_WRITE_SKIPPED, typeof(TRequest).Name, key);
+            _logger.LogWarning(ex, CacheLogs.CACHE_WRITE_SKIPPED, typeof(TRequest).Name);
         }
 
         return response;

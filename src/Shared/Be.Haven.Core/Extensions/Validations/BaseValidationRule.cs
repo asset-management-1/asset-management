@@ -17,7 +17,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, string> Required<T>(
         this IRuleBuilder<T, string> r,
-        string customMessage = ValidationMessage.REQUIRED)
+        string customMessage = REQUIRED)
     {
         return r.NotEmpty()
                 .Must(s => !string.IsNullOrWhiteSpace(s))
@@ -32,7 +32,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TProp> Required<T, TProp>(
         this IRuleBuilder<T, TProp> r,
-        string customMessage = ValidationMessage.REQUIRED)
+        string customMessage = REQUIRED)
         where TProp : class =>
         r.NotNull().WithMessage(customMessage);
 
@@ -44,7 +44,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TProp?> Required<T, TProp>(
         this IRuleBuilder<T, TProp?> r,
-        string customMessage = ValidationMessage.REQUIRED)
+        string customMessage = REQUIRED)
         where TProp : struct =>
         r.NotNull().WithMessage(customMessage);
 
@@ -55,7 +55,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, Guid> RequiredGuid<T>(
         this IRuleBuilder<T, Guid> r,
-        string customMessage = ValidationMessage.REQUIRED) =>
+        string customMessage = REQUIRED) =>
         r.Must(g => g != Guid.Empty).WithMessage(customMessage);
 
     /// <summary>Validates a value-type property is not its default value.</summary>
@@ -66,7 +66,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TStruct> NotDefault<T, TStruct>(
         this IRuleBuilder<T, TStruct> r,
-        string customMessage = ValidationMessage.NOT_DEFAULT)
+        string customMessage = NOT_DEFAULT)
         where TStruct : struct =>
         r.Must(v => !v.Equals(default(TStruct))).WithMessage(customMessage);
 
@@ -78,7 +78,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TStruct?> NotDefaultWhenPresent<T, TStruct>(
         this IRuleBuilder<T, TStruct?> r,
-        string customMessage = ValidationMessage.NOT_DEFAULT)
+        string customMessage = NOT_DEFAULT)
         where TStruct : struct =>
         r.Must(v => !v.HasValue || !v.Value.Equals(default(TStruct))).WithMessage(customMessage);
 
@@ -92,7 +92,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, string> MaxLen<T>(
         this IRuleBuilder<T, string> r, int max,
-        string customMessage = ValidationMessage.MAX_LENGTH) =>
+        string customMessage = MAX_LENGTH) =>
         r.MaximumLength(max).WithMessage(customMessage);
 
     /// <summary>Validates a string has length ≥ <paramref name="min"/>.</summary>
@@ -103,7 +103,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, string> MinLen<T>(
         this IRuleBuilder<T, string> r, int min,
-        string customMessage = ValidationMessage.MIN_LENGTH) =>
+        string customMessage = MIN_LENGTH) =>
         r.MinimumLength(min).WithMessage(customMessage);
 
     /// <summary>Validates a string length lies within <c>[</c><paramref name="min"/>, <paramref name="max"/><c>]</c>.</summary>
@@ -115,7 +115,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, string> BetweenLen<T>(
         this IRuleBuilder<T, string> r, int min, int max,
-        string customMessage = ValidationMessage.LENGTH_BETWEEN) =>
+        string customMessage = LENGTH_BETWEEN) =>
         r.Length(min, max).WithMessage(customMessage);
 
     /// <summary>Validates a string is a syntactically valid email address.</summary>
@@ -125,8 +125,22 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, string> EmailFormat<T>(
         this IRuleBuilder<T, string> r,
-        string customMessage = ValidationMessage.INVALID_EMAIL) =>
+        string customMessage = INVALID_EMAIL) =>
         r.EmailAddress().WithMessage(customMessage);
+
+    /// <summary>
+    /// Validates a canonical E.164 phone number without applying country-specific transformations.
+    /// </summary>
+    /// <typeparam name="T">The model type being validated.</typeparam>
+    /// <param name="r">The rule builder for the phone-number property.</param>
+    /// <param name="customMessage">The error message used when validation fails.</param>
+    /// <returns>The configured rule builder options.</returns>
+    public static IRuleBuilderOptions<T, string> E164PhoneNumber<T>(
+        this IRuleBuilder<T, string> r,
+        string customMessage = INVALID_PHONE_NUMBER)
+    {
+        return r.Matches(ValidationPattern.E164_PHONE_NUMBER).WithMessage(customMessage);
+    }
 
     /// <summary>Validates a string is a well-formed absolute URL.</summary>
     /// <typeparam name="T">The model type being validated.</typeparam>
@@ -135,7 +149,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, string> AbsoluteUrl<T>(
         this IRuleBuilder<T, string> r,
-        string customMessage = ValidationMessage.INVALID_ABSOLUTE_URL) =>
+        string customMessage = INVALID_ABSOLUTE_URL) =>
         r.Must(u => Uri.IsWellFormedUriString(u, UriKind.Absolute)).WithMessage(customMessage);
 
     /// <summary>
@@ -149,7 +163,7 @@ public static class BaseValidationRule
     public static IRuleBuilderOptions<T, string> MatchesRegex<T>(
         this IRuleBuilder<T, string> r,
         string pattern,
-        string customMessage = ValidationMessage.INVALID_FORMAT)
+        string customMessage = INVALID_FORMAT)
     {
         if (string.IsNullOrEmpty(pattern))
             return r.Must(_ => false).WithMessage(customMessage);
@@ -262,8 +276,8 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, IEnumerable<TItem>> NotEmptyCollection<T, TItem>(
         this IRuleBuilder<T, IEnumerable<TItem>> r,
-        string requiredMessage = ValidationMessage.REQUIRED,
-        string emptyMessage = ValidationMessage.COLLECTION_MUST_CONTAIN_ITEM)
+        string requiredMessage = REQUIRED,
+        string emptyMessage = COLLECTION_MUST_CONTAIN_ITEM)
     {
         return r.NotNull().WithMessage(requiredMessage)
                 .Must(c => c is not null && c.Any())
@@ -279,8 +293,8 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TCollection> NotEmptyCollection<T, TCollection>(
         this IRuleBuilder<T, TCollection> r,
-        string requiredMessage = ValidationMessage.REQUIRED,
-        string emptyMessage = ValidationMessage.COLLECTION_MUST_CONTAIN_ITEM)
+        string requiredMessage = REQUIRED,
+        string emptyMessage = COLLECTION_MUST_CONTAIN_ITEM)
         where TCollection : IEnumerable
     {
         return r.NotNull().WithMessage(requiredMessage)
@@ -298,7 +312,7 @@ public static class BaseValidationRule
     public static IRuleBuilderOptions<T, TCollection> MaxCount<T, TCollection>(
         this IRuleBuilder<T, TCollection> r,
         int max,
-        string customMessage = ValidationMessage.MAX_LENGTH)
+        string customMessage = MAX_LENGTH)
         where TCollection : IEnumerable
     {
         ArgumentOutOfRangeException.ThrowIfNegative(max);
@@ -318,7 +332,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TEnum> ValidEnum<T, TEnum>(
         this IRuleBuilder<T, TEnum> r,
-        string customMessage = ValidationMessage.ENUM_INVALID)
+        string customMessage = ENUM_INVALID)
         where TEnum : struct, Enum =>
         r.IsInEnum().WithMessage(customMessage);
 
@@ -327,7 +341,7 @@ public static class BaseValidationRule
     /// </summary>
     public static IRuleBuilderOptions<T, TEnum?> ValidEnum<T, TEnum>(
         this IRuleBuilder<T, TEnum?> ruleBuilder,
-        string customMessage = ValidationMessage.ENUM_INVALID)
+        string customMessage = ENUM_INVALID)
         where TEnum : struct, Enum =>
         ruleBuilder
             .Must(value => !value.HasValue || Enum.IsDefined(typeof(TEnum), value.Value))
@@ -372,7 +386,7 @@ public static class BaseValidationRule
 
                    return true;
                })
-               .WithMessage(customMessage ?? ValidationMessage.ENUM_INVALID);
+               .WithMessage(customMessage ?? ENUM_INVALID);
     }
 
     // Compare two properties (IComparable)
@@ -386,7 +400,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TProp> GreaterThanProp<T, TProp>(
         this IRuleBuilder<T, TProp> r, Expression<Func<T, TProp>> other,
-        string customMessage = ValidationMessage.GREATER_THAN_PROP)
+        string customMessage = GREATER_THAN_PROP)
         where TProp : IComparable<TProp>, IComparable =>
         r.GreaterThan(other).WithMessage(customMessage);
 
@@ -399,7 +413,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TProp> GreaterOrEqualProp<T, TProp>(
         this IRuleBuilder<T, TProp> r, Expression<Func<T, TProp>> other,
-        string customMessage = ValidationMessage.GREATER_OR_EQUAL_PROP)
+        string customMessage = GREATER_OR_EQUAL_PROP)
         where TProp : IComparable<TProp>, IComparable =>
         r.GreaterThanOrEqualTo(other).WithMessage(customMessage);
 
@@ -412,7 +426,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TProp> LessThanProp<T, TProp>(
         this IRuleBuilder<T, TProp> r, Expression<Func<T, TProp>> other,
-        string customMessage = ValidationMessage.LESS_THAN_PROP)
+        string customMessage = LESS_THAN_PROP)
         where TProp : IComparable<TProp>, IComparable =>
         r.LessThan(other).WithMessage(customMessage);
 
@@ -425,7 +439,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TProp> LessOrEqualProp<T, TProp>(
         this IRuleBuilder<T, TProp> r, Expression<Func<T, TProp>> other,
-        string customMessage = ValidationMessage.LESS_OR_EQUAL_PROP)
+        string customMessage = LESS_OR_EQUAL_PROP)
         where TProp : IComparable<TProp>, IComparable =>
         r.LessThanOrEqualTo(other).WithMessage(customMessage);
 
@@ -443,10 +457,10 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options, carrying <c>From</c>/<c>To</c> state.</returns>
     public static IRuleBuilderOptions<T, TProp> BetweenInclusive<T, TProp>(
         this IRuleBuilder<T, TProp> r, TProp min, TProp max,
-        string customMessage = ValidationMessage.BETWEEN_INCLUSIVE)
+        string customMessage = BETWEEN_INCLUSIVE)
         where TProp : IComparable<TProp>
     {
-        if (min.CompareTo(max) > 0) throw new ArgumentException(ValidationMessage.RANGE_GUARD_MIN_LE_MAX);
+        if (min.CompareTo(max) > 0) throw new ArgumentException(RANGE_GUARD_MIN_LE_MAX);
         return r.Must(v => v is not null && v.CompareTo(min) >= 0 && v.CompareTo(max) <= 0)
                 .WithMessage(customMessage)
                 .WithState(_ => new { From = min, To = max });
@@ -464,10 +478,10 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options, carrying <c>From</c>/<c>To</c> state.</returns>
     public static IRuleBuilderOptions<T, TProp?> BetweenInclusiveWhenPresent<T, TProp>(
         this IRuleBuilder<T, TProp?> r, TProp min, TProp max,
-        string customMessage = ValidationMessage.BETWEEN_INCLUSIVE)
+        string customMessage = BETWEEN_INCLUSIVE)
         where TProp : struct, IComparable<TProp>
     {
-        if (min.CompareTo(max) > 0) throw new ArgumentException(ValidationMessage.RANGE_GUARD_MIN_LE_MAX);
+        if (min.CompareTo(max) > 0) throw new ArgumentException(RANGE_GUARD_MIN_LE_MAX);
         return r.Must(v => !v.HasValue || (v.Value.CompareTo(min) >= 0 && v.Value.CompareTo(max) <= 0))
                 .WithMessage(customMessage)
                 .WithState(_ => new { From = min, To = max });
@@ -485,10 +499,10 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options, carrying <c>From</c>/<c>To</c> state.</returns>
     public static IRuleBuilderOptions<T, TProp> BetweenExclusive<T, TProp>(
         this IRuleBuilder<T, TProp> r, TProp min, TProp max,
-        string customMessage = ValidationMessage.BETWEEN_EXCLUSIVE)
+        string customMessage = BETWEEN_EXCLUSIVE)
         where TProp : IComparable<TProp>
     {
-        if (min.CompareTo(max) >= 0) throw new ArgumentException(ValidationMessage.RANGE_GUARD_MIN_LT_MAX);
+        if (min.CompareTo(max) >= 0) throw new ArgumentException(RANGE_GUARD_MIN_LT_MAX);
         return r.Must(v => v is not null && v.CompareTo(min) > 0 && v.CompareTo(max) < 0)
                 .WithMessage(customMessage)
                 .WithState(_ => new { From = min, To = max });
@@ -504,7 +518,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum> GreaterThanZero<T, TNum>(
         this IRuleBuilder<T, TNum> r,
-        string customMessage = ValidationMessage.GREATER_THAN_ZERO)
+        string customMessage = GREATER_THAN_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v > TNum.Zero).WithMessage(customMessage);
 
@@ -518,7 +532,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum?> GreaterThanZero<T, TNum>(
         this IRuleBuilder<T, TNum?> r,
-        string customMessage = ValidationMessage.GREATER_THAN_ZERO)
+        string customMessage = GREATER_THAN_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v is not null && v.Value > TNum.Zero).WithMessage(customMessage);
 
@@ -530,7 +544,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum?> GreaterThanZeroWhenPresent<T, TNum>(
         this IRuleBuilder<T, TNum?> r,
-        string customMessage = ValidationMessage.GREATER_THAN_ZERO)
+        string customMessage = GREATER_THAN_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => !v.HasValue || v.Value > TNum.Zero).WithMessage(customMessage);
 
@@ -542,7 +556,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum> GreaterOrEqualZero<T, TNum>(
         this IRuleBuilder<T, TNum> r,
-        string customMessage = ValidationMessage.GREATER_OR_EQUAL_ZERO)
+        string customMessage = GREATER_OR_EQUAL_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v >= TNum.Zero).WithMessage(customMessage);
 
@@ -556,7 +570,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum?> GreaterOrEqualZero<T, TNum>(
         this IRuleBuilder<T, TNum?> r,
-        string customMessage = ValidationMessage.GREATER_OR_EQUAL_ZERO)
+        string customMessage = GREATER_OR_EQUAL_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v is not null && v.Value >= TNum.Zero).WithMessage(customMessage);
 
@@ -568,7 +582,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum?> GreaterOrEqualZeroWhenPresent<T, TNum>(
         this IRuleBuilder<T, TNum?> r,
-        string customMessage = ValidationMessage.GREATER_OR_EQUAL_ZERO)
+        string customMessage = GREATER_OR_EQUAL_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => !v.HasValue || v.Value >= TNum.Zero).WithMessage(customMessage);
 
@@ -580,7 +594,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum> LessThanZero<T, TNum>(
         this IRuleBuilder<T, TNum> r,
-        string customMessage = ValidationMessage.LESS_THAN_ZERO)
+        string customMessage = LESS_THAN_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v < TNum.Zero).WithMessage(customMessage);
 
@@ -592,7 +606,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, TNum> LessOrEqualZero<T, TNum>(
         this IRuleBuilder<T, TNum> r,
-        string customMessage = ValidationMessage.LESS_OR_EQUAL_ZERO)
+        string customMessage = LESS_OR_EQUAL_ZERO)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v <= TNum.Zero).WithMessage(customMessage);
 
@@ -605,7 +619,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options, carrying <c>min</c> state.</returns>
     public static IRuleBuilderOptions<T, TNum> GreaterThanValue<T, TNum>(
         this IRuleBuilder<T, TNum> r, TNum min,
-        string customMessage = ValidationMessage.GREATER_THAN_VALUE)
+        string customMessage = GREATER_THAN_VALUE)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v > min).WithMessage(customMessage).WithState(_ => min);
 
@@ -618,7 +632,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options, carrying <c>min</c> state.</returns>
     public static IRuleBuilderOptions<T, TNum> GreaterOrEqualValue<T, TNum>(
         this IRuleBuilder<T, TNum> r, TNum min,
-        string customMessage = ValidationMessage.GREATER_OR_EQUAL_VALUE)
+        string customMessage = GREATER_OR_EQUAL_VALUE)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v >= min).WithMessage(customMessage).WithState(_ => min);
 
@@ -631,7 +645,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options, carrying <c>max</c> state.</returns>
     public static IRuleBuilderOptions<T, TNum> LessThanValue<T, TNum>(
         this IRuleBuilder<T, TNum> r, TNum max,
-        string customMessage = ValidationMessage.LESS_THAN_VALUE)
+        string customMessage = LESS_THAN_VALUE)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v < max).WithMessage(customMessage).WithState(_ => max);
 
@@ -644,7 +658,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options, carrying <c>max</c> state.</returns>
     public static IRuleBuilderOptions<T, TNum> LessOrEqualValue<T, TNum>(
         this IRuleBuilder<T, TNum> r, TNum max,
-        string customMessage = ValidationMessage.LESS_OR_EQUAL_VALUE)
+        string customMessage = LESS_OR_EQUAL_VALUE)
         where TNum : struct, INumber<TNum> =>
         r.Must(v => v <= max).WithMessage(customMessage).WithState(_ => max);
 
@@ -660,7 +674,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime> Before<T>(
         this IRuleBuilder<T, DateTime> r, Expression<Func<T, DateTime>> other,
-        string customMessage = ValidationMessage.DATE_BEFORE)
+        string customMessage = DATE_BEFORE)
     {
         var get = other.Compile();
         return r.Must((o, a) => a < get(o)).WithMessage(customMessage);
@@ -677,7 +691,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime?> Before<T>(
         this IRuleBuilder<T, DateTime?> r, Expression<Func<T, DateTime?>> other,
-        string customMessage = ValidationMessage.DATE_BEFORE)
+        string customMessage = DATE_BEFORE)
     {
         var get = other.Compile();
         return r.Must((o, a) => a.HasValue && get(o).HasValue && a.Value < get(o)!.Value)
@@ -692,7 +706,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateOnly> Before<T>(
         this IRuleBuilder<T, DateOnly> r, Expression<Func<T, DateOnly>> other,
-        string customMessage = ValidationMessage.DATE_BEFORE)
+        string customMessage = DATE_BEFORE)
     {
         var get = other.Compile();
         return r.Must((o, a) => a < get(o)).WithMessage(customMessage);
@@ -708,7 +722,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime> BeforeOrEqual<T>(
         this IRuleBuilder<T, DateTime> r, Expression<Func<T, DateTime>> other,
-        string customMessage = ValidationMessage.DATE_BEFORE_OR_EQUAL)
+        string customMessage = DATE_BEFORE_OR_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a <= get(o)).WithMessage(customMessage);
@@ -725,7 +739,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime?> BeforeOrEqual<T>(
         this IRuleBuilder<T, DateTime?> r, Expression<Func<T, DateTime?>> other,
-        string customMessage = ValidationMessage.DATE_BEFORE_OR_EQUAL)
+        string customMessage = DATE_BEFORE_OR_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a.HasValue && get(o).HasValue && a.Value <= get(o)!.Value)
@@ -740,7 +754,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateOnly> BeforeOrEqual<T>(
         this IRuleBuilder<T, DateOnly> r, Expression<Func<T, DateOnly>> other,
-        string customMessage = ValidationMessage.DATE_BEFORE_OR_EQUAL)
+        string customMessage = DATE_BEFORE_OR_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a <= get(o)).WithMessage(customMessage);
@@ -756,7 +770,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime> After<T>(
         this IRuleBuilder<T, DateTime> r, Expression<Func<T, DateTime>> other,
-        string customMessage = ValidationMessage.DATE_AFTER)
+        string customMessage = DATE_AFTER)
     {
         var get = other.Compile();
         return r.Must((o, a) => a > get(o)).WithMessage(customMessage);
@@ -773,7 +787,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime?> After<T>(
         this IRuleBuilder<T, DateTime?> r, Expression<Func<T, DateTime?>> other,
-        string customMessage = ValidationMessage.DATE_AFTER)
+        string customMessage = DATE_AFTER)
     {
         var get = other.Compile();
         return r.Must((o, a) => a.HasValue && get(o).HasValue && a.Value > get(o)!.Value)
@@ -788,7 +802,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateOnly> After<T>(
         this IRuleBuilder<T, DateOnly> r, Expression<Func<T, DateOnly>> other,
-        string customMessage = ValidationMessage.DATE_AFTER)
+        string customMessage = DATE_AFTER)
     {
         var get = other.Compile();
         return r.Must((o, a) => a > get(o)).WithMessage(customMessage);
@@ -804,7 +818,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime> AfterOrEqual<T>(
         this IRuleBuilder<T, DateTime> r, Expression<Func<T, DateTime>> other,
-        string customMessage = ValidationMessage.DATE_AFTER_OR_EQUAL)
+        string customMessage = DATE_AFTER_OR_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a >= get(o)).WithMessage(customMessage);
@@ -821,7 +835,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime?> AfterOrEqual<T>(
         this IRuleBuilder<T, DateTime?> r, Expression<Func<T, DateTime?>> other,
-        string customMessage = ValidationMessage.DATE_AFTER_OR_EQUAL)
+        string customMessage = DATE_AFTER_OR_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a.HasValue && get(o).HasValue && a.Value >= get(o)!.Value)
@@ -836,7 +850,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateOnly> AfterOrEqual<T>(
         this IRuleBuilder<T, DateOnly> r, Expression<Func<T, DateOnly>> other,
-        string customMessage = ValidationMessage.DATE_AFTER_OR_EQUAL)
+        string customMessage = DATE_AFTER_OR_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a >= get(o)).WithMessage(customMessage);
@@ -852,7 +866,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime> EqualTo<T>(
         this IRuleBuilder<T, DateTime> r, Expression<Func<T, DateTime>> other,
-        string customMessage = ValidationMessage.DATE_EQUAL)
+        string customMessage = DATE_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a == get(o)).WithMessage(customMessage);
@@ -868,7 +882,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime?> EqualTo<T>(
         this IRuleBuilder<T, DateTime?> r, Expression<Func<T, DateTime?>> other,
-        string customMessage = ValidationMessage.DATE_EQUAL)
+        string customMessage = DATE_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a.HasValue && get(o).HasValue && a.Value == get(o)!.Value)
@@ -883,7 +897,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateOnly> EqualTo<T>(
         this IRuleBuilder<T, DateOnly> r, Expression<Func<T, DateOnly>> other,
-        string customMessage = ValidationMessage.DATE_EQUAL)
+        string customMessage = DATE_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a == get(o)).WithMessage(customMessage);
@@ -899,7 +913,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime> NotEqualTo<T>(
         this IRuleBuilder<T, DateTime> r, Expression<Func<T, DateTime>> other,
-        string customMessage = ValidationMessage.DATE_NOT_EQUAL)
+        string customMessage = DATE_NOT_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a != get(o)).WithMessage(customMessage);
@@ -915,7 +929,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime?> NotEqualTo<T>(
         this IRuleBuilder<T, DateTime?> r, Expression<Func<T, DateTime?>> other,
-        string customMessage = ValidationMessage.DATE_NOT_EQUAL)
+        string customMessage = DATE_NOT_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a.HasValue && get(o).HasValue && a.Value != get(o)!.Value)
@@ -930,7 +944,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateOnly> NotEqualTo<T>(
         this IRuleBuilder<T, DateOnly> r, Expression<Func<T, DateOnly>> other,
-        string customMessage = ValidationMessage.DATE_NOT_EQUAL)
+        string customMessage = DATE_NOT_EQUAL)
     {
         var get = other.Compile();
         return r.Must((o, a) => a != get(o)).WithMessage(customMessage);
@@ -945,7 +959,7 @@ public static class BaseValidationRule
     /// <returns>The configured rule builder options.</returns>
     public static IRuleBuilderOptions<T, DateTime?> AfterNow<T>(
         this IRuleBuilder<T, DateTime?> r,
-        string customMessage = ValidationMessage.DATE_AFTER_NOW)
+        string customMessage = DATE_AFTER_NOW)
     {
         return r.Must(d => d.HasValue && d.Value.Date > DateTime.UtcNow.Date)
                 .WithMessage(customMessage);

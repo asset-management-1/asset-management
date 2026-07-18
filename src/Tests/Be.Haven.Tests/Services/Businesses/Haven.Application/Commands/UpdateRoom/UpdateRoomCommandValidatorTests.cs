@@ -1,6 +1,5 @@
 using Haven.Application.Commands.UpdateRoom;
 using Haven.Application.Dtos.Rooms.Update;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Commands.UpdateRoom;
 

@@ -2,7 +2,6 @@ using Haven.Application.Commands.RestorePropertyDelete;
 using Haven.Application.Interfaces.Services;
 using Haven.Application.Models.Parties;
 using Haven.Application.Models.Properties.Delete;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Commands.RestorePropertyDelete;
 

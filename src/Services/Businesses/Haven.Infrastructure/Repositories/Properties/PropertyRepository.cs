@@ -29,10 +29,10 @@ public class PropertyRepository : GenericRepository<Property>, IPropertyReposito
     /// <returns><c>true</c> when the property code already exists.</returns>
     public Task<bool> PropertyCodeExistsAsync(string propertyCode, CancellationToken cancellationToken = default)
     {
-        // Code uniqueness is global in asset.Properties, so a simple existence check is enough.
+        // The database unique constraint includes soft-deleted properties, so generation checks the full table.
         return _havenDbContext.Properties
             .AsNoTracking()
-            .AnyAsync(x => x.PropertyCode == propertyCode && !x.IsDeleted, cancellationToken);
+            .AnyAsync(x => x.PropertyCode == propertyCode, cancellationToken);
     }
 
     /// <summary>

@@ -50,24 +50,47 @@ public static class InfrastructureQueryConstants
         WITH current_user_profile AS MATERIALIZED (
             SELECT
                 u."Id" AS "UserId",
-                u."CurrentPartyId",
+                current_session."CurrentPartyId",
                 u."FullName",
                 u."UserName",
                 u."Email",
                 u."PhoneNumber",
                 u."AvatarUrl",
                 u."DateOfBirth",
-                COALESCE(NULLIF(gender."Code", ''), gender."Name") AS "Gender",
+                gender."Code" AS "Gender",
                 current_party."DisplayName" AS "DisplayName",
-                LOWER(COALESCE(NULLIF(current_party_type."Code", ''), current_party_type."Name")) AS "CurrentContext"
+                LOWER(current_party_type."Code") AS "CurrentContext"
             FROM "identity"."Users" u
-            LEFT JOIN "core"."Parties" current_party
-                ON current_party."Id" = u."CurrentPartyId"
+            INNER JOIN "identity"."RefreshTokens" current_session
+                ON current_session."UserId" = u."Id"
+               AND current_session."SessionPublicId" = @SessionPublicId
+               AND current_session."RevokedAt" IS NULL
+               AND current_session."ExpiresAt" > NOW()
+               AND current_session."IsDeleted" = FALSE
+            INNER JOIN "identity"."UserParties" current_user_party
+                ON current_user_party."UserId" = u."Id"
+               AND current_user_party."PartyId" = current_session."CurrentPartyId"
+               AND current_user_party."IsDeleted" = FALSE
+            INNER JOIN "core"."Parties" current_party
+                ON current_party."Id" = current_user_party."PartyId"
                AND current_party."IsDeleted" = FALSE
-            LEFT JOIN "masterdata"."MasterDataValues" current_party_type
+            INNER JOIN "masterdata"."MasterDataValues" current_party_status
+                ON current_party_status."Id" = current_party."StatusId"
+               AND current_party_status."IsDeleted" = FALSE
+               AND current_party_status."IsActive" = TRUE
+               AND current_party_status."Code" = 'ACTIVE'
+            INNER JOIN "masterdata"."MasterDataTypes" current_party_status_type
+                ON current_party_status_type."Id" = current_party_status."MasterDataTypeId"
+               AND current_party_status_type."IsDeleted" = FALSE
+               AND current_party_status_type."Code" = 'PartyStatus'
+            INNER JOIN "masterdata"."MasterDataValues" current_party_type
                 ON current_party_type."Id" = current_party."PartyTypeId"
                AND current_party_type."IsDeleted" = FALSE
                AND current_party_type."IsActive" = TRUE
+            INNER JOIN "masterdata"."MasterDataTypes" current_party_type_definition
+                ON current_party_type_definition."Id" = current_party_type."MasterDataTypeId"
+               AND current_party_type_definition."IsDeleted" = FALSE
+               AND current_party_type_definition."Code" = 'PartyType'
             LEFT JOIN "masterdata"."MasterDataValues" gender
                 ON gender."Id" = u."GenderId"
                AND gender."IsDeleted" = FALSE
@@ -78,28 +101,28 @@ public static class InfrastructureQueryConstants
         lookup_values AS MATERIALIZED (
             SELECT
                 MAX(master_value."Id") FILTER (
-                    WHERE COALESCE(NULLIF(master_type."Code", ''), master_type."Name") = 'IdentifierType'
-                      AND COALESCE(NULLIF(master_value."Code", ''), master_value."Name") = 'CCCD'
+                    WHERE master_type."Code" = 'IdentifierType'
+                      AND master_value."Code" = 'CCCD'
                 ) AS "CccdIdentifierTypeId",
                 MAX(master_value."Id") FILTER (
-                    WHERE COALESCE(NULLIF(master_type."Code", ''), master_type."Name") = 'IdentifierType'
-                      AND COALESCE(NULLIF(master_value."Code", ''), master_value."Name") = 'PASSPORT'
+                    WHERE master_type."Code" = 'IdentifierType'
+                      AND master_value."Code" = 'PASSPORT'
                 ) AS "PassportIdentifierTypeId",
                 MAX(master_value."Id") FILTER (
-                    WHERE COALESCE(NULLIF(master_type."Code", ''), master_type."Name") = 'EntityType'
-                      AND COALESCE(NULLIF(master_value."Code", ''), master_value."Name") = 'PARTY'
+                    WHERE master_type."Code" = 'EntityType'
+                      AND master_value."Code" = 'PARTY'
                 ) AS "PartyEntityTypeId",
                 MAX(master_value."Id") FILTER (
-                    WHERE COALESCE(NULLIF(master_type."Code", ''), master_type."Name") = 'DocumentLinkType'
-                      AND COALESCE(NULLIF(master_value."Code", ''), master_value."Name") = 'NATIONAL_ID_SCAN'
+                    WHERE master_type."Code" = 'DocumentLinkType'
+                      AND master_value."Code" = 'NATIONAL_ID_SCAN'
                 ) AS "SingleScanLinkTypeId",
                 MAX(master_value."Id") FILTER (
-                    WHERE COALESCE(NULLIF(master_type."Code", ''), master_type."Name") = 'DocumentLinkType'
-                      AND COALESCE(NULLIF(master_value."Code", ''), master_value."Name") = 'NATIONAL_ID_FRONT_SCAN'
+                    WHERE master_type."Code" = 'DocumentLinkType'
+                      AND master_value."Code" = 'NATIONAL_ID_FRONT_SCAN'
                 ) AS "FrontLinkTypeId",
                 MAX(master_value."Id") FILTER (
-                    WHERE COALESCE(NULLIF(master_type."Code", ''), master_type."Name") = 'DocumentLinkType'
-                      AND COALESCE(NULLIF(master_value."Code", ''), master_value."Name") = 'NATIONAL_ID_BACK_SCAN'
+                    WHERE master_type."Code" = 'DocumentLinkType'
+                      AND master_value."Code" = 'NATIONAL_ID_BACK_SCAN'
                 ) AS "BackLinkTypeId"
             FROM "masterdata"."MasterDataTypes" master_type
             INNER JOIN "masterdata"."MasterDataValues" master_value
@@ -107,12 +130,12 @@ public static class InfrastructureQueryConstants
                AND master_value."IsDeleted" = FALSE
                AND master_value."IsActive" = TRUE
             WHERE master_type."IsDeleted" = FALSE
-              AND COALESCE(NULLIF(master_type."Code", ''), master_type."Name") IN (
+              AND master_type."Code" IN (
                   'IdentifierType',
                   'EntityType',
                   'DocumentLinkType'
               )
-              AND COALESCE(NULLIF(master_value."Code", ''), master_value."Name") IN (
+              AND master_value."Code" IN (
                   'CCCD',
                   'PASSPORT',
                   'PARTY',
@@ -127,10 +150,6 @@ public static class InfrastructureQueryConstants
             INNER JOIN "identity"."UserParties" user_party
                 ON user_party."UserId" = current_user_profile."UserId"
                AND user_party."IsDeleted" = FALSE
-            UNION
-            SELECT current_user_profile."CurrentPartyId"
-            FROM current_user_profile
-            WHERE current_user_profile."CurrentPartyId" IS NOT NULL
         )
         SELECT
             current_user_profile."FullName",
@@ -156,8 +175,8 @@ public static class InfrastructureQueryConstants
         LEFT JOIN LATERAL (
             SELECT
                 TRUE AS "IsSubmitted",
-                COALESCE(NULLIF(kyc_status."Code", ''), kyc_status."Name") AS "Status",
-                COALESCE(NULLIF(identifier_type."Code", ''), identifier_type."Name") AS "IdentifierType",
+                kyc_status."Code" AS "Status",
+                identifier_type."Code" AS "IdentifierType",
                 identifier_type."Name" AS "IdentifierTypeDisplayName",
                 CASE
                     WHEN party_identifier."IdentifierValue" IS NULL THEN NULL
@@ -214,7 +233,7 @@ public static class InfrastructureQueryConstants
               AND party_identifier."IsDeleted" = FALSE
             ORDER BY
                 CASE
-                    WHEN COALESCE(NULLIF(kyc_status."Code", ''), kyc_status."Name") IN ('PENDING', 'APPROVED') THEN 0
+                    WHEN kyc_status."Code" IN ('PENDING', 'APPROVED') THEN 0
                     ELSE 1
                 END,
                 CASE WHEN party_identifier."PartyId" = current_user_profile."CurrentPartyId" THEN 0 ELSE 1 END,
@@ -226,15 +245,28 @@ public static class InfrastructureQueryConstants
             SELECT COALESCE(jsonb_agg(context_value."Value" ORDER BY context_value."Value"), '[]'::jsonb)::text AS "JsonValue"
             FROM (
                 SELECT DISTINCT
-                    LOWER(COALESCE(NULLIF(party_type."Code", ''), party_type."Name")) AS "Value"
+                    LOWER(party_type."Code") AS "Value"
                 FROM "identity"."UserParties" user_party
                 INNER JOIN "core"."Parties" party
                     ON party."Id" = user_party."PartyId"
                    AND party."IsDeleted" = FALSE
+                INNER JOIN "masterdata"."MasterDataValues" party_status
+                    ON party_status."Id" = party."StatusId"
+                   AND party_status."IsDeleted" = FALSE
+                   AND party_status."IsActive" = TRUE
+                   AND party_status."Code" = 'ACTIVE'
+                INNER JOIN "masterdata"."MasterDataTypes" party_status_type
+                    ON party_status_type."Id" = party_status."MasterDataTypeId"
+                   AND party_status_type."IsDeleted" = FALSE
+                   AND party_status_type."Code" = 'PartyStatus'
                 INNER JOIN "masterdata"."MasterDataValues" party_type
                     ON party_type."Id" = party."PartyTypeId"
                    AND party_type."IsDeleted" = FALSE
                    AND party_type."IsActive" = TRUE
+                INNER JOIN "masterdata"."MasterDataTypes" party_type_definition
+                    ON party_type_definition."Id" = party_type."MasterDataTypeId"
+                   AND party_type_definition."IsDeleted" = FALSE
+                   AND party_type_definition."Code" = 'PartyType'
                 WHERE user_party."UserId" = current_user_profile."UserId"
                   AND user_party."IsDeleted" = FALSE
             ) context_value

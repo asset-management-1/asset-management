@@ -1,144 +1,99 @@
 namespace Be.Haven.Core.Jobs;
 
 /// <summary>
-/// Base Quartz job that provides:
-/// 1) Configuration-based enable/disable.
-/// 2) Optional distributed locking (to prevent the same job from running concurrently across multiple instances).
-/// 3) A consistent logging pattern using <see cref="ILoggerFactory"/> (Sonar-friendly).
-///
-/// Derived jobs only need to:
-/// - Provide <see cref="ConfigKey"/> (matches the key in configuration and attribute key if you use it).
-/// - Implement <see cref="ExecuteInternalAsync"/> for the actual job logic.
+/// Provides configuration, distributed locking, tracing, and logging for Quartz jobs.
 /// </summary>
 public abstract class BaseQuartzJob : IJob
 {
-    private readonly IDistributedLockService _lock;
-    private readonly IOptionsMonitor<QuartzJobsOptions> _jobs;
-
-    protected ILogger Logger { get; }
+    private readonly IDistributedLockService _lockService;
+    private readonly ILogger _logger;
+    private readonly IOptionsMonitor<QuartzJobsOptions> _options;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="BaseQuartzJob"/> class.
+    /// Creates the shared Quartz job workflow.
     /// </summary>
-    /// <param name="loggerFactory">Factory used to create a logger for the runtime job type (avoids Sonar warnings).</param>
-    /// <param name="jobs">Options monitor holding Quartz job scheduling configuration.</param>
-    /// <param name="lockService">
-    /// Optional distributed lock service. If provided and <see cref="UseDistributedLock"/> is true,
-    /// the job will run only when a lock can be acquired.
-    /// </param>
+    /// <param name="loggerFactory">The factory used to create a logger for the concrete job.</param>
+    /// <param name="options">The monitor containing scheduling and lock settings.</param>
+    /// <param name="lockService">The optional provider used to coordinate execution across instances.</param>
     protected BaseQuartzJob(
         ILoggerFactory loggerFactory,
-        IOptionsMonitor<QuartzJobsOptions> jobs,
+        IOptionsMonitor<QuartzJobsOptions> options,
         IDistributedLockService lockService = null)
     {
-        Logger = loggerFactory.CreateLogger(GetType());
-        _jobs = jobs;
-        _lock = lockService;
+        _logger = loggerFactory.CreateLogger(GetType());
+        _options = options;
+        _lockService = lockService;
     }
 
     /// <summary>
-    /// The configuration key for this job (must match QuartzJobsOptions.Jobs[ConfigKey]).
+    /// Gets the key used to resolve this job from <see cref="QuartzJobsOptions"/>.
     /// </summary>
     protected abstract string ConfigKey { get; }
 
     /// <summary>
-    /// Enables/disables distributed locking for this job.
-    /// Default is true to prevent multi-instance duplicate execution.
+    /// Gets a value indicating whether this job requires cross-instance locking.
     /// </summary>
     protected virtual bool UseDistributedLock => true;
 
     /// <summary>
-    /// The distributed lock key used in Redis (or another lock provider).
-    /// ServicePrefix avoids lock key collisions across different microservices.
+    /// Gets the namespaced lock key for this job.
     /// </summary>
-    protected virtual string LockKey => $"quartz:{_jobs.CurrentValue.ServicePrefix}:{ConfigKey}";
+    protected virtual string LockKey => $"quartz:{_options.CurrentValue.ServicePrefix}:{ConfigKey}";
 
     /// <summary>
-    /// Default lock TTL to avoid stale locks in case an instance crashes.
-    /// Can be overridden or configured via QuartzJobConfigOptions.LockTtlSeconds.
+    /// Gets the fallback lease used when the job has no configured lease duration.
     /// </summary>
-    protected virtual TimeSpan DefaultLockTtl => TimeSpan.FromMinutes(5);
+    protected virtual TimeSpan DefaultLockLeaseDuration => TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Reads the job configuration from options. Returns null if not found.
+    /// Gets the current configuration for the concrete job when one has been registered.
     /// </summary>
-    private QuartzJobConfigOptions Config =>
-        _jobs.CurrentValue.Jobs.TryGetValue(ConfigKey, out var cfg) ? cfg : null;
+    private QuartzJobConfigOptions Configuration =>
+        _options.CurrentValue.Jobs.TryGetValue(ConfigKey, out var configuration)
+            ? configuration
+            : null;
 
     /// <summary>
-    /// Resolves the lock TTL from configuration. Falls back to <see cref="DefaultLockTtl"/>.
+    /// Executes the business work implemented by the concrete job.
     /// </summary>
-    private TimeSpan ResolveLockTtl()
-        => Config?.LockTtlSeconds is > 0
-            ? TimeSpan.FromSeconds(Config.LockTtlSeconds.Value)
-            : DefaultLockTtl;
+    /// <param name="context">The current Quartz execution context.</param>
+    /// <param name="cancellationToken">The token used to cancel the job.</param>
+    /// <returns>A task representing the job operation.</returns>
+    protected abstract Task ExecuteInternalAsync(
+        IJobExecutionContext context,
+        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Resolves the lock wait timeout from configuration.
-    /// 0 means "try once" and skip immediately if lock is held.
+    /// Executes one configured and optionally locked Quartz job invocation.
     /// </summary>
-    private TimeSpan ResolveLockWaitTimeout()
-        => Config?.LockWaitSeconds is > 0
-            ? TimeSpan.FromSeconds(Config.LockWaitSeconds.Value)
-            : DEFAULT_LOCK_WAIT_TIMEOUT;
-
-    /// <summary>
-    /// Resolves the lock polling delay from configuration.
-    /// Used only when <see cref="ResolveLockWaitTimeout"/> is greater than 0.
-    /// </summary>
-    private TimeSpan ResolveLockPollDelay()
-        => Config?.LockPollSeconds is > 0
-            ? TimeSpan.FromSeconds(Config.LockPollSeconds.Value)
-            : DEFAULT_LOCK_POLL_DELAY;
-
-    /// <summary>
-    /// Derived jobs implement their actual work here.
-    /// </summary>
-    /// <param name="context">Provides context information about the current job execution.</param>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task that represents the asynchronous operation.</returns>
-    protected abstract Task ExecuteInternalAsync(IJobExecutionContext context, CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Quartz entrypoint. Applies:
-    /// - Config enable/disable
-    /// - Optional distributed lock
-    /// - Then executes job logic
-    /// </summary>
-    /// <param name="context">
-    /// The execution context provided by Quartz, containing details about the job execution and a
-    /// cancellation token to handle task cancellation.
-    /// </param>
-    /// <returns>
-    /// A task that represents the asynchronous operation of executing the job.
-    /// </returns>
+    /// <param name="context">The current Quartz execution context.</param>
+    /// <returns>A task representing the complete job invocation.</returns>
     public async Task Execute(IJobExecutionContext context)
     {
-        var cfg = Config;
+        // Step 1: Resolve the concrete job configuration before creating trace or lock state.
+        var configuration = Configuration;
 
-        // 1) Job disabled via configuration → skip execution
-        if (cfg is not null && !cfg.Enabled)
+        if (configuration is not null && !configuration.Enabled)
         {
-            Logger.LogInformation(QuartzLogs.LOG_JOB_DISABLED_BY_CONFIGURATION, ConfigKey);
+            _logger.LogInformation(QuartzLogs.LOG_JOB_DISABLED_BY_CONFIGURATION, ConfigKey);
             return;
         }
 
-        var ct = context.CancellationToken;
+        var cancellationToken = context.CancellationToken;
         var correlationId = Guid.NewGuid().ToString("D");
-        var currentActivity = Activity.Current;
 
+        // Step 2: Attach one correlation identifier to the complete scheduled invocation.
         using (LogContext.PushProperty(CORRELATION_ID_PROPERTY, correlationId))
         {
-            // Attach correlationId to OpenTelemetry trace (for distributed tracing)
-            currentActivity?.SetTag(OTEL_CORRELATION_ID_TAG, correlationId);
-            currentActivity?.AddBaggage(OTEL_CORRELATION_ID_TAG, correlationId);
+            Activity.Current?.SetTag(OTEL_CORRELATION_ID_TAG, correlationId);
+            Activity.Current?.AddBaggage(OTEL_CORRELATION_ID_TAG, correlationId);
 
             var lockKey = LockKey;
-            var ttl = ResolveLockTtl();
-            IAsyncDisposable handle = null;
+            var leaseDuration = ResolveLockLeaseDuration(configuration);
+            var waitTimeout = ResolveLockWaitTimeout(configuration);
+            var pollDelay = ResolveLockPollDelay(configuration);
 
-            // 2) Job triggered by scheduler
-            Logger.LogInformation(
+            _logger.LogInformation(
                 QuartzLogs.LOG_JOB_EXECUTION_REQUESTED,
                 ConfigKey,
                 Environment.MachineName,
@@ -146,13 +101,17 @@ public abstract class BaseQuartzJob : IJob
 
             try
             {
-                // 3) Try acquire distributed lock
-                handle = await AcquireLockAsync(lockKey, ttl, ct);
+                // Step 3: Acquire the job lock before delegated work can observe or mutate shared state.
+                var lockHandle = await AcquireLockAsync(
+                    lockKey,
+                    leaseDuration,
+                    waitTimeout,
+                    pollDelay,
+                    cancellationToken);
 
-                // 4) Lock not acquired → another pod is running → skip
-                if (UseDistributedLock && _lock is not null && handle is null)
+                if (UseDistributedLock && lockHandle is null)
                 {
-                    Logger.LogInformation(
+                    _logger.LogInformation(
                         QuartzLogs.LOG_JOB_SKIPPED_LOCK_HELD,
                         ConfigKey,
                         Environment.MachineName,
@@ -160,149 +119,149 @@ public abstract class BaseQuartzJob : IJob
                     return;
                 }
 
-                // 5) Lock acquired → this pod will execute the job
-                Logger.LogInformation(
-                    QuartzLogs.LOG_JOB_LOCK_ACQUIRED,
-                    ConfigKey,
-                    Environment.MachineName,
-                    lockKey);
+                await using (lockHandle)
+                {
+                    if (UseDistributedLock)
+                    {
+                        _logger.LogInformation(
+                            QuartzLogs.LOG_JOB_LOCK_ACQUIRED,
+                            ConfigKey,
+                            Environment.MachineName,
+                            lockKey);
+                    }
 
-                // 6) Execute actual job logic
-                await ExecuteInternalAsync(context, ct);
+                    // Step 4: Run the concrete job while the acquired handle remains in scope.
+                    await ExecuteInternalAsync(context, cancellationToken);
 
-                // 7) Job completed successfully
-                Logger.LogInformation(
-                    QuartzLogs.LOG_JOB_EXECUTION_COMPLETED,
-                    ConfigKey,
-                    Environment.MachineName);
+                    _logger.LogInformation(
+                        QuartzLogs.LOG_JOB_EXECUTION_COMPLETED,
+                        ConfigKey,
+                        Environment.MachineName);
+                }
             }
-
-            // 8) App shutdown → cancellation is expected (not an error)
-            catch (OperationCanceledException ex) when (ct.IsCancellationRequested)
+            catch (OperationCanceledException exception) when (cancellationToken.IsCancellationRequested)
             {
-                Logger.LogInformation(
-                    ex,
+                // Step 5a: Treat host shutdown cancellation as an expected lifecycle outcome.
+                _logger.LogInformation(
+                    exception,
                     QuartzLogs.LOG_JOB_CANCELLED_DURING_SHUTDOWN,
                     ConfigKey,
                     Environment.MachineName);
             }
-
-            // 9) Unexpected error → log + rethrow (Quartz will mark job failed)
-            catch (Exception ex)
+            catch (Exception exception) when (exception is not DistributedLockUnavailableException)
             {
-                Logger.LogError(
-                    ex,
-                    QuartzLogs.LOG_JOB_EXECUTION_FAILED,
-                    ConfigKey,
-                    Environment.MachineName);
-            }
-            finally
-            {
-                // 10) Always release lock if acquired
-                if (handle is not null)
-                {
-                    await handle.DisposeAsync();
-                }
+                // Step 5b: Add job context and let Quartz record the invocation as failed.
+                throw new JobExecutionException(
+                    string.Format(
+                        CultureInfo.InvariantCulture,
+                        ErrorConstants.QuartzErrors.QUARTZ_JOB_EXECUTION_FAILED,
+                        ConfigKey,
+                        Environment.MachineName),
+                    exception);
             }
         }
     }
 
     /// <summary>
-    /// Attempts to acquire a distributed lock for this job.
-    ///
-    /// Behavior:
-    /// - If distributed locking is disabled (or lock service not registered), returns a no-op handle.
-    /// - If LockWaitTimeout is 0 (or not configured), tries once and returns the result (null => skip).
-    /// - Otherwise, repeatedly polls (TryAcquire) until:
-    ///     a) lock is acquired  -> returns handle
-    ///     b) wait timeout hit  -> returns null (caller should skip)
-    ///     c) cancellation      -> returns null
-    ///
+    /// Acquires the job lock immediately or polls within the configured wait window.
     /// </summary>
-    /// <param name="key">The unique key identifying the lock to be acquired.</param>
-    /// <param name="ttl">The time-to-live duration for the lock, after which the lock will automatically expire.</param>
-    /// <param name="ct">The cancellation token for aborting the lock acquisition process if required.</param>
-    /// <returns>
-    /// An <see cref="IAsyncDisposable"/> instance representing the lock handle if successfully acquired;
-    /// <c>null</c> if the lock could not be acquired within the allowed time window.
-    /// </returns>
-    private async Task<IAsyncDisposable> AcquireLockAsync(string key, TimeSpan ttl, CancellationToken ct)
+    /// <param name="key">The namespaced lock key.</param>
+    /// <param name="leaseDuration">The lease maintained by the provider while the handle is held.</param>
+    /// <param name="waitTimeout">The maximum time allowed for bounded lock polling.</param>
+    /// <param name="pollDelay">The delay between lock attempts while bounded polling is active.</param>
+    /// <param name="cancellationToken">The token used to cancel lock polling.</param>
+    /// <returns>The acquired handle, or <c>null</c> when locking is disabled or another owner holds the lock.</returns>
+    private async Task<IAsyncDisposable> AcquireLockAsync(
+        string key,
+        TimeSpan leaseDuration,
+        TimeSpan waitTimeout,
+        TimeSpan pollDelay,
+        CancellationToken cancellationToken)
     {
-        // 1) Distributed lock disabled → always allow execution (no-op lock)
-        if (!UseDistributedLock || _lock is null)
+        // Step 1: Skip provider acquisition when the concrete job explicitly opts out of coordination.
+        if (!UseDistributedLock)
         {
-            Logger.LogDebug(QuartzLogs.LOG_JOB_LOCK_DISABLED, key);
-            return NoopLock.Instance;
+            _logger.LogDebug(QuartzLogs.LOG_JOB_LOCK_DISABLED, key);
+            return null;
         }
 
-        var waitTimeout = ResolveLockWaitTimeout();
+        if (_lockService is null)
+        {
+            throw new DistributedLockUnavailableException(
+                new InvalidOperationException(
+                    ErrorConstants.DistributedLockErrors.DISTRIBUTED_LOCK_UNAVAILABLE));
+        }
 
-        // 2) Try-once mode (default)
-        // - No waiting
-        // - If lock is held → skip immediately (return null)
+        // Step 2: Try once by default so one busy instance does not delay the scheduler thread.
         if (waitTimeout <= TimeSpan.Zero)
         {
-            var handle = await _lock.TryAcquireAsync(key, ttl, ct);
+            var lockHandle = await _lockService.TryAcquireAsync(
+                key,
+                leaseDuration,
+                cancellationToken);
 
-            if (handle is null)
+            if (lockHandle is null)
             {
-                // Lock is already held by another pod → caller should skip job
-                Logger.LogInformation(
+                _logger.LogInformation(
                     QuartzLogs.LOG_JOB_LOCK_TRY_ONCE_FAILED,
                     key,
-                    (int)ttl.TotalSeconds);
+                    (int)leaseDuration.TotalSeconds);
             }
 
-            return handle;
+            return lockHandle;
         }
 
-        // 3) Wait mode (optional)
-        // - Poll repeatedly until:
-        //   + Lock acquired
-        //   + Timeout reached
-        //   + Cancellation requested
-        var pollDelay = ResolveLockPollDelay();
         var deadlineUtc = DateTime.UtcNow.Add(waitTimeout);
+        var attempts = 0;
 
-        Logger.LogDebug(
+        _logger.LogDebug(
             QuartzLogs.LOG_JOB_LOCK_WAITING_STARTED,
             key,
-            (int)ttl.TotalSeconds,
+            (int)leaseDuration.TotalSeconds,
             (int)waitTimeout.TotalSeconds,
             (int)pollDelay.TotalSeconds);
 
-        var attempts = 0;
-
-        while (!ct.IsCancellationRequested && DateTime.UtcNow <= deadlineUtc)
+        // Step 3: Poll only within the configured window; provider calls never wait internally on contention.
+        while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow <= deadlineUtc)
         {
             attempts++;
 
-            var handle = await _lock.TryAcquireAsync(key, ttl, ct);
+            var lockHandle = await _lockService.TryAcquireAsync(
+                key,
+                leaseDuration,
+                cancellationToken);
 
-            if (handle is not null)
+            if (lockHandle is not null)
             {
-                // Lock acquired after retry attempts
-                Logger.LogDebug(
+                _logger.LogDebug(
                     QuartzLogs.LOG_JOB_LOCK_ACQUIRED_AFTER_WAIT,
                     key,
                     attempts);
 
-                return handle;
+                return lockHandle;
             }
 
-            // Still locked → wait and retry
-            Logger.LogDebug(
+            _logger.LogDebug(
                 QuartzLogs.LOG_JOB_LOCK_WAITING_POLL,
                 key,
                 attempts);
 
-            await Task.Delay(pollDelay, ct);
+            var remainingWait = deadlineUtc - DateTime.UtcNow;
+            if (remainingWait <= TimeSpan.Zero)
+            {
+                break;
+            }
+
+            // Step 4: Cap the next delay so polling never exceeds the configured wait window.
+            await Task.Delay(
+                pollDelay < remainingWait ? pollDelay : remainingWait,
+                cancellationToken);
         }
 
-        // 4) Cancelled while waiting (e.g., app shutdown)
-        if (ct.IsCancellationRequested)
+        if (cancellationToken.IsCancellationRequested)
         {
-            Logger.LogInformation(
+            // Step 5a: Return without execution when host cancellation interrupts lock polling.
+            _logger.LogInformation(
                 QuartzLogs.LOG_JOB_LOCK_WAITING_CANCELLED,
                 key,
                 attempts);
@@ -310,8 +269,8 @@ public abstract class BaseQuartzJob : IJob
             return null;
         }
 
-        // 5) Timeout reached → still cannot acquire lock
-        Logger.LogInformation(
+        // Step 5b: Return contention after the configured wait window instead of running without ownership.
+        _logger.LogInformation(
             QuartzLogs.LOG_JOB_LOCK_WAITING_TIMEOUT,
             key,
             attempts,
@@ -321,12 +280,39 @@ public abstract class BaseQuartzJob : IJob
     }
 
     /// <summary>
-    /// No-op lock handle used when distributed locking is disabled.
-    /// Ensures the "await using" pattern always works without null checks.
+    /// Resolves the temporary lock-ownership lease for the current job.
     /// </summary>
-    private sealed class NoopLock : IAsyncDisposable
+    /// <param name="configuration">The current concrete job configuration, when registered.</param>
+    /// <returns>The configured positive lease or the job fallback lease.</returns>
+    private TimeSpan ResolveLockLeaseDuration(QuartzJobConfigOptions configuration)
     {
-        public static readonly NoopLock Instance = new();
-        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        return configuration?.LockLeaseSeconds is > 0
+            ? TimeSpan.FromSeconds(configuration.LockLeaseSeconds.Value)
+            : DefaultLockLeaseDuration;
     }
+
+    /// <summary>
+    /// Resolves how long the scheduler invocation may poll before skipping execution.
+    /// </summary>
+    /// <param name="configuration">The current concrete job configuration, when registered.</param>
+    /// <returns>The configured positive wait duration or the immediate-attempt default.</returns>
+    private static TimeSpan ResolveLockWaitTimeout(QuartzJobConfigOptions configuration)
+    {
+        return configuration?.LockWaitSeconds is > 0
+            ? TimeSpan.FromSeconds(configuration.LockWaitSeconds.Value)
+            : DEFAULT_LOCK_WAIT_TIMEOUT;
+    }
+
+    /// <summary>
+    /// Resolves the delay between lock attempts while bounded waiting is enabled.
+    /// </summary>
+    /// <param name="configuration">The current concrete job configuration, when registered.</param>
+    /// <returns>The configured positive polling delay or the shared default delay.</returns>
+    private static TimeSpan ResolveLockPollDelay(QuartzJobConfigOptions configuration)
+    {
+        return configuration?.LockPollSeconds is > 0
+            ? TimeSpan.FromSeconds(configuration.LockPollSeconds.Value)
+            : DEFAULT_LOCK_POLL_DELAY;
+    }
+
 }

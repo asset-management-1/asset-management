@@ -6,6 +6,16 @@ namespace Be.Haven.Cache.Services;
 public sealed class InMemoryCacheBypassService : ICacheBypassService
 {
     private readonly ConcurrentDictionary<string, DateTimeOffset> _bypassUntilByKey = new(StringComparer.Ordinal);
+    private readonly ILogger<InMemoryCacheBypassService> _logger;
+
+    /// <summary>
+    /// Creates process-local cache-bypass storage.
+    /// </summary>
+    /// <param name="logger">The logger used for cache-bypass diagnostics.</param>
+    public InMemoryCacheBypassService(ILogger<InMemoryCacheBypassService> logger)
+    {
+        _logger = logger;
+    }
 
     /// <summary>
     /// Marks one logical cache scope as bypass-only for the current epoch safety window.
@@ -23,6 +33,8 @@ public sealed class InMemoryCacheBypassService : ICacheBypassService
         // Store an expiry timestamp instead of only a flag so temporary cache outages self-heal.
         var key = BuildKey(cacheGroup, cacheScope);
         _bypassUntilByKey[key] = DateTimeOffset.UtcNow.Add(CacheEpochTtlHelper.GetCurrentEpochLifetime());
+
+        _logger.LogInformation(CacheLogs.CACHE_BYPASS_MARKED);
 
         return Task.CompletedTask;
     }
@@ -44,16 +56,20 @@ public sealed class InMemoryCacheBypassService : ICacheBypassService
         var key = BuildKey(cacheGroup, cacheScope);
         if (!_bypassUntilByKey.TryGetValue(key, out var bypassUntil))
         {
+            _logger.LogInformation(CacheLogs.CACHE_BYPASS_STATUS_READ, false);
             return Task.FromResult(false);
         }
 
         if (bypassUntil > DateTimeOffset.UtcNow)
         {
+            _logger.LogInformation(CacheLogs.CACHE_BYPASS_STATUS_READ, true);
             return Task.FromResult(true);
         }
 
         // Clean expired bypass markers lazily to avoid background timer complexity.
         _bypassUntilByKey.TryRemove(key, out _);
+
+        _logger.LogInformation(CacheLogs.CACHE_BYPASS_STATUS_READ, false);
         return Task.FromResult(false);
     }
 

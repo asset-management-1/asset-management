@@ -37,5 +37,9 @@ public class UnitConfiguration : IEntityTypeConfiguration<Unit>
             .HasFilter("\"IsDeleted\" = FALSE");
         entity.HasIndex(x => new { x.PropertyId, x.FloorNumber, x.StatusId })
             .HasFilter("\"IsDeleted\" = FALSE");
+        entity.HasIndex(x => x.UnitName, "IX_Asset_Units_UnitName_Trgm")
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasFilter("\"IsDeleted\" = FALSE");
     }
 }

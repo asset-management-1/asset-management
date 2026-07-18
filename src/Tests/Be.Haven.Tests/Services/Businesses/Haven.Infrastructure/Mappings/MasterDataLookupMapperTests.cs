@@ -2,7 +2,6 @@ using Haven.Application.Dtos.Rooms.Update;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Rooms.Update;
 using Haven.Infrastructure.Mappings.MasterData;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Infrastructure.Mappings;
 

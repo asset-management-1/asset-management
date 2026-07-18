@@ -15,15 +15,13 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         entity.ToTable("Users", "identity");
 
-        entity.HasIndex(e => new { e.Email, e.StatusId }, "IX_Identity_Users_Login").HasFilter(NOT_DELETED_FILTER);
+        entity.HasIndex(e => new { e.UserName, e.StatusId }, "IX_Identity_Users_Login").HasFilter(NOT_DELETED_FILTER);
 
         entity.HasIndex(e => e.PublicId, "UQ_Identity_Users_PublicId").IsUnique();
 
         entity.HasIndex(e => e.Email, "UX_Identity_Users_Email")
             .IsUnique()
             .HasFilter(EMAIL_FILTER);
-
-        entity.HasIndex(e => e.CurrentPartyId, "IX_Identity_Users_CurrentPartyId").HasFilter(CURRENT_PARTY_ID_FILTER);
 
         entity.HasIndex(e => e.GenderId, "IX_Identity_Users_GenderId").HasFilter(GENDER_ID_FILTER);
 
@@ -58,10 +56,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         entity.Property(e => e.UserName)
             .IsRequired()
             .HasMaxLength(255);
-
-        entity.HasOne(d => d.CurrentParty).WithMany()
-              .HasForeignKey(d => d.CurrentPartyId)
-              .HasConstraintName("FK_Identity_Users_CurrentPartyId");
 
         entity.HasOne(d => d.Gender).WithMany()
               .HasForeignKey(d => d.GenderId)

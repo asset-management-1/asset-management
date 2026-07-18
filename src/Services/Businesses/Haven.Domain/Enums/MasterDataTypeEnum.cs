@@ -123,5 +123,8 @@ public enum MasterDataTypeEnum
     DocumentLinkType = 27,
 
     /// <summary>Document-link status values.</summary>
-    DocumentLinkStatus = 28
+    DocumentLinkStatus = 28,
+
+    /// <summary>Payment status values.</summary>
+    PaymentStatus = 29
 }

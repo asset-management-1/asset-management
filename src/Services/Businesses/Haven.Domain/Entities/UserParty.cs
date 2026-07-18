@@ -1,7 +1,7 @@
 namespace Haven.Domain.Entities;
 
 /// <summary>
-/// Represents a link between an identity user account and a business party.
+/// Represents a permanent relationship between one identity User and one business Party.
 /// </summary>
 public class UserParty : BaseEntity
 {
@@ -16,12 +16,12 @@ public class UserParty : BaseEntity
     public User User { get; set; }
 
     /// <summary>
-    /// Gets or sets the internal party identifier.
+    /// Gets or sets the internal Party identifier.
     /// </summary>
     public long PartyId { get; set; }
 
     /// <summary>
-    /// Gets or sets the linked business party.
+    /// Gets or sets the linked business Party.
     /// </summary>
     public Party Party { get; set; }
 }

@@ -106,24 +106,64 @@ public class TenantRepository : ITenantRepository
     /// </summary>
     /// <param name="occupancyPublicId">The occupancy public identifier.</param>
     /// <param name="currentPartyId">The current landlord party identifier.</param>
+    /// <param name="activeStatusId">The active occupancy status identifier.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The occupancy graph, or <c>null</c>.</returns>
     public Task<Occupancy> GetOccupancyForMoveOutAsync(
         Guid occupancyPublicId,
         long currentPartyId,
+        long activeStatusId,
         CancellationToken cancellationToken = default)
     {
-        // Scope by property ownership without loading the full property-party collection.
+        var currentDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // Load only an active occupancy and its room so every move-out uses the shared room mutation lock.
         return _havenDbContext.Occupancies
             .Include(occupancy => occupancy.Contract)
+            .Include(occupancy => occupancy.Unit)
             .FirstOrDefaultAsync(
                 occupancy => occupancy.PublicId == occupancyPublicId
+                             && occupancy.StatusId == activeStatusId
                              && !occupancy.IsDeleted
                              && _havenDbContext.PropertyParties.Any(
                                  party => party.PropertyId == occupancy.PropertyId
                                           && party.PartyId == currentPartyId
-                                          && !party.IsDeleted),
+                                          && !party.IsDeleted
+                                          && (party.StartDate == null || party.StartDate <= currentDate)
+                                          && (party.EndDate == null || party.EndDate >= currentDate)),
                 cancellationToken);
+    }
+
+    /// <summary>
+    /// Loads the room public identifier for an active landlord-scoped occupancy.
+    /// </summary>
+    /// <param name="occupancyPublicId">The occupancy public identifier.</param>
+    /// <param name="currentPartyId">The current landlord party identifier.</param>
+    /// <param name="activeStatusId">The active occupancy status identifier.</param>
+    /// <param name="cancellationToken">The token used to cancel the query.</param>
+    /// <returns>The room public identifier, or <c>null</c>.</returns>
+    public Task<Guid?> GetMoveOutRoomPublicIdAsync(
+        Guid occupancyPublicId,
+        long currentPartyId,
+        long activeStatusId,
+        CancellationToken cancellationToken = default)
+    {
+        var currentDate = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        // This no-tracking projection selects the shared room lock without polluting the later tracked mutation query.
+        return _havenDbContext.Occupancies
+            .AsNoTracking()
+            .Where(occupancy => occupancy.PublicId == occupancyPublicId
+                                && occupancy.StatusId == activeStatusId
+                                && !occupancy.IsDeleted
+                                && _havenDbContext.PropertyParties.Any(
+                                    party => party.PropertyId == occupancy.PropertyId
+                                             && party.PartyId == currentPartyId
+                                             && !party.IsDeleted
+                                             && (party.StartDate == null || party.StartDate <= currentDate)
+                                             && (party.EndDate == null || party.EndDate >= currentDate)))
+            .Select(occupancy => (Guid?)occupancy.Unit.PublicId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <summary>
@@ -247,7 +287,7 @@ public class TenantRepository : ITenantRepository
     /// Stages a new tenant party and its account link.
     /// </summary>
     /// <param name="party">The tenant party entity.</param>
-    /// <param name="userParty">The user-party link entity.</param>
+    /// <param name="userParty">The User-Party relationship entity.</param>
     /// <param name="cancellationToken">The token used to cancel the insert.</param>
     public async Task AddTenantPartyLinkAsync(
         Party party,

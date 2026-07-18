@@ -19,4 +19,9 @@ public sealed class MeterInvoiceImpactRowModel
     /// Gets or sets the amount already paid against the invoice.
     /// </summary>
     public decimal PaidAmount { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether a successful payment is allocated to the invoice.
+    /// </summary>
+    public bool HasSuccessfulPayment { get; set; }
 }

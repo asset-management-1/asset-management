@@ -1,5 +1,3 @@
-using static Haven.Application.Constants.ApplicationConstants;
-
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Constants;
 
 public sealed class ApplicationConstantsTests

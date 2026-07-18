@@ -25,5 +25,13 @@ public class PartyConfiguration : IEntityTypeConfiguration<Party>
         entity.HasIndex(x => x.DisplayName).HasFilter("\"IsDeleted\" = FALSE");
         entity.HasIndex(x => x.PrimaryPhone).HasFilter("\"PrimaryPhone\" IS NOT NULL AND \"IsDeleted\" = FALSE");
         entity.HasIndex(x => x.PrimaryEmail).HasFilter("\"PrimaryEmail\" IS NOT NULL AND \"IsDeleted\" = FALSE");
+        entity.HasIndex(x => x.DisplayName, "IX_Core_Parties_DisplayName_Trgm")
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasFilter("\"IsDeleted\" = FALSE");
+        entity.HasIndex(x => x.PrimaryEmail, "IX_Core_Parties_PrimaryEmail_Trgm")
+            .HasMethod("gin")
+            .HasOperators("gin_trgm_ops")
+            .HasFilter("\"PrimaryEmail\" IS NOT NULL AND \"IsDeleted\" = FALSE");
     }
 }

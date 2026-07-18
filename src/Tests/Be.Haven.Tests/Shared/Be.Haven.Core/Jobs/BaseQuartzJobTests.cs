@@ -16,10 +16,25 @@ public sealed class BaseQuartzJobTests
     }
 
     [Fact]
-    public async Task Execute_Should_RunWithoutDistributedLock_When_LockServiceIsMissing()
+    public async Task Execute_Should_Throw_When_RequiredLockServiceIsMissing()
     {
         // Arrange
         var sut = CreateJob(CreateOptions(enabled: true));
+
+        // Act
+        var action = () => sut.Execute(CreateContext());
+
+        // Assert
+        await action.Should().ThrowAsync<DistributedLockUnavailableException>();
+        sut.ExecutionCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Execute_Should_RunWithoutLock_When_ConcreteJobOptsOut()
+    {
+        // Arrange
+        var sut = CreateJob(CreateOptions(enabled: true));
+        sut.RequiresDistributedLock = false;
 
         // Act
         await sut.Execute(CreateContext());
@@ -52,7 +67,7 @@ public sealed class BaseQuartzJobTests
         var handle = new FakeAsyncDisposable();
         var lockService = new FakeDistributedLockService(handle);
         var sut = CreateJob(
-            CreateOptions(enabled: true, lockTtlSeconds: 12),
+            CreateOptions(enabled: true, lockLeaseSeconds: 12),
             lockService);
 
         // Act
@@ -61,7 +76,7 @@ public sealed class BaseQuartzJobTests
         // Assert
         sut.ExecutionCount.Should().Be(1);
         lockService.LastKey.Should().Be("quartz:core-service:core-job");
-        lockService.LastTtl.Should().Be(TimeSpan.FromSeconds(12));
+        lockService.LastLeaseDuration.Should().Be(TimeSpan.FromSeconds(12));
         handle.IsDisposed.Should().BeTrue();
     }
 
@@ -74,7 +89,7 @@ public sealed class BaseQuartzJobTests
         var sut = CreateJob(
             CreateOptions(
                 enabled: true,
-                lockTtlSeconds: 12,
+                lockLeaseSeconds: 12,
                 lockWaitSeconds: 1,
                 lockPollSeconds: 1),
             lockService);
@@ -96,7 +111,7 @@ public sealed class BaseQuartzJobTests
         var sut = CreateJob(
             CreateOptions(
                 enabled: true,
-                lockTtlSeconds: 12,
+                lockLeaseSeconds: 12,
                 lockWaitSeconds: 1,
                 lockPollSeconds: 1),
             lockService);
@@ -110,6 +125,29 @@ public sealed class BaseQuartzJobTests
     }
 
     [Fact]
+    public async Task Execute_Should_NotDelayPastLockWait_When_PollDelayIsLonger()
+    {
+        // Arrange
+        var lockService = new DelayedDistributedLockService(null, acquireOnAttempt: 99);
+        var sut = CreateJob(
+            CreateOptions(
+                enabled: true,
+                lockLeaseSeconds: 12,
+                lockWaitSeconds: 1,
+                lockPollSeconds: 10),
+            lockService);
+        var stopwatch = Stopwatch.StartNew();
+
+        // Act
+        await sut.Execute(CreateContext());
+
+        // Assert
+        stopwatch.Stop();
+        sut.ExecutionCount.Should().Be(0);
+        stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromSeconds(3));
+    }
+
+    [Fact]
     public async Task Execute_Should_SkipExecution_When_LockWaitIsCancelled()
     {
         // Arrange
@@ -119,7 +157,7 @@ public sealed class BaseQuartzJobTests
         var sut = CreateJob(
             CreateOptions(
                 enabled: true,
-                lockTtlSeconds: 12,
+                lockLeaseSeconds: 12,
                 lockWaitSeconds: 1,
                 lockPollSeconds: 1),
             lockService);
@@ -133,7 +171,7 @@ public sealed class BaseQuartzJobTests
     }
 
     [Fact]
-    public async Task Execute_Should_CatchExecutionException_When_InternalJobFails()
+    public async Task Execute_Should_RethrowExecutionException_When_InternalJobFails()
     {
         // Arrange
         var handle = new FakeAsyncDisposable();
@@ -144,9 +182,11 @@ public sealed class BaseQuartzJobTests
             throwOnExecute: true);
 
         // Act
-        await sut.Execute(CreateContext());
+        var action = () => sut.Execute(CreateContext());
 
         // Assert
+        var exception = await action.Should().ThrowAsync<JobExecutionException>();
+        exception.Which.InnerException.Should().BeOfType<InvalidOperationException>();
         sut.ExecutionCount.Should().Be(1);
         handle.IsDisposed.Should().BeTrue();
     }
@@ -193,7 +233,7 @@ public sealed class BaseQuartzJobTests
 
     private static QuartzJobsOptions CreateOptions(
         bool enabled,
-        int? lockTtlSeconds = null,
+        int? lockLeaseSeconds = null,
         int? lockWaitSeconds = null,
         int? lockPollSeconds = null) =>
         new()
@@ -204,7 +244,7 @@ public sealed class BaseQuartzJobTests
                 ["core-job"] = new QuartzJobConfigOptions
                 {
                     Enabled = enabled,
-                    LockTtlSeconds = lockTtlSeconds,
+                    LockLeaseSeconds = lockLeaseSeconds,
                     LockWaitSeconds = lockWaitSeconds,
                     LockPollSeconds = lockPollSeconds
                 }
@@ -235,7 +275,11 @@ public sealed class BaseQuartzJobTests
 
         public bool ThrowOnCancel { get; set; }
 
+        public bool RequiresDistributedLock { get; set; } = true;
+
         protected override string ConfigKey => "core-job";
+
+        protected override bool UseDistributedLock => RequiresDistributedLock;
 
         protected override Task ExecuteInternalAsync(
             IJobExecutionContext context,
@@ -273,8 +317,8 @@ public sealed class BaseQuartzJobTests
 
         public Task<IAsyncDisposable> TryAcquireAsync(
             string key,
-            TimeSpan ttl,
-            CancellationToken ct)
+            TimeSpan leaseDuration,
+            CancellationToken cancellationToken)
         {
             AttemptCount++;
 

@@ -9,8 +9,6 @@ using Haven.Application.Models.RoomPackages.Update;
 using Haven.Application.Models.RoomPackages.Delete;
 using Haven.Application.Models.Rooms.QueryParameters;
 using Haven.Application.Models.Rooms.Rows;
-using Haven.Application.Mappings.RoomPackages;
-using Haven.Application.Mappings.Rooms;
 using Haven.Domain.Entities;
 using Haven.Infrastructure.Services.RoomPackages;
 using Be.Haven.Core.Interfaces.Repositories;

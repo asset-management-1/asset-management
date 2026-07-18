@@ -9,7 +9,7 @@ public sealed class InMemoryCacheBypassServiceTests
     public async Task ShouldBypassAsync_Should_ReturnFalse_When_GroupIsMissing()
     {
         // Arrange
-        var sut = new InMemoryCacheBypassService();
+        var sut = CreateSut();
 
         // Act
         var result = await sut.ShouldBypassAsync(string.Empty, "scope", CancellationToken.None);
@@ -22,7 +22,7 @@ public sealed class InMemoryCacheBypassServiceTests
     public async Task ShouldBypassAsync_Should_ReturnTrue_When_MarkerWasSet()
     {
         // Arrange
-        var sut = new InMemoryCacheBypassService();
+        var sut = CreateSut();
 
         // Act
         await sut.MarkBypassAsync("group", "user:1", CancellationToken.None);
@@ -36,7 +36,7 @@ public sealed class InMemoryCacheBypassServiceTests
     public async Task ShouldBypassAsync_Should_ReturnFalse_When_MarkerDoesNotExist()
     {
         // Arrange
-        var sut = new InMemoryCacheBypassService();
+        var sut = CreateSut();
 
         // Act
         var result = await sut.ShouldBypassAsync("group", "user:1", CancellationToken.None);
@@ -49,7 +49,7 @@ public sealed class InMemoryCacheBypassServiceTests
     public async Task ShouldBypassAsync_Should_ReturnTrue_When_UnscopedMarkerWasSet()
     {
         // Arrange
-        var sut = new InMemoryCacheBypassService();
+        var sut = CreateSut();
 
         // Act
         await sut.MarkBypassAsync("group", string.Empty, CancellationToken.None);
@@ -63,7 +63,7 @@ public sealed class InMemoryCacheBypassServiceTests
     public async Task MarkBypassAsync_Should_IgnoreBlankGroup_When_Called()
     {
         // Arrange
-        var sut = new InMemoryCacheBypassService();
+        var sut = CreateSut();
 
         // Act
         await sut.MarkBypassAsync(" ", "user:1", CancellationToken.None);
@@ -77,7 +77,7 @@ public sealed class InMemoryCacheBypassServiceTests
     public async Task ShouldBypassAsync_Should_ReturnFalseAndRemoveMarker_When_MarkerExpired()
     {
         // Arrange
-        var sut = new InMemoryCacheBypassService();
+        var sut = CreateSut();
         var registry = GetBypassRegistry(sut);
         registry["group:user:1"] = DateTimeOffset.UtcNow.AddSeconds(-1);
 
@@ -96,5 +96,10 @@ public sealed class InMemoryCacheBypassServiceTests
             BindingFlags.Instance | BindingFlags.NonPublic);
 
         return (ConcurrentDictionary<string, DateTimeOffset>)field.GetValue(sut);
+    }
+
+    private static InMemoryCacheBypassService CreateSut()
+    {
+        return new InMemoryCacheBypassService(Mock.Of<ILogger<InMemoryCacheBypassService>>());
     }
 }

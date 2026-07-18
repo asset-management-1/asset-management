@@ -46,10 +46,12 @@ public sealed class DistributedCacheBypassService : ICacheBypassService
                     AbsoluteExpirationRelativeToNow = CacheEpochTtlHelper.GetCurrentEpochLifetime()
                 },
                 cancellationToken);
+
+            _logger.LogInformation(CacheLogs.CACHE_BYPASS_MARKED);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, CacheLogs.CACHE_BYPASS_MARK_FAILED, cacheGroup, cacheScope);
+            _logger.LogWarning(ex, CacheLogs.CACHE_BYPASS_MARK_FAILED);
         }
     }
 
@@ -72,11 +74,14 @@ public sealed class DistributedCacheBypassService : ICacheBypassService
         {
             // Missing marker is normal; unsafe cache/version reads are handled by the caller's fallback path.
             var marker = await _cache.GetStringAsync(key, cancellationToken);
-            return !string.IsNullOrWhiteSpace(marker);
+            var shouldBypass = !string.IsNullOrWhiteSpace(marker);
+
+            _logger.LogInformation(CacheLogs.CACHE_BYPASS_STATUS_READ, shouldBypass);
+            return shouldBypass;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, CacheLogs.CACHE_BYPASS_READ_FAILED, cacheGroup, cacheScope);
+            _logger.LogWarning(ex, CacheLogs.CACHE_BYPASS_READ_FAILED);
             return false;
         }
     }

@@ -1,10 +1,6 @@
 using Haven.Application.Dtos.Properties.Create;
-using Haven.Application.Dtos.Properties.Detail;
-using Haven.Application.Dtos.Properties.List;
 using Haven.Application.Dtos.Properties.Update;
 using Haven.Application.Mappings.Properties;
-using Haven.Application.Mappings.Rooms;
-using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
@@ -12,11 +8,8 @@ using Haven.Application.Models.Properties.Create;
 using Haven.Application.Models.Properties.Detail;
 using Haven.Application.Models.Properties.List;
 using Haven.Application.Models.Properties.QueryParameters;
-using Haven.Application.Models.Properties.Rows;
 using Haven.Application.Models.Properties.Update;
 using Haven.Domain.Entities;
-using Haven.Domain.Enums;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Mappings;
 

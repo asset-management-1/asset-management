@@ -21,9 +21,9 @@ public class UserPartyConfiguration : IEntityTypeConfiguration<UserParty>
 
         entity.HasIndex(e => e.PublicId, "UQ_Identity_UserParties_PublicId").IsUnique();
 
-        entity.HasIndex(e => new { e.UserId, e.PartyId }, "UX_Identity_UserParties_User_Party")
-            .IsUnique()
-            .HasFilter(NOT_DELETED_FILTER);
+        // The permanent pair key lets a session reference only a Party linked to the same User.
+        entity.HasAlternateKey(e => new { e.UserId, e.PartyId })
+            .HasName("AK_Identity_UserParties_User_Party");
 
         entity.Property(e => e.CreatedAt).HasDefaultValueSql(CURRENT_TIMESTAMP_SQL);
 

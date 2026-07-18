@@ -42,7 +42,7 @@ public sealed class ResourceFileProvider : IResourceFileProvider
 
             throw new InvalidOperationException(
                 string.Format(
-                    ResourceFileProviderErrors.ERR_EXCEL_KEY_NOT_CONFIGURED,
+                    ERR_EXCEL_KEY_NOT_CONFIGURED,
                     key));
         }
 
@@ -58,7 +58,7 @@ public sealed class ResourceFileProvider : IResourceFileProvider
 
             throw new InvalidOperationException(
                 string.Format(
-                    ResourceFileProviderErrors.ERR_EMBEDDED_RESOURCE_NOT_FOUND,
+                    ERR_EMBEDDED_RESOURCE_NOT_FOUND,
                     resourceName,
                     availableResources));
         }

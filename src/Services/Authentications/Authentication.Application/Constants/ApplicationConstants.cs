@@ -6,11 +6,6 @@ namespace Authentication.Application.Constants;
 public static class ApplicationConstants
 {
     /// <summary>
-    /// Logical cache group key used for the current-user profile query.
-    /// </summary>
-    public const string USER_INFO_CACHE_KEY = "auth:user-info";
-
-    /// <summary>
     /// Minimum accepted password length for authentication password validators.
     /// </summary>
     public const int PASSWORD_MINIMUM_LENGTH = 8;
@@ -144,6 +139,16 @@ public static class ApplicationConstants
     /// Redis key pattern for OTP rate-limit counters.
     /// </summary>
     public const string OTP_LIMIT_KEY_PATTERN = "auth:otp:limit:{0}:{1}";
+
+    /// <summary>
+    /// Cache-key format for atomic OTP verification-attempt counters.
+    /// </summary>
+    public const string OTP_VERIFY_ATTEMPT_KEY_PATTERN = "{0}:verify-attempts";
+
+    /// <summary>
+    /// Cache-key pattern that allows one successful consumer to complete an OTP flow.
+    /// </summary>
+    public const string OTP_CONSUME_KEY_PATTERN = "{0}:consume";
 
     /// <summary>
     /// Redis key pattern for forgot-password reset sessions.

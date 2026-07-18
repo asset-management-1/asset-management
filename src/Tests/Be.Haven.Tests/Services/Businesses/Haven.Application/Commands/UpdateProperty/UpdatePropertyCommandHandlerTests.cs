@@ -2,13 +2,8 @@ using Haven.Application.Commands.UpdateProperty;
 using Haven.Application.Dtos.Properties.Detail;
 using Haven.Application.Dtos.Properties.Update;
 using Haven.Application.Interfaces.Services;
-using Haven.Application.Mappings.Properties;
-using Haven.Application.Mappings.Rooms;
-using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Parties;
 using Haven.Application.Models.Properties.Update;
-using Mapster;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Commands.UpdateProperty;
 

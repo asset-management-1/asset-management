@@ -55,8 +55,4 @@ public static class SwaggerExampleConstants
     /// </summary>
     public const string BAD_REQUEST_MESSAGE = "The request could not be processed.";
 
-    /// <summary>
-    /// Generic dependency-unavailable message used by Swagger examples.
-    /// </summary>
-    public const string SERVICE_UNAVAILABLE_MESSAGE = "A required dependency is temporarily unavailable.";
 }

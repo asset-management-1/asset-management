@@ -11,11 +11,13 @@ public class AuthenticationRequestMapping : IRegister
     /// <param name="config">The Mapster configuration instance.</param>
     public void Register(TypeAdapterConfig config)
     {
-        // Request mappings keep submitted text as-is; only intentional enum/email conversions happen here.
-        config.NewConfig<LoginCommand, LoginRequestDto>();
+        // Flat request mappings apply only the approved username/email normalization and enum conversions.
+        config.NewConfig<LoginCommand, LoginRequestDto>()
+            .Map(dest => dest.UserName, src => src.UserName.NormalizeUserName());
 
         config.NewConfig<RegisterCommand, RegisterRequestDto>()
             .Map(dest => dest.PartyType, src => src.PartyType.ToMasterDataCode())
+            .Map(dest => dest.UserName, src => src.UserName.NormalizeUserName())
             .Map(dest => dest.Email, src => src.Email.NormalizeEmail());
 
         config.NewConfig<VerifyRegisterEmailCommand, VerifyRegisterEmailRequestDto>()

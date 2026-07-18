@@ -4,7 +4,7 @@ namespace Be.Haven.Core.Helpers;
 /// The class allow to convert between primitive type to enum and vice versa.
 /// </summary>
 /// <typeparam name="T">The type of enum</typeparam>
-public static class EnumConvertHelper<T> where T : Enum
+public static class EnumConvertHelper<T> where T : struct, Enum
 {
     /// <summary>
     /// Allow convert from int to Enum
@@ -36,6 +36,25 @@ public static class EnumConvertHelper<T> where T : Enum
         }
 
         throw new ArgumentException(string.Format(NOT_DEFINE_IN_ENUM_ERROR, enumName));
+    }
+
+    /// <summary>
+    /// Attempts to convert a canonical string value to an enum without throwing for unknown input.
+    /// </summary>
+    /// <param name="enumName">The canonical enum name to convert.</param>
+    /// <returns>The matching enum value, or <c>null</c> when the value is missing or undefined.</returns>
+    public static T? TryConvertStringToEnum(string enumName)
+    {
+        if (string.IsNullOrWhiteSpace(enumName)
+            || char.IsWhiteSpace(enumName[0])
+            || char.IsWhiteSpace(enumName[^1])
+            || !Enum.TryParse<T>(enumName, true, out var result)
+            || !Enum.IsDefined(result))
+        {
+            return null;
+        }
+
+        return result;
     }
 
     /// <summary>

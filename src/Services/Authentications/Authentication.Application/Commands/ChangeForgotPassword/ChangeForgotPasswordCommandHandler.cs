@@ -38,7 +38,7 @@ public class ChangeForgotPasswordCommandHandler : ICommandHandler<ChangeForgotPa
         // The reset-session cache proves the user already passed forgot-password OTP verification.
         var changeRequest = request.Adapt<ChangeForgotPasswordRequestDto>();
         var normalizedEmail = changeRequest.Email;
-        var resetSessionKey = AuthenticationFlowHelper.BuildResetSessionKey(normalizedEmail);
+        var resetSessionKey = string.Format(RESET_SESSION_KEY_PATTERN, normalizedEmail);
         var resetSession = await _cachingService.GetAsync<ResetSessionCacheResponseDto>(
             resetSessionKey,
             cancellationToken);

@@ -44,6 +44,35 @@ public sealed class EnumConvertHelperTests
             .WithMessage("Missing is not a valid enum.");
     }
 
+    [Theory]
+    [InlineData("Pending", "Pending")]
+    [InlineData("pending", "Pending")]
+    [InlineData("Approved", "Approved")]
+    public void TryConvertStringToEnum_Should_ReturnEnum_When_NameIsCanonical(
+        string enumName,
+        string expectedName)
+    {
+        // Act
+        var result = EnumConvertHelper<CoreSampleStatusEnum>.TryConvertStringToEnum(enumName);
+
+        // Assert
+        result.Should().Be(Enum.Parse<CoreSampleStatusEnum>(expectedName));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" Pending ")]
+    [InlineData("Missing")]
+    public void TryConvertStringToEnum_Should_ReturnNull_When_NameIsNotCanonical(string enumName)
+    {
+        // Act
+        var result = EnumConvertHelper<CoreSampleStatusEnum>.TryConvertStringToEnum(enumName);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
     [Fact]
     public void GetEnumName_Should_ReturnName_When_EnumIsProvided()
     {

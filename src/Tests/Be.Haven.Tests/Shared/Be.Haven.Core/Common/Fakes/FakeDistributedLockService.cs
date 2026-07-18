@@ -11,18 +11,18 @@ internal sealed class FakeDistributedLockService : IDistributedLockService
 
     public string LastKey { get; private set; }
 
-    public TimeSpan LastTtl { get; private set; }
+    public TimeSpan LastLeaseDuration { get; private set; }
 
     public int AttemptCount { get; private set; }
 
     public Task<IAsyncDisposable> TryAcquireAsync(
         string key,
-        TimeSpan ttl,
-        CancellationToken ct)
+        TimeSpan leaseDuration,
+        CancellationToken cancellationToken)
     {
         AttemptCount++;
         LastKey = key;
-        LastTtl = ttl;
+        LastLeaseDuration = leaseDuration;
 
         return Task.FromResult(_handle);
     }

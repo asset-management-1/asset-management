@@ -66,24 +66,36 @@ public sealed class InvoiceUtilityRepository : IInvoiceUtilityRepository
     }
 
     /// <summary>
-    /// Checks whether an invoice has any non-deleted payment allocation.
+    /// Checks whether an invoice has any non-deleted allocation backed by a successful payment.
     /// </summary>
     /// <param name="invoiceId">The internal invoice identifier.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
-    /// <returns><see langword="true"/> when a payment allocation exists.</returns>
+    /// <returns><see langword="true"/> when a successful payment allocation exists.</returns>
     public Task<bool> HasSuccessfulPaymentAsync(long invoiceId, CancellationToken cancellationToken = default)
     {
-        // Run the payment existence check on the EF connection so it participates in the caller transaction.
+        // Run the authoritative payment check on the EF connection so it participates in the caller transaction.
         return _dbContext.Database.SqlQueryRaw<bool>(
             """
             SELECT EXISTS (
                 SELECT 1 FROM "billing"."PaymentAllocations" allocation
                 INNER JOIN "billing"."Payments" payment ON payment."Id" = allocation."PaymentId"
+                INNER JOIN "masterdata"."MasterDataValues" payment_status
+                    ON payment_status."Id" = payment."StatusId"
+                   AND payment_status."Code" = {1}
+                   AND payment_status."IsDeleted" = FALSE
+                   AND payment_status."IsActive" = TRUE
+                INNER JOIN "masterdata"."MasterDataTypes" payment_status_type
+                    ON payment_status_type."Id" = payment_status."MasterDataTypeId"
+                   AND payment_status_type."Code" = {2}
+                   AND payment_status_type."IsDeleted" = FALSE
+                   AND payment_status_type."IsActive" = TRUE
                 WHERE allocation."InvoiceId" = {0}
                   AND allocation."IsDeleted" = FALSE AND payment."IsDeleted" = FALSE
             ) AS "Value"
             """,
-            invoiceId)
+            invoiceId,
+            MASTER_CODE_PAYMENT_STATUS_SUCCESS,
+            MasterDataTypeEnum.PaymentStatus.ToString())
             .SingleAsync(cancellationToken);
     }
 
@@ -101,10 +113,17 @@ public sealed class InvoiceUtilityRepository : IInvoiceUtilityRepository
         DateOnly periodTo,
         CancellationToken cancellationToken = default)
     {
-        // Only invoice status and paid amount are needed for the preflight projection.
+        // The preflight projection mirrors the mutation guard, including only successful payment allocations.
         return _dapperService.QueryFirstOrDefaultAsync<MeterInvoiceImpactRowModel>(
             InfrastructureQueryConstants.GET_METER_INVOICE_IMPACT_QUERY,
-            new { UnitId = unitId, PeriodFrom = periodFrom, PeriodTo = periodTo },
+            new
+            {
+                UnitId = unitId,
+                PeriodFrom = periodFrom,
+                PeriodTo = periodTo,
+                SuccessfulPaymentStatusCode = MASTER_CODE_PAYMENT_STATUS_SUCCESS,
+                PaymentStatusTypeCode = MasterDataTypeEnum.PaymentStatus.ToString()
+            },
             DapperCommandOptionsHelper.CreateText(cancellationToken));
     }
 

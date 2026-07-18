@@ -22,6 +22,12 @@ public sealed class HavenClientSessionValidatorTests
 
         // Assert
         result.Should().BeTrue();
+        dapperService.Verify(x => x.QueryFirstOrDefaultAsync<ClientSessionValidationReadModel>(
+            HavenClientSessionConstants.GET_ACTIVE_SESSION_BY_USER_AND_PUBLIC_ID_QUERY,
+            It.Is<object>(parameters =>
+                GetStringPropertyValue(parameters, "ActiveUserStatusCode") == HavenClientSessionConstants.ACTIVE_USER_STATUS_CODE
+                && GetStringPropertyValue(parameters, "UserStatusTypeCode") == HavenClientSessionConstants.USER_STATUS_TYPE_CODE),
+            It.IsAny<DapperCommandOptions>()));
     }
 
     [Fact]
@@ -64,5 +70,10 @@ public sealed class HavenClientSessionValidatorTests
         var exception = await action.Should().ThrowAsync<HttpStatusCodeException>();
         exception.Subject.Single().StatusCode.Should().Be(StatusCodes.Status503ServiceUnavailable);
         exception.Subject.Single().ErrorCode.Should().Be(SERVICE_UNAVAILABLE);
+    }
+
+    private static string GetStringPropertyValue(object instance, string propertyName)
+    {
+        return instance.GetType().GetProperty(propertyName)?.GetValue(instance) as string;
     }
 }

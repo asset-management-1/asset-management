@@ -2,19 +2,17 @@ using Be.Haven.Core.Interfaces.Repositories;
 using Haven.Application.Dtos.Tenants.Detail;
 using Haven.Application.Interfaces.Repositories;
 using Haven.Application.Interfaces.Services;
-using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
 using Haven.Application.Models.Rooms.QueryParameters;
 using Haven.Application.Models.Tenants.Common;
 using Haven.Application.Models.Tenants.Create;
+using Haven.Application.Models.Tenants.Delete;
 using Haven.Application.Models.Tenants.Join;
 using Haven.Application.Models.Tenants.QueryParameters;
 using Haven.Application.Models.Tenants.Rows;
 using Haven.Domain.Entities;
-using Haven.Domain.Enums;
 using Haven.Infrastructure.Services.Tenants;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Infrastructure.Services;
 
@@ -66,12 +64,81 @@ public sealed class TenantServiceTests
             cache => cache.GetAsync<TenantJoinPayloadModel>(
                 $"{TENANT_JOIN_CACHE_KEY_PREFIX}{TOKEN}",
                 It.IsAny<CancellationToken>()),
-            Times.Exactly(3));
+            Times.Exactly(2));
         fixture.Cache.Verify(
             cache => cache.RemoveAsync(
                 $"{TENANT_JOIN_CACHE_KEY_PREFIX}{TOKEN}",
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task ConfirmTenantJoinAsync_Should_RunLiveGuardsInsideTransaction_AndRemoveTokenAfterCommit()
+    {
+        var fixture = BuildFixture();
+        var transactionActive = false;
+
+        fixture.UnitOfWork
+            .Setup(work => work.ExecuteInTransactionAsync(
+                It.IsAny<Func<CancellationToken, Task<TenantDetailResponseDto>>>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<Func<CancellationToken, Task<TenantDetailResponseDto>>, CancellationToken>(
+                async (action, token) =>
+                {
+                    transactionActive = true;
+
+                    try
+                    {
+                        return await action(token);
+                    }
+                    finally
+                    {
+                        transactionActive = false;
+                    }
+                });
+        fixture.UnitRepository
+            .Setup(repository => repository.GetTenantJoinRoomForMutationAsync(
+                It.IsAny<TenantJoinRoomQueryParametersModel>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<TenantJoinRoomQueryParametersModel, CancellationToken>(
+                (_, _) => transactionActive.Should().BeTrue())
+            .ReturnsAsync(fixture.Room);
+        fixture.TenantRepository
+            .Setup(repository => repository.GetTenantPartyAsync(
+                fixture.TenantParty.PublicId,
+                1,
+                2,
+                It.IsAny<CancellationToken>()))
+            .Callback<Guid, long, long, CancellationToken>(
+                (_, _, _, _) => transactionActive.Should().BeTrue())
+            .ReturnsAsync(fixture.TenantParty);
+        fixture.TenantRepository
+            .Setup(repository => repository.HasOccupancyAsync(
+                fixture.Room.UnitId,
+                fixture.TenantParty.Id,
+                It.IsAny<IReadOnlyCollection<long>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<long, long, IReadOnlyCollection<long>, CancellationToken>(
+                (_, _, _, _) => transactionActive.Should().BeTrue())
+            .ReturnsAsync(false);
+        fixture.TenantRepository
+            .Setup(repository => repository.CountPrimaryOccupanciesAsync(
+                fixture.Room.UnitId,
+                It.IsAny<IReadOnlyCollection<long>>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<long, IReadOnlyCollection<long>, CancellationToken>(
+                (_, _, _) => transactionActive.Should().BeTrue())
+            .ReturnsAsync(0);
+        fixture.Cache
+            .Setup(cache => cache.RemoveAsync(
+                $"{TENANT_JOIN_CACHE_KEY_PREFIX}{TOKEN}",
+                It.IsAny<CancellationToken>()))
+            .Callback(() => transactionActive.Should().BeFalse())
+            .Returns(Task.CompletedTask);
+
+        await fixture.Service.ConfirmTenantJoinAsync(BuildRequest(fixture.TenantParty.PublicId));
+
+        transactionActive.Should().BeFalse();
     }
 
     [Fact]
@@ -169,10 +236,9 @@ public sealed class TenantServiceTests
     }
 
     [Fact]
-    public async Task ConfirmTenantJoinAsync_Should_RestoreOnlyRemainingTokenLifetime_WhenTransactionFails()
+    public async Task ConfirmTenantJoinAsync_Should_KeepToken_WhenTransactionFails()
     {
         var fixture = BuildFixture();
-        fixture.Payload.ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(2);
         fixture.TenantRepository
             .Setup(repository => repository.HasOccupancyAsync(
                 fixture.Room.UnitId,
@@ -197,19 +263,21 @@ public sealed class TenantServiceTests
 
         await action.Should().ThrowAsync<InvalidOperationException>();
         fixture.Cache.Verify(
+            cache => cache.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        fixture.Cache.Verify(
             cache => cache.SetAbsoluteAsync(
-                $"{TENANT_JOIN_CACHE_KEY_PREFIX}{TOKEN}",
-                fixture.Payload,
-                It.Is<TimeSpan>(ttl => ttl > TimeSpan.Zero && ttl <= TimeSpan.FromMinutes(2)),
-                CancellationToken.None),
-            Times.Once);
+                It.IsAny<string>(),
+                It.IsAny<TenantJoinPayloadModel>(),
+                It.IsAny<TimeSpan>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]
-    public async Task ConfirmTenantJoinAsync_Should_RestoreToken_WhenCacheRemoveFailsAfterConsumptionStarts()
+    public async Task ConfirmTenantJoinAsync_Should_ReturnSuccess_WhenPostCommitTokenRemovalFails()
     {
         var fixture = BuildFixture();
-        fixture.Payload.ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(2);
         fixture.TenantRepository
             .Setup(repository => repository.HasOccupancyAsync(
                 fixture.Room.UnitId,
@@ -229,29 +297,28 @@ public sealed class TenantServiceTests
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Cache remove failed."));
 
-        var action = () => fixture.Service.ConfirmTenantJoinAsync(BuildRequest(fixture.TenantParty.PublicId));
+        var result = await fixture.Service.ConfirmTenantJoinAsync(BuildRequest(fixture.TenantParty.PublicId));
 
-        await action.Should().ThrowAsync<InvalidOperationException>();
+        result.Id.Should().NotBeEmpty();
         fixture.Cache.Verify(
             cache => cache.SetAbsoluteAsync(
-                $"{TENANT_JOIN_CACHE_KEY_PREFIX}{TOKEN}",
-                fixture.Payload,
-                It.Is<TimeSpan>(ttl => ttl > TimeSpan.Zero && ttl <= TimeSpan.FromMinutes(2)),
-                CancellationToken.None),
-            Times.Once);
+                It.IsAny<string>(),
+                It.IsAny<TenantJoinPayloadModel>(),
+                It.IsAny<TimeSpan>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
         fixture.TenantRepository.Verify(
             repository => repository.AddTenantOccupancyAsync(
                 It.IsAny<Occupancy>(),
                 It.IsAny<Contract>(),
                 It.IsAny<CancellationToken>()),
-            Times.Never);
+            Times.Once);
     }
 
     [Fact]
-    public async Task ConfirmTenantJoinAsync_Should_NotRestoreToken_WhenFailureHappensAfterMutationCallback()
+    public async Task ConfirmTenantJoinAsync_Should_NotRemoveToken_WhenCommitFailsAfterMutationCallback()
     {
         var fixture = BuildFixture();
-        fixture.Payload.ExpiresAtUtc = DateTimeOffset.UtcNow.AddMinutes(2);
         fixture.TenantRepository
             .Setup(repository => repository.HasOccupancyAsync(
                 fixture.Room.UnitId,
@@ -285,11 +352,7 @@ public sealed class TenantServiceTests
 
         await action.Should().ThrowAsync<InvalidOperationException>();
         fixture.Cache.Verify(
-            cache => cache.SetAbsoluteAsync(
-                It.IsAny<string>(),
-                It.IsAny<TenantJoinPayloadModel>(),
-                It.IsAny<TimeSpan>(),
-                It.IsAny<CancellationToken>()),
+            cache => cache.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 
@@ -306,7 +369,7 @@ public sealed class TenantServiceTests
             Property = new Property { Id = fixture.Room.PropertyId }
         };
         fixture.UnitRepository
-            .Setup(repository => repository.GetRoomGraphAsync(
+            .Setup(repository => repository.GetRoomForOccupancyMutationAsync(
                 It.IsAny<RoomScopedQueryParametersModel>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(room);
@@ -363,7 +426,7 @@ public sealed class TenantServiceTests
         };
         Party capturedParty = null;
         fixture.UnitRepository
-            .Setup(repository => repository.GetRoomGraphAsync(It.IsAny<RoomScopedQueryParametersModel>(), It.IsAny<CancellationToken>()))
+            .Setup(repository => repository.GetRoomForOccupancyMutationAsync(It.IsAny<RoomScopedQueryParametersModel>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(room);
         fixture.TenantRepository
             .Setup(repository => repository.HasOccupancyAsync(
@@ -407,6 +470,112 @@ public sealed class TenantServiceTests
         capturedParty.DisplayName.Should().Be(request.TenantProfile.FullName);
         capturedParty.PrimaryPhone.Should().Be(request.TenantProfile.Phone);
         capturedParty.PrimaryEmail.Should().Be(request.TenantProfile.Email);
+    }
+
+    [Fact]
+    public async Task DeleteTenantAsync_Should_UseSharedRoomOccupancyLock_AndRecheckTrackedState()
+    {
+        var fixture = BuildFixture();
+        var occupancy = new Occupancy
+        {
+            PublicId = Guid.NewGuid(),
+            UnitId = fixture.Room.UnitId,
+            PartyId = fixture.TenantParty.Id,
+            Unit = new Unit
+            {
+                Id = fixture.Room.UnitId,
+                PublicId = fixture.Room.RoomPublicId
+            }
+        };
+        fixture.TenantRepository
+            .Setup(repository => repository.GetMoveOutRoomPublicIdAsync(
+                occupancy.PublicId,
+                99,
+                7,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fixture.Room.RoomPublicId);
+        fixture.TenantRepository
+            .Setup(repository => repository.GetOccupancyForMoveOutAsync(
+                occupancy.PublicId,
+                99,
+                7,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(occupancy);
+        fixture.TenantRepository
+            .Setup(repository => repository.CountActiveOccupanciesAsync(
+                occupancy.UnitId,
+                7,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1);
+        fixture.TenantRepository
+            .Setup(repository => repository.SoftDeleteVehiclesAsync(
+                occupancy.UnitId,
+                occupancy.PartyId,
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        fixture.UnitRepository
+            .Setup(repository => repository.GetRoomByIdAsync(
+                occupancy.UnitId,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(occupancy.Unit);
+        var request = new TenantDeleteRequestModel
+        {
+            OccupancyPublicId = occupancy.PublicId,
+            CurrentParty = new CurrentPartyContextModel
+            {
+                PartyId = 99,
+                PartyPublicId = fixture.Payload.LandlordPartyPublicId
+            }
+        };
+
+        await fixture.Service.DeleteTenantAsync(request);
+
+        occupancy.StatusId.Should().Be(9);
+        occupancy.EndDate.Should().NotBeNull();
+        fixture.DistributedLock.Verify(service => service.TryAcquireAsync(
+                $"{ROOM_OCCUPANCY_LOCK_KEY_PREFIX}{fixture.Room.RoomPublicId:N}{ROOM_OCCUPANCY_LOCK_KEY_SUFFIX}",
+                TimeSpan.FromSeconds(ROOM_OCCUPANCY_LOCK_LEASE_SECONDS),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        fixture.TenantRepository.Verify(repository => repository.GetOccupancyForMoveOutAsync(
+                occupancy.PublicId,
+                99,
+                7,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteTenantAsync_Should_NotLoadTrackedOccupancy_WhenRoomLockIsContended()
+    {
+        var fixture = BuildFixture(acquireLock: false);
+        var occupancyPublicId = Guid.NewGuid();
+        fixture.TenantRepository
+            .Setup(repository => repository.GetMoveOutRoomPublicIdAsync(
+                occupancyPublicId,
+                99,
+                7,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fixture.Room.RoomPublicId);
+        var request = new TenantDeleteRequestModel
+        {
+            OccupancyPublicId = occupancyPublicId,
+            CurrentParty = new CurrentPartyContextModel
+            {
+                PartyId = 99,
+                PartyPublicId = fixture.Payload.LandlordPartyPublicId
+            }
+        };
+
+        var action = () => fixture.Service.DeleteTenantAsync(request);
+
+        await action.Should().ThrowAsync<ApiException>();
+        fixture.TenantRepository.Verify(repository => repository.GetOccupancyForMoveOutAsync(
+                It.IsAny<Guid>(),
+                It.IsAny<long>(),
+                It.IsAny<long>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     private static TenantServiceFixture BuildFixture(bool acquireLock = true)
@@ -454,8 +623,8 @@ public sealed class TenantServiceTests
             .Callback(() => cachedPayload = null)
             .Returns(Task.CompletedTask);
         distributedLock.Setup(service => service.TryAcquireAsync(
-                $"{TENANT_JOIN_ROOM_LOCK_KEY_PREFIX}{payload.RoomPublicId:N}",
-                TimeSpan.FromSeconds(TENANT_JOIN_ROOM_LOCK_SECONDS),
+                $"{ROOM_OCCUPANCY_LOCK_KEY_PREFIX}{payload.RoomPublicId:N}{ROOM_OCCUPANCY_LOCK_KEY_SUFFIX}",
+                TimeSpan.FromSeconds(ROOM_OCCUPANCY_LOCK_LEASE_SECONDS),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(acquireLock ? Mock.Of<IAsyncDisposable>() : null);
         masterDataService.Setup(service => service.GetValuesAsync(
@@ -463,6 +632,10 @@ public sealed class TenantServiceTests
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(BuildMasterData());
         unitRepository.Setup(repository => repository.GetTenantJoinRoomAsync(
+                It.IsAny<TenantJoinRoomQueryParametersModel>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(room);
+        unitRepository.Setup(repository => repository.GetTenantJoinRoomForMutationAsync(
                 It.IsAny<TenantJoinRoomQueryParametersModel>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(room);
@@ -496,6 +669,7 @@ public sealed class TenantServiceTests
             tenantRepository,
             unitRepository,
             cache,
+            distributedLock,
             unitOfWork,
             room,
             tenantParty,
@@ -554,6 +728,7 @@ public sealed class TenantServiceTests
         Mock<ITenantRepository> TenantRepository,
         Mock<IUnitRepository> UnitRepository,
         Mock<ICachingService> Cache,
+        Mock<IDistributedLockService> DistributedLock,
         Mock<IUnitOfWork> UnitOfWork,
         TenantJoinRoomRowModel Room,
         Party TenantParty,

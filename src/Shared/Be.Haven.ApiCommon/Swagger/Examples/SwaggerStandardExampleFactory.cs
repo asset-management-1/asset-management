@@ -38,8 +38,11 @@ public static class SwaggerStandardExampleFactory
             StatusCodes.Status406NotAcceptable => BuildError(NOT_ACCEPTABLE, MSG_NOT_ACCEPTABLE, statusCode),
             StatusCodes.Status413PayloadTooLarge => BuildError(BAD_REQUEST, MSG_PAYLOAD_TOO_LARGE, statusCode),
             StatusCodes.Status415UnsupportedMediaType => BuildError(UNSUPPORTED_MEDIA_TYPE, MSG_UNSUPPORTED_MEDIA_TYPE, statusCode),
-            StatusCodes.Status429TooManyRequests => BuildError(MANY_REQUESTS, RedisConstants.ErrorMessage.ACCOUNT_LOCKED, statusCode),
-            StatusCodes.Status503ServiceUnavailable => BuildError(SERVICE_UNAVAILABLE, SwaggerExampleConstants.SERVICE_UNAVAILABLE_MESSAGE, statusCode),
+            StatusCodes.Status429TooManyRequests => BuildError(MANY_REQUESTS, ErrorConstants.RedisErrors.ACCOUNT_LOCKED, statusCode),
+            StatusCodes.Status503ServiceUnavailable => BuildError(
+                SERVICE_UNAVAILABLE,
+                SERVICE_UNAVAILABLE_MESSAGE,
+                statusCode),
             _ => BuildError(INTERNAL_SERVER, UNEXPECTED_SERVER_ERROR, StatusCodes.Status500InternalServerError)
         };
     }

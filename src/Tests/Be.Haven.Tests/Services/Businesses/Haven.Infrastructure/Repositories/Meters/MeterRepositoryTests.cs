@@ -1,4 +1,3 @@
-using Be.Haven.Core.Interfaces.Services;
 using Haven.Domain.Entities;
 using Haven.Infrastructure.Context;
 using Haven.Infrastructure.Repositories.Meters;

@@ -1,10 +1,16 @@
 // Global using directives
+
+global using System.Collections.Frozen;
+global using System.ComponentModel.DataAnnotations;
 global using System.Data;
 global using System.Net.Http.Headers;
 global using System.Text.Json.Serialization;
 global using System.Text.RegularExpressions;
 global using Be.Haven.Shared.Configurations;
 global using Be.Haven.Shared.Constants;
+global using Be.Haven.Shared.Constants.Authentication;
+global using Be.Haven.Shared.Constants.Cache;
+global using Be.Haven.Shared.Constants.System;
 global using Be.Haven.Shared.Dtos.Options.Authentications;
 global using Be.Haven.Shared.Dtos.Options.Caching;
 global using Be.Haven.Shared.Dtos.Options.Data;
@@ -18,6 +24,6 @@ global using Dapper;
 global using Microsoft.AspNetCore.Http;
 global using Newtonsoft.Json;
 global using Serilog.Events;
-global using static Be.Haven.Shared.Constants.AppConstants.SystemVariable;
-global using static Be.Haven.Shared.Constants.ObjectStorageConstants;
+global using static Be.Haven.Shared.Constants.System.AppConstants.SystemVariable;
+global using static Be.Haven.Shared.Constants.Storage.ObjectStorageConstants;
 global using JsonIgnore = System.Text.Json.Serialization.JsonIgnoreAttribute;

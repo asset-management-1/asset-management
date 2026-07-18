@@ -203,6 +203,29 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
     }
 
     /// <summary>
+    /// Loads the tracked room fields required by a landlord-scoped occupancy mutation.
+    /// </summary>
+    /// <param name="parameters">The scoped room parameters.</param>
+    /// <param name="cancellationToken">The token used to cancel the query.</param>
+    /// <returns>The tracked room and property, or <c>null</c>.</returns>
+    public Task<Unit> GetRoomForOccupancyMutationAsync(
+        RoomScopedQueryParametersModel parameters,
+        CancellationToken cancellationToken = default)
+    {
+        var relationshipCodes = parameters.RelationshipCodes.ToArray();
+
+        // Occupancy mutations need room capacity, pricing, and property identity without package or policy graphs.
+        return _havenDbContext.Units
+            .FromSqlRaw(
+                InfrastructureQueryConstants.GET_SCOPED_ROOM_GRAPH_QUERY,
+                parameters.RoomPublicId,
+                parameters.CurrentPartyId,
+                relationshipCodes)
+            .Include(unit => unit.Property)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>
     /// Loads the minimal room projection for a tenant QR join token.
     /// </summary>
     /// <param name="parameters">The tenant-join room parameters.</param>
@@ -217,6 +240,57 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
             InfrastructureQueryConstants.GET_TENANT_JOIN_ROOM_QUERY,
             parameters,
             DapperCommandOptionsHelper.CreateText(cancellationToken));
+    }
+
+    /// <summary>
+    /// Loads tenant-join room state through EF so mutation guards share the active transaction.
+    /// </summary>
+    /// <param name="parameters">The tenant-join room parameters.</param>
+    /// <param name="cancellationToken">The token used to cancel the query.</param>
+    /// <returns>The transaction-bound room state, or <c>null</c>.</returns>
+    public async Task<TenantJoinRoomRowModel> GetTenantJoinRoomForMutationAsync(
+        TenantJoinRoomQueryParametersModel parameters,
+        CancellationToken cancellationToken = default)
+    {
+        // Step 1: Resolve the landlord internal identifier without leaving the current EF transaction.
+        var landlordPartyId = await _havenDbContext.Parties
+            .Where(party => party.PublicId == parameters.LandlordPartyPublicId && !party.IsDeleted)
+            .Select(party => (long?)party.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (!landlordPartyId.HasValue)
+        {
+            return null;
+        }
+
+        // Step 2: Reuse the landlord-scoped occupancy query so authorization and room state are read transactionally.
+        var room = await GetRoomForOccupancyMutationAsync(
+            new RoomScopedQueryParametersModel
+            {
+                CurrentPartyId = landlordPartyId.Value,
+                RelationshipCodes = parameters.RelationshipCodes,
+                RoomPublicId = parameters.RoomPublicId
+            },
+            cancellationToken);
+
+        if (room is null)
+        {
+            return null;
+        }
+
+        // Step 3: Return only the fields required by tenant placement and the committed response.
+        return new TenantJoinRoomRowModel
+        {
+            PropertyId = room.PropertyId,
+            PropertyPublicId = room.Property.PublicId,
+            PropertyName = room.Property.Name,
+            UnitId = room.Id,
+            RoomPublicId = room.PublicId,
+            RoomCode = room.UnitCode,
+            RoomName = room.UnitName,
+            RentalModeId = room.RentalModeId,
+            BedCount = room.BedCount
+        };
     }
 
     /// <summary>

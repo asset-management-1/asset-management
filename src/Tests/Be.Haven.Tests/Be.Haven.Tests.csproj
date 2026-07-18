@@ -39,7 +39,6 @@
       <Folder Include="Shared\Be.Haven.ApiCommon\" />
       <Folder Include="Shared\Be.Haven.Cache\" />
       <Folder Include="Shared\Be.Haven.Core\" />
-      <Folder Include="Shared\Be.Haven.EventBus\" />
       <Folder Include="Shared\Be.Haven.Shared\" />
     </ItemGroup>
 
@@ -55,7 +54,6 @@
       <ProjectReference Include="..\..\Shared\Be.Haven.ApiCommon\Be.Haven.ApiCommon.csproj" />
       <ProjectReference Include="..\..\Shared\Be.Haven.Cache\Be.Haven.Cache.csproj" />
       <ProjectReference Include="..\..\Shared\Be.Haven.Core\Be.Haven.Core.csproj" />
-      <ProjectReference Include="..\..\Shared\Be.Haven.EventBus\Be.Haven.EventBus.csproj" />
       <ProjectReference Include="..\..\Shared\Be.Haven.Shared\Be.Haven.Shared.csproj" />
     </ItemGroup>
 

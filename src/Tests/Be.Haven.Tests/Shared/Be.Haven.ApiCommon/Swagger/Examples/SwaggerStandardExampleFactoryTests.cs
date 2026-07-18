@@ -26,8 +26,8 @@ public sealed class SwaggerStandardExampleFactoryTests
     [InlineData(StatusCodes.Status406NotAcceptable, NOT_ACCEPTABLE, MSG_NOT_ACCEPTABLE)]
     [InlineData(StatusCodes.Status413PayloadTooLarge, BAD_REQUEST, MSG_PAYLOAD_TOO_LARGE)]
     [InlineData(StatusCodes.Status415UnsupportedMediaType, UNSUPPORTED_MEDIA_TYPE, MSG_UNSUPPORTED_MEDIA_TYPE)]
-    [InlineData(StatusCodes.Status429TooManyRequests, MANY_REQUESTS, RedisConstants.ErrorMessage.ACCOUNT_LOCKED)]
-    [InlineData(StatusCodes.Status503ServiceUnavailable, SERVICE_UNAVAILABLE, SwaggerExampleConstants.SERVICE_UNAVAILABLE_MESSAGE)]
+    [InlineData(StatusCodes.Status429TooManyRequests, MANY_REQUESTS, ACCOUNT_LOCKED)]
+    [InlineData(StatusCodes.Status503ServiceUnavailable, SERVICE_UNAVAILABLE, SERVICE_UNAVAILABLE_MESSAGE)]
     [InlineData(StatusCodes.Status500InternalServerError, INTERNAL_SERVER, UNEXPECTED_SERVER_ERROR)]
     public void Error_Should_ReturnStatusSpecificEnvelope_When_StatusCodeIsDocumented(
         int statusCode,

@@ -46,9 +46,9 @@ public class UserInfoResponseDto
     public string DisplayName { get; set; }
 
     /// <summary>
-    /// The party context currently active for the user.
+    /// Party context currently active for this authenticated client session.
     /// </summary>
-    public PartyTypeEnum? CurrentContext { get; set; }
+    public PartyTypeEnum CurrentContext { get; set; }
 
     /// <summary>
     /// All available party contexts linked to the user.

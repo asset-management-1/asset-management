@@ -36,6 +36,11 @@ public class Occupancy : BaseEntity
     public long UnitId { get; set; }
 
     /// <summary>
+    /// Gets or sets the occupied room/unit.
+    /// </summary>
+    public Unit Unit { get; set; }
+
+    /// <summary>
     /// Gets or sets the occupancy start date.
     /// </summary>
     public DateOnly StartDate { get; set; }

@@ -1,5 +1,4 @@
 using System.Reflection;
-using Be.Haven.Core.Extensions.DI;
 using Be.Haven.Core.Interfaces.Repositories;
 using Google.Cloud.SecretManager.V1;
 using Microsoft.Extensions.Hosting;
@@ -38,10 +37,6 @@ public sealed class ServiceRegistrationTests
         services.Should().Contain(descriptor =>
             descriptor.ServiceType == typeof(IAuthService) &&
             descriptor.ImplementationType == typeof(AuthService) &&
-            descriptor.Lifetime == ServiceLifetime.Scoped);
-        services.Should().Contain(descriptor =>
-            descriptor.ServiceType == typeof(IClientDeviceContextAccessor) &&
-            descriptor.ImplementationType == typeof(ClientDeviceContextAccessor) &&
             descriptor.Lifetime == ServiceLifetime.Scoped);
     }
 

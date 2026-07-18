@@ -1,13 +1,5 @@
-using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
-using Haven.Application.Models.Parties;
-using Haven.Application.Models.Properties.Create;
-using Haven.Application.Models.Properties.Detail;
-using Haven.Application.Models.Properties.List;
-using Haven.Application.Models.Properties.QueryParameters;
-using Haven.Application.Models.Properties.Rows;
 using Haven.Infrastructure.Mappings.MasterData;
-using Haven.Infrastructure.Mappings.RentalChargePolicies;
 using Haven.Infrastructure.Models.MasterData;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Infrastructure.Mappings;

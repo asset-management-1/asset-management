@@ -2,6 +2,30 @@ namespace Be.Haven.Tests.Shared.Be.Haven.Core.Helpers;
 
 public sealed class CodeGenerationHelperTests
 {
+    [Theory]
+    [InlineData(4)]
+    [InlineData(6)]
+    public void GenerateNumericCode_Should_ReturnRequestedNumberOfDigits(int length)
+    {
+        // Act
+        var result = CodeGenerationHelper.GenerateNumericCode(length);
+
+        // Assert
+        result.Should().MatchRegex($"^[0-9]{{{length}}}$");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(33)]
+    public void GenerateNumericCode_Should_RejectUnsupportedLength(int length)
+    {
+        // Act
+        var act = () => CodeGenerationHelper.GenerateNumericCode(length);
+
+        // Assert
+        act.Should().Throw<ArgumentOutOfRangeException>();
+    }
+
     [Fact]
     public void GenerateCode_Should_PreservePrefixCase_When_DefaultOptionsAreUsed()
     {

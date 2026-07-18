@@ -7,21 +7,25 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly ICachingService _cachingService;
+    private readonly IAtomicCacheService _atomicCacheService;
     private readonly ILogger<ForgotPasswordCommandHandler> _logger;
 
     /// <summary>
     /// Creates the forgot-password OTP handler with account lookup, OTP cache, and enumeration-safe flow logging dependencies.
     /// </summary>
     /// <param name="authenticationService">The service that checks user existence and sends OTP emails.</param>
-    /// <param name="cachingService">The cache service used for OTP throttle and payload state.</param>
+    /// <param name="cachingService">The cache service used for OTP payload state.</param>
+    /// <param name="atomicCacheService">The atomic cache service used for cooldown and request counters.</param>
     /// <param name="logger">The logger used for generic forgot-password flow tracking.</param>
     public ForgotPasswordCommandHandler(
         IAuthenticationService authenticationService,
         ICachingService cachingService,
+        IAtomicCacheService atomicCacheService,
         ILogger<ForgotPasswordCommandHandler> logger)
     {
         _authenticationService = authenticationService;
         _cachingService = cachingService;
+        _atomicCacheService = atomicCacheService;
         _logger = logger;
     }
 
@@ -59,20 +63,14 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
 
         if (!userExists)
         {
-            // Keep forgot-password enumeration-safe: callers always receive the same public success response.
-            await _cachingService.SetAbsoluteAsync(
-                AuthenticationFlowHelper.BuildOtpCooldownKey(FORGOT_PASSWORD_PURPOSE, normalizedEmail),
-                OTP_COOLDOWN_VALUE,
-                TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
-                cancellationToken);
-
+            // Keep forgot-password enumeration-safe while the reserved cooldown limits repeated probes.
             _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.FORGOT_PASSWORD_FLOW_MISSING_ACCOUNT_GENERIC_RESPONSE);
             return new ResponseDto<OperationStatusResponseDto>(
                 OperationStatusResponseHelper.Success(ApplicationMessageConstants.OtpMessages.FORGOT_PASSWORD_SUCCESS_MESSAGE));
         }
 
         // A valid account gets a fresh OTP entry; resend overwrites the previous code on the same key.
-        var otpCode = AuthenticationFlowHelper.GenerateOtp();
+        var otpCode = CodeGenerationHelper.GenerateNumericCode(OTP_LENGTH);
         var otpCacheResponse = new OtpCacheRequestDto
         {
             Purpose = FORGOT_PASSWORD_PURPOSE,
@@ -81,7 +79,7 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
         }.Adapt<OtpCacheResponseDto>();
         otpCacheResponse.ExpiresAtUtc = DateTime.UtcNow.AddMinutes(OTP_TTL_MINUTES);
 
-        var otpKey = AuthenticationFlowHelper.BuildOtpKey(FORGOT_PASSWORD_PURPOSE, normalizedEmail);
+        var otpKey = string.Format(OTP_KEY_PATTERN, FORGOT_PASSWORD_PURPOSE, normalizedEmail);
 
         await _cachingService.SetAbsoluteAsync(
             otpKey,
@@ -102,17 +100,15 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
             cancellationToken);
         if (sent.IsSuccess)
         {
-            await _cachingService.SetAbsoluteAsync(
-                AuthenticationFlowHelper.BuildOtpCooldownKey(FORGOT_PASSWORD_PURPOSE, normalizedEmail),
-                OTP_COOLDOWN_VALUE,
-                TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
-                cancellationToken);
             _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.FORGOT_PASSWORD_FLOW_STEP5_OTP_SENT);
         }
         else
         {
             // Remove the generated OTP when delivery fails so no undelivered reset code remains valid.
             await _cachingService.RemoveAsync(otpKey, cancellationToken);
+            await _atomicCacheService.RemoveAsync(
+                string.Format(OTP_COOLDOWN_KEY_PATTERN, FORGOT_PASSWORD_PURPOSE, normalizedEmail),
+                cancellationToken);
             _logger.LogWarning(ApplicationLogConstants.ForgotPasswordLogs.FORGOT_PASSWORD_FLOW_ROLLBACK_OTP_SEND_FAILED);
         }
 
@@ -135,10 +131,14 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
         int limit,
         CancellationToken cancellationToken)
     {
-        // Reject resend attempts while the short cooldown marker is active.
-        if (!string.IsNullOrWhiteSpace(await _cachingService.GetAsync<string>(
-            AuthenticationFlowHelper.BuildOtpCooldownKey(purpose, normalizedEmail),
-            cancellationToken)))
+        // Reserve the cooldown atomically so concurrent requests cannot both pass the guard.
+        var reservedCooldown = await _atomicCacheService.TrySetIfAbsentAsync(
+            string.Format(OTP_COOLDOWN_KEY_PATTERN, purpose, normalizedEmail),
+            OTP_COOLDOWN_VALUE,
+            TimeSpan.FromSeconds(OTP_COOLDOWN_SECONDS),
+            cancellationToken);
+
+        if (!reservedCooldown)
         {
             throw new ApiException(
                 ApplicationErrorConstants.OtpErrors.OTP_COOLDOWN_MESSAGE,
@@ -146,11 +146,11 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
                 StatusCodes.Status429TooManyRequests);
         }
 
-        // Increment the longer-window request count before deciding whether this attempt is allowed.
-        var currentLimit = await _cachingService.GetAsync<int?>(
-            AuthenticationFlowHelper.BuildOtpLimitKey(purpose, normalizedEmail),
-            cancellationToken) ?? 0;
-        currentLimit++;
+        // Increment and initialize the longer request window atomically.
+        var currentLimit = await _atomicCacheService.IncrementAsync(
+            string.Format(OTP_LIMIT_KEY_PATTERN, purpose, normalizedEmail),
+            TimeSpan.FromMinutes(OTP_LIMIT_TTL_MINUTES),
+            cancellationToken);
         if (currentLimit > limit)
         {
             throw new ApiException(
@@ -159,11 +159,5 @@ public class ForgotPasswordCommandHandler : ICommandHandler<ForgotPasswordComman
                 StatusCodes.Status429TooManyRequests);
         }
 
-        // Persist the accepted count for the remainder of the rate-limit window.
-        await _cachingService.SetAbsoluteAsync(
-            AuthenticationFlowHelper.BuildOtpLimitKey(purpose, normalizedEmail),
-            currentLimit,
-            TimeSpan.FromMinutes(OTP_LIMIT_TTL_MINUTES),
-            cancellationToken);
     }
 }

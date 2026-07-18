@@ -52,7 +52,8 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
             {
                 _logger.LogDebug(
                     CacheVersionLogs.LOG_CACHE_VERSION_KEY_NOT_FOUND,
-                    epoch, key, DEFAULT_VERSION);
+                    epoch,
+                    DEFAULT_VERSION);
 
                 return DEFAULT_VERSION;
             }
@@ -62,7 +63,7 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
             {
                 _logger.LogWarning(
                     CacheVersionLogs.LOG_CACHE_VERSION_INVALID_VALUE,
-                    epoch, key, v.ToString());
+                    epoch);
 
                 throw new InvalidOperationException(string.Format(
                     CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
@@ -78,7 +79,8 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
             {
                 _logger.LogWarning(
                     CacheVersionLogs.LOG_CACHE_VERSION_NON_POSITIVE_VALUE,
-                    epoch, key, parsed);
+                    epoch,
+                    parsed);
 
                 throw new InvalidOperationException(string.Format(
                     CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
@@ -91,7 +93,8 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
 
             _logger.LogDebug(
                 CacheVersionLogs.LOG_CACHE_VERSION_RETRIEVED,
-                epoch, key, parsed);
+                epoch,
+                parsed);
 
             return parsed;
         }
@@ -100,7 +103,7 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
             _logger.LogWarning(
                 ex,
                 CacheVersionLogs.LOG_CACHE_VERSION_READ_FAILED,
-                epoch, key);
+                epoch);
 
             throw new InvalidOperationException(string.Format(
                 CacheVersionLogs.CACHE_VERSION_READ_UNSAFE,
@@ -139,7 +142,8 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
         {
             _logger.LogWarning(
                 CacheVersionLogs.LOG_CACHE_VERSION_INCR_NON_POSITIVE,
-                epoch, key, newVersion);
+                epoch,
+                newVersion);
 
             throw new InvalidOperationException(string.Format(
                 CacheVersionLogs.CACHE_VERSION_NOT_ADVANCED,
@@ -152,7 +156,8 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
 
         _logger.LogInformation(
             CacheVersionLogs.LOG_CACHE_VERSION_BUMPED,
-            epoch, key, newVersion);
+            epoch,
+            newVersion);
 
         // Best-effort TTL to avoid accumulating one key per day forever.
         try
@@ -164,7 +169,9 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
 
                 _logger.LogDebug(
                     CacheVersionLogs.LOG_CACHE_VERSION_TTL_APPLIED,
-                    epoch, key, epochLifetime.TotalSeconds, ok);
+                    epoch,
+                    epochLifetime.TotalSeconds,
+                    ok);
             }
         }
         catch (Exception ex)
@@ -173,7 +180,9 @@ public sealed class DistributedCacheVersionService : ICacheVersionService
             _logger.LogWarning(
                 ex,
                 CacheVersionLogs.LOG_CACHE_VERSION_TTL_SET_FAILED,
-                epoch, key, epochLifetime.TotalSeconds, newVersion);
+                epoch,
+                epochLifetime.TotalSeconds,
+                newVersion);
         }
 
         return newVersion;

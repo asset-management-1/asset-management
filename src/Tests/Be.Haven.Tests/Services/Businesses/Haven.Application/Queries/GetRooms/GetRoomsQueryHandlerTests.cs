@@ -1,8 +1,5 @@
 using Haven.Application.Dtos.Rooms.List;
 using Haven.Application.Interfaces.Services;
-using Haven.Application.Mappings.Properties;
-using Haven.Application.Mappings.Rooms;
-using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Parties;
 using Haven.Application.Models.Rooms.List;
 using Haven.Application.Queries.GetRooms;

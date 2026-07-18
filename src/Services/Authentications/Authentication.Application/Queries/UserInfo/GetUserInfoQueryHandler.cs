@@ -29,7 +29,7 @@ public class GetUserInfoQueryHandler : IQueryHandler<GetUserInfoQuery, ResponseD
     /// <returns>The standardized response that wraps the current-user profile.</returns>
     public async ValueTask<ResponseDto<UserInfoResponseDto>> Handle(GetUserInfoQuery request, CancellationToken cancellationToken)
     {
-        // User info is resolved entirely from the authenticated principal and cached per user by the cache behavior.
+        // User info is loaded per authenticated session because two devices may select different Party contexts.
         var result = await _userService.GetUserInfoAsync(cancellationToken);
 
         _logger.LogInformation(ApplicationLogConstants.ProfileLogs.USER_INFO_LOADED);

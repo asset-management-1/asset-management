@@ -24,7 +24,12 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
         entity.HasIndex(e => new { e.UserId, e.SessionPublicId }, "IX_Identity_RefreshTokens_User_SessionPublicId")
             .HasFilter(REFRESH_TOKEN_SESSION_PUBLIC_ID_FILTER);
 
+        entity.HasIndex(e => new { e.UserId, e.CurrentPartyId }, "IX_Identity_RefreshTokens_User_CurrentPartyId")
+            .HasFilter(NOT_DELETED_FILTER);
+
         entity.Property(e => e.CreatedAt).HasDefaultValueSql(CURRENT_TIMESTAMP_SQL);
+
+        entity.Property(e => e.CurrentPartyId).IsRequired();
 
         entity.Property(e => e.DeviceId).HasMaxLength(ClientDeviceMetadataLimits.DEVICE_ID_MAX_LENGTH);
 
@@ -52,5 +57,10 @@ public class RefreshTokenConfiguration : IEntityTypeConfiguration<RefreshToken>
             .HasForeignKey(d => d.UserId)
             .OnDelete(DeleteBehavior.ClientSetNull)
             .HasConstraintName("FK_Identity_RefreshTokens_UserId");
+
+        entity.HasOne(d => d.CurrentUserParty).WithMany()
+            .HasForeignKey(d => new { d.UserId, d.CurrentPartyId })
+            .HasPrincipalKey(p => new { p.UserId, p.PartyId })
+            .HasConstraintName("FK_Identity_RefreshTokens_CurrentUserParty");
     }
 }

@@ -1,3 +1,5 @@
+using Be.Haven.Shared.Constants.System;
+
 namespace Be.Haven.Tests.Shared.Be.Haven.Shared.Dtos;
 
 public sealed class ResponseDtoTests

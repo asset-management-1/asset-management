@@ -1,4 +1,3 @@
-using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Tenants.Common;
 using Haven.Domain.Entities;
 

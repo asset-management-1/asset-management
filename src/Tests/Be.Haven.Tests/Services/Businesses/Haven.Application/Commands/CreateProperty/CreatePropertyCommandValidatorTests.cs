@@ -1,8 +1,5 @@
 using Haven.Application.Commands.CreateProperty;
 using Haven.Application.Dtos.Properties.Create;
-using Haven.Application.Dtos.Properties.Detail;
-using Haven.Application.Dtos.Properties.List;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Commands.CreateProperty;
 

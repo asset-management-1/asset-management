@@ -55,7 +55,11 @@ public class AuthenticationService : IAuthenticationService
         var user = await _repositories.UserRepository.GetUserForAuthenticationByUserNameAsync(
             request.UserName,
             cancellationToken);
-        if (!AuthenticationFlowHelper.CanLogin(user)
+        if (user is null
+            || user.IsDeleted
+            || user.Status is null
+            || !string.Equals(user.Status.Code, ACTIVE_STATUS, StringComparison.OrdinalIgnoreCase)
+            || !user.EmailConfirmed
             || string.IsNullOrWhiteSpace(user.PasswordHash)
             || _passwordHasher.VerifyHashedPassword(
                 user,
@@ -78,6 +82,15 @@ public class AuthenticationService : IAuthenticationService
             cancellationToken);
         var isNewClientSession = sessionRefreshToken is null;
         sessionRefreshToken ??= new RefreshToken();
+
+        // Resolve the Party context independently for this client session before issuing its token pair.
+        sessionRefreshToken.CurrentPartyId = await _repositories.UserPartyRepository.ResolveSessionPartyIdAsync(
+                                                 user.Id,
+                                                 sessionRefreshToken.CurrentPartyId,
+                                                 cancellationToken)
+                                             ?? throw new ApiException(
+                                                 ApplicationErrorConstants.ContextErrors.PARTY_CONTEXT_NOT_AVAILABLE_MESSAGE,
+                                                 ApplicationErrorConstants.AccountErrorCodes.AUTH_PARTY_CONTEXT_NOT_AVAILABLE);
 
         // Issue the access token and rotate or create the persistent refresh-token session in one flow.
         var response = await IssueAsync(
@@ -256,20 +269,34 @@ public class AuthenticationService : IAuthenticationService
         // The created user is captured for a completion log after the transaction succeeds.
         User createdUser = null;
 
-        await _unitOfWork.ExecuteInTransactionAsync(
-            async ct =>
-            {
-                // Register creates the identity graph atomically: Party + User + UserParty.
-                var party = provision.Adapt<Party>();
-                var user = provision.Adapt<User>();
-                user.CurrentParty = party;
+        try
+        {
+            await _unitOfWork.ExecuteInTransactionAsync(
+                async ct =>
+                {
+                    // Step 1: Recheck identity uniqueness inside the transaction before staging the graph.
+                    await EnsureRegistrationUniquenessAsync(
+                        pendingRegister.Adapt<RegistrationUniquenessRequestDto>(),
+                        ct);
 
-                await _repositories.PartyRepository.AddAsync(party, ct);
-                await _repositories.UserRepository.AddAsync(user, ct);
-                await _repositories.UserPartyRepository.AddAsync(new UserParty { User = user, Party = party }, ct);
-                createdUser = user;
-            },
-            cancellationToken);
+                    // Step 2: Create Party, User, and UserParty as one atomic identity graph.
+                    var party = provision.Adapt<Party>();
+                    var user = provision.Adapt<User>();
+
+                    await _repositories.PartyRepository.AddAsync(party, ct);
+                    await _repositories.UserRepository.AddAsync(user, ct);
+                    await _repositories.UserPartyRepository.AddAsync(new UserParty { User = user, Party = party }, ct);
+                    createdUser = user;
+                },
+                cancellationToken);
+        }
+        catch (DbUpdateException exception)
+            when (PostgreSqlExceptionHelper.GetUniqueConstraintName(exception)
+                is USER_NAME_UNIQUE_CONSTRAINT or USER_EMAIL_UNIQUE_CONSTRAINT or USER_PHONE_UNIQUE_CONSTRAINT)
+        {
+            // Step 3: Convert the database race winner into the same stable duplicate-account contract.
+            throw CreateRegistrationConflictException(exception);
+        }
 
         _logger.LogInformation(
             InfrastructureLogConstants.SessionLogs.REGISTER_COMPLETED,
@@ -277,6 +304,30 @@ public class AuthenticationService : IAuthenticationService
 
         return OperationStatusResponseHelper.Success(
             ApplicationMessageConstants.AccountMessages.REGISTRATION_COMPLETED_SUCCESS_MESSAGE);
+    }
+
+    /// <summary>
+    /// Maps a concurrent registration unique violation to the matching account error.
+    /// </summary>
+    /// <param name="exception">The EF Core exception raised while committing registration.</param>
+    /// <returns>The stable business exception for the violated identity field.</returns>
+    private static ApiException CreateRegistrationConflictException(DbUpdateException exception)
+    {
+        return PostgreSqlExceptionHelper.GetUniqueConstraintName(exception) switch
+        {
+            USER_NAME_UNIQUE_CONSTRAINT => new ApiException(
+                ApplicationErrorConstants.AccountErrors.USERNAME_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS),
+            USER_EMAIL_UNIQUE_CONSTRAINT => new ApiException(
+                ApplicationErrorConstants.AccountErrors.EMAIL_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS),
+            USER_PHONE_UNIQUE_CONSTRAINT => new ApiException(
+                ApplicationErrorConstants.AccountErrors.PHONE_NUMBER_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS),
+            _ => new ApiException(
+                ApplicationErrorConstants.AccountErrors.USERNAME_ALREADY_EXISTS_MESSAGE,
+                ApplicationErrorConstants.AccountErrorCodes.AUTH_USER_ALREADY_EXISTS)
+        };
     }
 
     /// <summary>
@@ -395,7 +446,14 @@ public class AuthenticationService : IAuthenticationService
             || !existingToken.SessionPublicId.HasValue
             || existingToken.RevokedAt.HasValue
             || existingToken.ExpiresAt <= DateTime.UtcNow
-            || !AuthenticationFlowHelper.CanLogin(existingToken.User))
+            || existingToken.User is null
+            || existingToken.User.IsDeleted
+            || existingToken.User.Status is null
+            || !string.Equals(
+                existingToken.User.Status.Code,
+                ACTIVE_STATUS,
+                StringComparison.OrdinalIgnoreCase)
+            || !existingToken.User.EmailConfirmed)
         {
             throw new ApiException(
                 ApplicationErrorConstants.AccountErrors.INVALID_REFRESH_TOKEN_MESSAGE,
@@ -422,6 +480,15 @@ public class AuthenticationService : IAuthenticationService
         // Refresh rotates the token hash in place and keeps the same server-issued session id.
         var replacementRefreshToken = AuthSessionHelper.GenerateRefreshToken();
         var deviceContext = _clientDeviceContextAccessor.GetCurrent();
+
+        // Recheck the session Party before rotation so a stale relation cannot survive into user-info.
+        existingToken.CurrentPartyId = await _repositories.UserPartyRepository.ResolveSessionPartyIdAsync(
+                                           existingToken.UserId,
+                                           existingToken.CurrentPartyId,
+                                           cancellationToken)
+                                       ?? throw new ApiException(
+                                           ApplicationErrorConstants.ContextErrors.PARTY_CONTEXT_NOT_AVAILABLE_MESSAGE,
+                                           ApplicationErrorConstants.AccountErrorCodes.AUTH_PARTY_CONTEXT_NOT_AVAILABLE);
 
         // Reissue the token pair while preserving the existing session identifier for this client instance.
         var response = await IssueAsync(
@@ -652,15 +719,11 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            // Write Redis first so old access tokens stop being accepted before persistence completes.
-            await AuthResetCacheHelper.SetAsync(
-                _cachingService,
-                new AuthResetCacheWriteModel
-                {
-                    UserPublicId = userPublicId,
-                    AuthResetAt = authResetAt,
-                    RefreshTokenDays = _authOptions.RefreshTokenDays
-                },
+            // Write the cache marker first so old access tokens stop being accepted before persistence completes.
+            await _cachingService.SetAbsoluteAsync(
+                TokenHelper.BuildAuthResetCacheKey(userPublicId),
+                TokenHelper.ToAuthResetUnixMilliseconds(authResetAt),
+                TokenHelper.GetAuthResetCacheTtl(_authOptions.RefreshTokenDays),
                 cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -688,14 +751,10 @@ public class AuthenticationService : IAuthenticationService
         try
         {
             // Token issue should not fail when only the cache seed is unavailable; handler can fall back to DB later.
-            await AuthResetCacheHelper.SetAsync(
-                _cachingService,
-                new AuthResetCacheWriteModel
-                {
-                    UserPublicId = userPublicId,
-                    AuthResetAt = authResetAt,
-                    RefreshTokenDays = _authOptions.RefreshTokenDays
-                },
+            await _cachingService.SetAbsoluteAsync(
+                TokenHelper.BuildAuthResetCacheKey(userPublicId),
+                TokenHelper.ToAuthResetUnixMilliseconds(authResetAt),
+                TokenHelper.GetAuthResetCacheTtl(_authOptions.RefreshTokenDays),
                 cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

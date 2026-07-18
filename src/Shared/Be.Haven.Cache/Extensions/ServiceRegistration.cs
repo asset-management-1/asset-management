@@ -1,84 +1,117 @@
 namespace Be.Haven.Cache.Extensions;
 
+/// <summary>
+/// Registers cache, login-attempt, cache-version, bypass, and distributed-lock infrastructure.
+/// </summary>
 public static class ServiceRegistration
 {
     /// <summary>
-    /// Configures and registers a distributed caching mechanism in the service collection
-    /// based on the provided application configuration. Supports both in-memory and Redis caching.
+    /// Registers in-memory cache services or one shared Redis connection for cache and lock operations.
     /// </summary>
-    /// <param name="services">The service collection to which the caching services are added.</param>
-    /// <param name="configuration">The application configuration interface for retrieving cache settings.</param>
-    /// <exception cref="ArgumentException">
-    /// Thrown when there is an issue configuring or connecting to the distributed cache (e.g., Redis).
-    /// </exception>
-    public static void AddDistributedCache(this IServiceCollection services, IConfiguration configuration) =>
-        AddDistributedCache(
-            services,
-            configuration,
-            options => ConnectionMultiplexer.Connect(options));
-
-    private static void AddDistributedCache(
-        IServiceCollection services,
-        IConfiguration configuration,
-        Func<ConfigurationOptions, IConnectionMultiplexer> connectRedis)
+    /// <param name="services">The application service collection.</param>
+    /// <param name="configuration">The application configuration containing cache settings.</param>
+    public static void AddDistributedCache(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
+        // Step 1: Bind cache options before selecting the backing provider.
         services.Configure<CacheOptions>(configuration.GetSection(CACHE_SETTING));
         services.Configure<LoginAttemptOptions>(configuration.GetSection(LOGIN_AT_TEMPT_SETTINGS));
 
-        var cacheOption = configuration.GetSection(CACHE_SETTING).Get<CacheOptions>()
+        // Step 2: Resolve the cache mode once so all related services use the same infrastructure boundary.
+        var cacheOptions = configuration.GetSection(CACHE_SETTING).Get<CacheOptions>()
             ?? throw new InvalidOperationException(ERROR_CACHE_OPTION_MISSING);
 
-        // Retrieve Redis configuration settings
-        services.AddTransient<ICachingService, CachingService>(); // Add caching service to the service collection
-
-        if (cacheOption.IsMemory)
+        if (cacheOptions.IsMemory)
         {
-            services.AddDistributedMemoryCache(); // Add in-memory cache if the setting is enabled
+            // Step 3a: Register only local implementations when the application explicitly selects memory mode.
+            services.AddDistributedMemoryCache();
+            services.AddSingleton<ICachingService, CachingService>();
+            services.AddSingleton<IAtomicCacheService, InMemoryAtomicCacheService>();
             services.AddSingleton<ICacheBypassService, InMemoryCacheBypassService>();
             services.AddTransient<ILoginAttemptService, LoginMemoryAttemptService>();
             services.AddTransient<ICacheVersionService, InMemoryCacheVersionService>();
-            return; // Exit the method
+            return;
         }
 
-        var passwordRedis = cacheOption.RedisSettings.Password;
+        // Step 3b: Validate the Redis endpoint before registering any Redis-backed service.
+        var redisConfiguration = BuildRedisConfiguration(cacheOptions.RedisSettings);
 
-        try
+        // Step 4: Create one multiplexer lazily so registration itself does not open a network connection.
+        services.AddSingleton<IConnectionMultiplexer>(serviceProvider =>
         {
-            var configurationOptions = new ConfigurationOptions
-            {
-                Ssl = cacheOption.RedisSettings.Ssl, // Set SSL setting
-                Password = passwordRedis, // Set Redis password
-                DefaultDatabase = cacheOption.RedisSettings.DbNumber,
-                AbortOnConnectFail = false,
-                ConnectRetry = cacheOption.RedisSettings.ConnectRetry,
-                ConnectTimeout = cacheOption.RedisSettings.ConnectTimeout,
-                SyncTimeout = cacheOption.RedisSettings.SyncTimeout
-            };
-            configurationOptions.EndPoints.Add(cacheOption.RedisSettings.Host, cacheOption.RedisSettings.Port); // Set Redis host and port
+            var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+            var logger = loggerFactory.CreateLogger(
+                typeof(ServiceRegistration).FullName ?? nameof(ServiceRegistration));
 
-            var connectionMultiplexer = connectRedis(configurationOptions);
-            if (!connectionMultiplexer.IsConnected)
+            try
             {
-                Console.WriteLine(FAILED_TO_CONNECT_TO_REDIS);
+                var connection = ConnectionMultiplexer.Connect(redisConfiguration);
+
+                if (!connection.IsConnected)
+                {
+                    logger.LogWarning(DistributedLockLogs.REDIS_CONNECTION_NOT_READY);
+                }
+
+                return connection;
             }
-
-            // Add Redis connection multiplexer to the service collection
-            services.AddSingleton<IConnectionMultiplexer>(connectionMultiplexer);
-            services.AddSingleton<IDistributedLockService, DistributedLockService>();
-            services.AddSingleton<ICacheVersionService, DistributedCacheVersionService>();
-            services.AddSingleton<ICacheBypassService, DistributedCacheBypassService>();
-            services.AddTransient<ILoginAttemptService, LoginAttemptService>();
-            services.AddStackExchangeRedisCache(options =>
+            catch (Exception exception)
             {
-                options.ConfigurationOptions = configurationOptions; // Set Redis configuration options
-            });
-        }
-        catch (Exception ex)
-        {
-            // Write an error log in case some issue related to add distributed cache
-            Console.WriteLine($"{ERROR_DISTRIBUTED_CACHE}: {ex.Message}");
+                logger.LogError(
+                    exception,
+                    DistributedLockLogs.REDIS_INITIALIZATION_FAILED);
 
-            throw new ArgumentException(ERROR_DISTRIBUTED_CACHE, ex.Message);
+                throw new InvalidOperationException(ERROR_DISTRIBUTED_CACHE, exception);
+            }
+        });
+
+        // Step 5: Reuse the multiplexer for cache payloads, login attempts, and distributed locks.
+        services.AddStackExchangeRedisCache(_ => { });
+        services.AddOptions<RedisCacheOptions>()
+            .Configure<IConnectionMultiplexer>((options, connection) =>
+            {
+                options.ConnectionMultiplexerFactory = () => Task.FromResult(connection);
+            });
+
+        services.AddSingleton<IDistributedLockService, DistributedLockService>();
+        services.AddSingleton<ICachingService, CachingService>();
+        services.AddSingleton<IAtomicCacheService, AtomicCacheService>();
+        services.AddSingleton<ICacheVersionService, DistributedCacheVersionService>();
+        services.AddSingleton<ICacheBypassService, DistributedCacheBypassService>();
+        services.AddTransient<ILoginAttemptService, LoginAttemptService>();
+    }
+
+    /// <summary>
+    /// Builds and validates the Redis client configuration used by all Redis-backed services.
+    /// </summary>
+    /// <param name="redisOptions">The configured Redis endpoint and client settings.</param>
+    /// <returns>The validated StackExchange.Redis configuration.</returns>
+    private static ConfigurationOptions BuildRedisConfiguration(RedisOptions redisOptions)
+    {
+        ArgumentNullException.ThrowIfNull(redisOptions);
+
+        if (string.IsNullOrWhiteSpace(redisOptions.Host))
+        {
+            throw new InvalidOperationException(ERROR_REDIS_HOST_MISSING);
         }
+
+        if (redisOptions.Port <= 0)
+        {
+            throw new InvalidOperationException(ERROR_REDIS_PORT_INVALID);
+        }
+
+        var result = new ConfigurationOptions
+        {
+            Ssl = redisOptions.Ssl,
+            Password = redisOptions.Password,
+            DefaultDatabase = redisOptions.DbNumber,
+            AbortOnConnectFail = false,
+            ConnectRetry = redisOptions.ConnectRetry,
+            ConnectTimeout = redisOptions.ConnectTimeout,
+            SyncTimeout = redisOptions.SyncTimeout
+        };
+
+        result.EndPoints.Add(redisOptions.Host, redisOptions.Port);
+        return result;
     }
 }

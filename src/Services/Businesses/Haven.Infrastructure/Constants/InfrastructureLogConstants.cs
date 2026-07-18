@@ -103,9 +103,9 @@ public static class InfrastructureLogConstants
         public const string TENANT_JOIN_QR_CREATED = "Created tenant join QR for room {RoomPublicId} by party {PartyPublicId}.";
 
         /// <summary>
-        /// Logged when a consumed tenant-join token cannot be restored after occupancy creation fails.
+        /// Logged when a committed tenant join cannot remove its cache token.
         /// </summary>
-        public const string TENANT_JOIN_TOKEN_RESTORE_FAILED = "Tenant join failed after token consumption, and the token could not be restored for room {RoomPublicId}.";
+        public const string TENANT_JOIN_TOKEN_REMOVE_FAILED = "Tenant join committed, but its cache token could not be removed for room {RoomPublicId}.";
     }
 
     /// <summary>

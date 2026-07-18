@@ -1,25 +1,24 @@
 namespace Be.Haven.ApiCommon.Middlewares;
 
-public class ErrorHandlerMiddleware
+/// <summary>
+/// Converts unhandled request exceptions into the shared API response envelope.
+/// </summary>
+public sealed class ErrorHandlerMiddleware
 {
     private readonly RequestDelegate _next;
-    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ErrorHandlerMiddleware> _logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ErrorHandlerMiddleware"/> class with the specified request delegate,
-    /// service scope factory, and logger.
+    /// and logger.
     /// </summary>
     /// <param name="next">The next middleware in the HTTP request pipeline.</param>
-    /// <param name="scopeFactory">Factory for creating service scopes.</param>
     /// <param name="logger">Logger for error handling and diagnostics.</param>
     public ErrorHandlerMiddleware(
         RequestDelegate next,
-        IServiceScopeFactory scopeFactory,
         ILogger<ErrorHandlerMiddleware> logger)
     {
         _next = next;
-        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -35,19 +34,20 @@ public class ErrorHandlerMiddleware
         {
             await _next(context);
         }
-        catch (OperationCanceledException ex) when (context.RequestAborted.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (context.RequestAborted.IsCancellationRequested)
         {
             _logger.LogWarning(
-                ex,
+                exception,
                 REQUEST_CANCELED_BY_CLIENT,
                 context.Request.Path,
                 context.Request.Method);
         }
-        catch (Exception error)
+        catch (Exception exception)
         {
-            var responseModel = HandleException(context, error);
+            // Map the failure once before writing a client-safe response envelope.
+            var responseModel = HandleException(context, exception);
 
-            await CreateAndWriteResponseAsync(context, responseModel);
+            await WriteResponseAsync(context, responseModel);
         }
     }
 
@@ -56,28 +56,31 @@ public class ErrorHandlerMiddleware
     /// and constructs error details with relevant metadata.
     /// </summary>
     /// <param name="context">The current HTTP context associated with the ongoing request.</param>
-    /// <param name="error">The exception that occurred during the request pipeline execution.</param>
+    /// <param name="exception">The exception that occurred during the request pipeline execution.</param>
     /// <returns>A formatted <see cref="ResponseDto{T}"/> containing error details, metadata, and additional trace information.</returns>
     private ResponseDto<string> HandleException(
         HttpContext context,
-        Exception error)
+        Exception exception)
     {
-        // Initialize a response model
         var currentActivity = Activity.Current;
-
-        // API version (if any) for this request
         var version = context.Features.Get<IApiVersioningFeature>()?.RequestedApiVersion;
         string versionData = null;
+
         if (version is not null)
         {
             versionData = $"{version.MajorVersion}.{version.MinorVersion ?? 0}";
         }
 
+        var correlationId = context.Items.TryGetValue(X_CORRELATION_ID, out var value)
+            ? value?.ToString()
+            : null;
+
+        // Preserve request and trace metadata for every mapped exception type.
         var response = new ResponseDto<string>
         {
             Meta = new MetaDetailDto
             {
-                CorrelationId = context.Items[X_CORRELATION_ID].ToString(),
+                CorrelationId = correlationId,
                 RequestId = context.TraceIdentifier,
                 Version = versionData,
                 SpanId = currentActivity?.SpanId.ToString(),
@@ -87,18 +90,28 @@ public class ErrorHandlerMiddleware
             }
         };
 
-        // Map exception types to appropriate HTTP status codes and messages
-        switch (error)
+        switch (exception)
         {
+            case DistributedLockUnavailableException:
+                // Coordination outages fail closed so callers cannot bypass protected workflows.
+                response.Error = new ErrorDto
+                {
+                    Code = SERVICE_UNAVAILABLE,
+                    StatusCode = StatusCodes.Status503ServiceUnavailable,
+                    Message = SERVICE_UNAVAILABLE_MESSAGE
+                };
+                _logger.LogError(exception, SERVICE_UNAVAILABLE);
+                break;
+
             case ApiException apiError:
                 response.Error = new ErrorDto
                 {
                     Code = apiError.ErrorCode ?? BAD_REQUEST,
                     StatusCode = apiError.StatusCode,
-                    Message = error.Message,
+                    Message = exception.Message,
                     Details = apiError.Details?.ToList() ?? []
                 };
-                _logger.LogError(error, apiError.ErrorCode ?? BAD_REQUEST);
+                _logger.LogError(exception, apiError.ErrorCode ?? BAD_REQUEST);
                 break;
 
             case ArgumentException:
@@ -106,9 +119,9 @@ public class ErrorHandlerMiddleware
                 {
                     Code = BAD_REQUEST,
                     StatusCode = (int)HttpStatusCode.BadRequest,
-                    Message = error.Message
+                    Message = exception.Message
                 };
-                _logger.LogError(error, BAD_REQUEST);
+                _logger.LogError(exception, BAD_REQUEST);
                 break;
 
             case ValidationException validationError:
@@ -116,10 +129,10 @@ public class ErrorHandlerMiddleware
                 {
                     Code = validationError.ErrorCode,
                     StatusCode = (int)HttpStatusCode.BadRequest,
-                    Message = error.Message,
+                    Message = exception.Message,
                     Details = validationError.Errors
                 };
-                _logger.LogError(error, BAD_REQUEST);
+                _logger.LogError(exception, BAD_REQUEST);
                 break;
 
             case KeyNotFoundException:
@@ -127,54 +140,54 @@ public class ErrorHandlerMiddleware
                 {
                     Code = NOT_FOUND,
                     StatusCode = (int)HttpStatusCode.NotFound,
-                    Message = error.Message
+                    Message = exception.Message
                 };
-                _logger.LogError(error, NOT_FOUND);
+                _logger.LogError(exception, NOT_FOUND);
                 break;
 
             case UnauthorizedAccessException:
-
             case AuthenticationFailureException:
                 response.Error = new ErrorDto
                 {
                     Code = UNAUTHORIZED,
                     StatusCode = (int)HttpStatusCode.Unauthorized,
-                    Message = error.Message
+                    Message = exception.Message
                 };
-                _logger.LogError(error, UNAUTHORIZED);
+                _logger.LogError(exception, UNAUTHORIZED);
                 break;
 
             case HttpStatusCodeException httpStatusError:
                 var statusCode = httpStatusError.StatusCode;
 
-                var errorCode = !string.IsNullOrEmpty(httpStatusError.ErrorCode) ? httpStatusError.ErrorCode : statusCode switch
-                {
-                    StatusCodes.Status400BadRequest          => BAD_REQUEST,
-                    StatusCodes.Status401Unauthorized        => UNAUTHORIZED,
-                    StatusCodes.Status403Forbidden           => FORBIDDEN,
-                    StatusCodes.Status404NotFound            => NOT_FOUND,
-                    StatusCodes.Status405MethodNotAllowed    => METHOD_NOT_ALLOWED,
-                    StatusCodes.Status406NotAcceptable       => NOT_ACCEPTABLE,
-                    StatusCodes.Status413PayloadTooLarge     => BAD_REQUEST,
-                    StatusCodes.Status415UnsupportedMediaType => UNSUPPORTED_MEDIA_TYPE,
-                    StatusCodes.Status429TooManyRequests     => MANY_REQUESTS,
-                    StatusCodes.Status500InternalServerError => INTERNAL_SERVER,
-                    StatusCodes.Status503ServiceUnavailable  => SERVICE_UNAVAILABLE,
-                    _                                        => INTERNAL_SERVER
-                };
+                var errorCode = !string.IsNullOrEmpty(httpStatusError.ErrorCode)
+                    ? httpStatusError.ErrorCode
+                    : statusCode switch
+                    {
+                        StatusCodes.Status400BadRequest => BAD_REQUEST,
+                        StatusCodes.Status401Unauthorized => UNAUTHORIZED,
+                        StatusCodes.Status403Forbidden => FORBIDDEN,
+                        StatusCodes.Status404NotFound => NOT_FOUND,
+                        StatusCodes.Status405MethodNotAllowed => METHOD_NOT_ALLOWED,
+                        StatusCodes.Status406NotAcceptable => NOT_ACCEPTABLE,
+                        StatusCodes.Status413PayloadTooLarge => BAD_REQUEST,
+                        StatusCodes.Status415UnsupportedMediaType => UNSUPPORTED_MEDIA_TYPE,
+                        StatusCodes.Status429TooManyRequests => MANY_REQUESTS,
+                        StatusCodes.Status500InternalServerError => INTERNAL_SERVER,
+                        StatusCodes.Status503ServiceUnavailable => SERVICE_UNAVAILABLE,
+                        _ => INTERNAL_SERVER
+                    };
 
                 response.Error = new ErrorDto
                 {
                     Code = errorCode,
                     StatusCode = statusCode,
-                    Message = error.Message
+                    Message = exception.Message
                 };
 
-                _logger.LogError(error, errorCode);
+                _logger.LogError(exception, errorCode);
                 break;
 
             default:
-
                 // Unexpected exceptions are logged with details but exposed with a generic client-safe message.
                 response.Error = new ErrorDto
                 {
@@ -182,20 +195,20 @@ public class ErrorHandlerMiddleware
                     StatusCode = (int)HttpStatusCode.InternalServerError,
                     Message = UNEXPECTED_SERVER_ERROR
                 };
-                _logger.LogError(error, INTERNAL_SERVER);
+                _logger.LogError(exception, INTERNAL_SERVER);
                 break;
         }
 
         return response;
     }
-    
+
     /// <summary>
-    /// Helper method to create and write the response asynchronously.
+    /// Writes the mapped error response when the client connection remains available.
     /// </summary>
-    /// <param name="context"> The function context. </param>
-    /// <param name="response"> The response model to write. </param>
-    /// <returns> A task representing the asynchronous operation. </returns>
-    private async Task CreateAndWriteResponseAsync(
+    /// <param name="context">The current HTTP context.</param>
+    /// <param name="response">The mapped response envelope.</param>
+    /// <returns>A task representing the response write.</returns>
+    private async Task WriteResponseAsync(
         HttpContext context,
         ResponseDto<string> response)
     {
@@ -215,23 +228,24 @@ public class ErrorHandlerMiddleware
                 _logger.LogWarning(RESPONSE_ALREADY_STARTED);
                 return;
             }
-            using var scope = _scopeFactory.CreateScope();
+
+            // Write only after cancellation and response-start guards have passed.
             context.Response.StatusCode = response.Error.StatusCode;
             context.Response.ContentType = TEXT_JSON;
 
             await context.Response.WriteAsJsonAsync(response, context.RequestAborted);
         }
-        catch (OperationCanceledException ex) when (context.RequestAborted.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (context.RequestAborted.IsCancellationRequested)
         {
             _logger.LogWarning(
-                ex,
+                exception,
                 REQUEST_CANCELED_WHILE_WRITING_ERROR_RESPONSE,
                 context.Request.Path,
                 context.Request.Method);
         }
-        catch (Exception ex)
+        catch (Exception exception)
         {
-            _logger.LogError(ex, RESPONSE_CREATION_ERROR);
+            _logger.LogError(exception, RESPONSE_CREATION_ERROR);
         }
     }
 }

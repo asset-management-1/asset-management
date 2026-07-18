@@ -46,9 +46,10 @@ public sealed class RoomMetersController : BaseApiController
     /// <returns>The committed meter period.</returns>
     [HttpPost]
     [Consumes(MULTIPART_FORM_DATA)]
-    [RequestSizeLimit(Be.Haven.Shared.Constants.ObjectStorageConstants.MAX_METER_MULTIPART_BODY_BYTES)]
+    [RequestSizeLimit(ObjectStorageConstants.MAX_METER_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<MeterPeriodDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Create(
         [FromRoute(Name = ROOM_ID_ROUTE_PARAMETER)] Guid roomId,
         [FromForm] RoomMeterForm form)
@@ -67,9 +68,10 @@ public sealed class RoomMetersController : BaseApiController
     /// <returns>The committed meter period.</returns>
     [HttpPut]
     [Consumes(MULTIPART_FORM_DATA)]
-    [RequestSizeLimit(Be.Haven.Shared.Constants.ObjectStorageConstants.MAX_METER_MULTIPART_BODY_BYTES)]
+    [RequestSizeLimit(ObjectStorageConstants.MAX_METER_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<MeterPeriodDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Update(
         [FromRoute(Name = ROOM_ID_ROUTE_PARAMETER)] Guid roomId,
         [FromForm] UpdateRoomMeterForm form)

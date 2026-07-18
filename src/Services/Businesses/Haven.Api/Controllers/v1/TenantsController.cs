@@ -17,6 +17,7 @@ public class TenantsController : BaseApiController
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> CreateTenant([FromBody] CreateTenantCommand request)
     {
@@ -66,6 +67,7 @@ public class TenantsController : BaseApiController
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> DeleteTenant([FromRoute(Name = ID_ROUTE_PARAMETER)] Guid id)
     {
@@ -121,6 +123,7 @@ public class TenantsController : BaseApiController
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> ConfirmTenantJoin([FromBody] ConfirmTenantJoinCommand request)
     {

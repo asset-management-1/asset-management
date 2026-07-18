@@ -35,16 +35,19 @@ public class HavenClientSessionValidator : IClientSessionValidator
     {
         try
         {
-            // Session validation is a minimal source-of-truth read used by both public APIs.
+            // Step 1: Read the live session and canonical UserStatus in one source-of-truth query.
             var readModel = await _dapperService.QueryFirstOrDefaultAsync<ClientSessionValidationReadModel>(
                 HavenClientSessionConstants.GET_ACTIVE_SESSION_BY_USER_AND_PUBLIC_ID_QUERY,
                 new
                 {
                     UserPublicId = userPublicId,
-                    SessionPublicId = sessionPublicId
+                    SessionPublicId = sessionPublicId,
+                    ActiveUserStatusCode = HavenClientSessionConstants.ACTIVE_USER_STATUS_CODE,
+                    UserStatusTypeCode = HavenClientSessionConstants.USER_STATUS_TYPE_CODE
                 },
                 DapperCommandOptionsHelper.CreateText(cancellationToken));
 
+            // Step 2: Reject the token when its session, User, or canonical ACTIVE status is no longer valid.
             return readModel is not null;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

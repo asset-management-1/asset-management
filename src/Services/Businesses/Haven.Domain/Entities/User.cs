@@ -6,11 +6,6 @@ namespace Haven.Domain.Entities;
 public class User : BaseEntity
 {
     /// <summary>
-    /// Gets or sets the selected current party identifier.
-    /// </summary>
-    public long? CurrentPartyId { get; set; }
-
-    /// <summary>
     /// Gets or sets the login username.
     /// </summary>
     public string UserName { get; set; }
@@ -41,7 +36,7 @@ public class User : BaseEntity
     public long StatusId { get; set; }
 
     /// <summary>
-    /// Gets the business parties linked to this user account.
+    /// Gets the business Parties linked to this user account.
     /// </summary>
     public ICollection<UserParty> UserParties { get; } = new List<UserParty>();
 }

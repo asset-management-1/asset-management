@@ -1,14 +1,9 @@
 using Be.Haven.Core.Interfaces.Repositories;
 using Haven.Application.Commands.CreateProperty;
 using Haven.Application.Dtos.Properties.Create;
-using Haven.Application.Dtos.Properties.Detail;
-using Haven.Application.Dtos.Properties.List;
 using Haven.Application.Dtos.Properties.Update;
 using Haven.Application.Interfaces.Repositories;
 using Haven.Application.Interfaces.Services;
-using Haven.Application.Mappings.Properties;
-using Haven.Application.Mappings.Rooms;
-using Haven.Application.Mappings.Tenants;
 using Haven.Application.Models.Locations;
 using Haven.Application.Models.MasterData;
 using Haven.Application.Models.Parties;
@@ -20,21 +15,9 @@ using Haven.Application.Models.Properties.Mutation;
 using Haven.Application.Models.Properties.QueryParameters;
 using Haven.Application.Models.Properties.Rows;
 using Haven.Application.Models.Properties.Update;
-using Haven.Application.Queries.GetProperties;
-using Haven.Application.Queries.GetPropertyDetail;
 using Haven.Domain.Entities;
-using Haven.Domain.Enums;
 using Haven.Infrastructure.Dependencies;
-using Haven.Infrastructure.Mappings.Rooms;
-using Haven.Infrastructure.Services.Locations;
-using Haven.Infrastructure.Services.MasterData;
-using Haven.Infrastructure.Services.Parties;
 using Haven.Infrastructure.Services.Properties;
-using Haven.Infrastructure.Services.Rooms;
-using Haven.Infrastructure.Services.Tenants;
-using Mapster;
-using Microsoft.AspNetCore.Http;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Infrastructure.Services;
 

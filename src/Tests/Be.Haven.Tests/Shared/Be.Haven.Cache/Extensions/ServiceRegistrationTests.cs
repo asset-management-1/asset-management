@@ -1,5 +1,4 @@
-using System.Reflection;
-using static Be.Haven.Shared.Constants.RedisConstants;
+using static Be.Haven.Shared.Constants.Cache.RedisConstants;
 using CacheServiceRegistration = Be.Haven.Cache.Extensions.ServiceRegistration;
 
 namespace Be.Haven.Tests.Shared.Be.Haven.Cache.Extensions;
@@ -11,6 +10,7 @@ public sealed class ServiceRegistrationTests
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var configuration = BuildConfiguration(new Dictionary<string, string>
         {
             [$"{CACHE_SETTING}:IsMemory"] = "true",
@@ -25,6 +25,9 @@ public sealed class ServiceRegistrationTests
         services.Should().Contain(descriptor =>
             descriptor.ServiceType == typeof(ICachingService) &&
             descriptor.ImplementationType == typeof(CachingService));
+        services.Should().Contain(descriptor =>
+            descriptor.ServiceType == typeof(IAtomicCacheService) &&
+            descriptor.ImplementationType == typeof(InMemoryAtomicCacheService));
         services.Should().Contain(descriptor =>
             descriptor.ServiceType == typeof(ICacheBypassService) &&
             descriptor.ImplementationType == typeof(InMemoryCacheBypassService));
@@ -81,7 +84,7 @@ public sealed class ServiceRegistrationTests
     }
 
     [Fact]
-    public void AddDistributedCache_Should_ThrowArgumentException_When_RedisConnectionCannotBeConfigured()
+    public void AddDistributedCache_Should_ThrowInvalidOperationException_When_RedisConnectionCannotBeConfigured()
     {
         // Arrange
         var services = new ServiceCollection();
@@ -98,35 +101,35 @@ public sealed class ServiceRegistrationTests
         var act = () => CacheServiceRegistration.AddDistributedCache(services, configuration);
 
         // Assert
-        act.Should().Throw<ArgumentException>();
-        services.Should().Contain(descriptor =>
-            descriptor.ServiceType == typeof(ICachingService) &&
-            descriptor.ImplementationType == typeof(CachingService));
+        act.Should().Throw<InvalidOperationException>();
+        services.Should().NotContain(descriptor =>
+            descriptor.ServiceType == typeof(ICachingService));
     }
 
     [Fact]
-    public void AddDistributedCache_Should_RegisterRedisServices_When_RedisConnectionIsProvided()
+    public async Task AddDistributedCache_Should_RegisterRedisServices_When_RedisConnectionIsProvided()
     {
         // Arrange
         var services = new ServiceCollection();
+        services.AddLogging();
         var configuration = BuildRedisConfiguration();
         var redis = new Mock<IConnectionMultiplexer>();
         redis.SetupGet(x => x.IsConnected).Returns(true);
 
         // Act
-        InvokeAddDistributedCache(
-            services,
-            configuration,
-            _ => redis.Object);
+        CacheServiceRegistration.AddDistributedCache(services, configuration);
+        var connectionDescriptor = services.Single(descriptor =>
+            descriptor.ServiceType == typeof(IConnectionMultiplexer));
+        ReplaceRedisConnection(services, redis.Object);
         using var provider = services.BuildServiceProvider();
 
         // Assert
+        var registeredConnection = provider.GetRequiredService<IConnectionMultiplexer>();
+        var registeredLock = provider.GetRequiredService<IDistributedLockService>();
         var redisOptions = provider
             .GetRequiredService<IOptions<Microsoft.Extensions.Caching.StackExchangeRedis.RedisCacheOptions>>()
             .Value;
-        services.Should().Contain(descriptor =>
-            descriptor.ServiceType == typeof(IConnectionMultiplexer) &&
-            descriptor.ImplementationInstance == redis.Object);
+        connectionDescriptor.ImplementationFactory.Should().NotBeNull();
         services.Should().Contain(descriptor =>
             descriptor.ServiceType == typeof(ICacheVersionService) &&
             descriptor.ImplementationType == typeof(DistributedCacheVersionService));
@@ -136,29 +139,16 @@ public sealed class ServiceRegistrationTests
         services.Should().Contain(descriptor =>
             descriptor.ServiceType == typeof(ILoginAttemptService) &&
             descriptor.ImplementationType == typeof(LoginAttemptService));
-        redisOptions.ConfigurationOptions.Should().NotBeNull();
-        redisOptions.ConfigurationOptions.EndPoints.Should().ContainSingle();
-    }
-
-    [Fact]
-    public void AddDistributedCache_Should_RegisterRedisServices_When_RedisConnectionIsNotConnected()
-    {
-        // Arrange
-        var services = new ServiceCollection();
-        var configuration = BuildRedisConfiguration();
-        var redis = new Mock<IConnectionMultiplexer>();
-        redis.SetupGet(x => x.IsConnected).Returns(false);
-
-        // Act
-        InvokeAddDistributedCache(
-            services,
-            configuration,
-            _ => redis.Object);
-
-        // Assert
         services.Should().Contain(descriptor =>
-            descriptor.ServiceType == typeof(IConnectionMultiplexer) &&
-            descriptor.ImplementationInstance == redis.Object);
+            descriptor.ServiceType == typeof(ICachingService) &&
+            descriptor.ImplementationType == typeof(CachingService));
+        services.Should().Contain(descriptor =>
+            descriptor.ServiceType == typeof(IAtomicCacheService) &&
+            descriptor.ImplementationType == typeof(AtomicCacheService));
+        registeredConnection.Should().BeSameAs(redis.Object);
+        registeredLock.Should().BeOfType<DistributedLockService>();
+        redisOptions.ConnectionMultiplexerFactory.Should().NotBeNull();
+        (await redisOptions.ConnectionMultiplexerFactory()).Should().BeSameAs(redis.Object);
     }
 
     private static IConfiguration BuildConfiguration(Dictionary<string, string> values) =>
@@ -180,16 +170,14 @@ public sealed class ServiceRegistrationTests
             [$"{LOGIN_AT_TEMPT_SETTINGS}:MaxFailedAttempts"] = "5"
         });
 
-    private static void InvokeAddDistributedCache(
+    private static void ReplaceRedisConnection(
         IServiceCollection services,
-        IConfiguration configuration,
-        Func<ConfigurationOptions, IConnectionMultiplexer> connectRedis)
+        IConnectionMultiplexer connection)
     {
-        var method = typeof(CacheServiceRegistration)
-            .GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
-            .Single(x => x.Name == nameof(CacheServiceRegistration.AddDistributedCache)
-                         && x.GetParameters().Length == 3);
+        var descriptor = services.Single(service =>
+            service.ServiceType == typeof(IConnectionMultiplexer));
 
-        method.Invoke(null, [services, configuration, connectRedis]);
+        services.Remove(descriptor);
+        services.AddSingleton(connection);
     }
 }

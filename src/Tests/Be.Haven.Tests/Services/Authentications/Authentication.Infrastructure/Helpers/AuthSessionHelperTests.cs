@@ -6,7 +6,7 @@ using Authentication.Infrastructure.Mappings.Authentications;
 using Authentication.Infrastructure.Models.Authentications.Sessions;
 using Authentication.Infrastructure.Options.Authentications;
 using Be.Haven.Core.Models.ClientDevices;
-using static Be.Haven.Shared.Constants.AuthConstants;
+using static Be.Haven.Shared.Constants.Authentication.AuthConstants;
 
 namespace Be.Haven.Tests.Services.Authentications.Authentication.Infrastructure.Helpers;
 

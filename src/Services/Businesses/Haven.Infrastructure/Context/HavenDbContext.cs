@@ -55,7 +55,7 @@ public partial class HavenDbContext : DbContext
     public virtual DbSet<User> Users { get; set; }
 
     /// <summary>
-    /// Gets or sets user-party link entities.
+    /// Gets or sets User-Party relationship entities.
     /// </summary>
     public virtual DbSet<UserParty> UserParties { get; set; }
 

@@ -1,5 +1,3 @@
-using Haven.Infrastructure.Extensions;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Preserve the host configuration pipeline, including local overrides, before applying the

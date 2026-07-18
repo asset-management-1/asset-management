@@ -1,7 +1,5 @@
 namespace Be.Haven.Shared.Dtos.Options.Email;
 
-using System.ComponentModel.DataAnnotations;
-
 /// <summary>
 /// Represents configuration settings for sending emails.
 /// </summary>

@@ -1,6 +1,5 @@
 using Haven.Application.Commands.CreateTenant;
 using Haven.Application.Dtos.Tenants.Common;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Commands.CreateTenant;
 

@@ -23,6 +23,26 @@ public static class StringExtension
     }
 
     /// <summary>
+    /// Normalizes a username into the canonical lowercase value used by login and unique indexes.
+    /// </summary>
+    /// <param name="userName">The submitted username.</param>
+    /// <returns>The trimmed lowercase username, or <c>null</c> when the source is empty.</returns>
+    public static string NormalizeUserName(this string userName)
+    {
+        return userName.NormalizeOptional()?.ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Normalizes a validated E.164 phone number by removing transport whitespace around the value.
+    /// </summary>
+    /// <param name="phoneNumber">The submitted phone number.</param>
+    /// <returns>The trimmed phone number, or <c>null</c> when the source is empty.</returns>
+    public static string NormalizePhoneNumber(this string phoneNumber)
+    {
+        return phoneNumber.NormalizeOptional();
+    }
+
+    /// <summary>
     /// Normalizes a text code into an uppercase alphanumeric value.
     /// </summary>
     /// <param name="value">The source text code.</param>

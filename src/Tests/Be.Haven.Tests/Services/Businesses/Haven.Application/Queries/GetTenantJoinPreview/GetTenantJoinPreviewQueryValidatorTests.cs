@@ -1,5 +1,4 @@
 using Haven.Application.Queries.GetTenantJoinPreview;
-using static Haven.Application.Constants.ApplicationConstants;
 
 namespace Be.Haven.Tests.Services.Businesses.Haven.Application.Queries.GetTenantJoinPreview;
 

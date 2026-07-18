@@ -15,9 +15,10 @@ public static class InfrastructureQueryConstants
             ON property."Id" = unit."PropertyId"
            AND property."IsDeleted" = FALSE
         INNER JOIN "asset"."PropertyParties" property_party
-            ON property_party."PropertyId" = property."Id"
+           ON property_party."PropertyId" = property."Id"
            AND property_party."PartyId" = {1}
            AND property_party."IsDeleted" = FALSE
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
            AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "masterdata"."MasterDataValues" relationship_type
             ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -49,9 +50,10 @@ public static class InfrastructureQueryConstants
             ON property."Id" = unit."PropertyId"
            AND property."IsDeleted" = FALSE
         INNER JOIN "asset"."PropertyParties" property_party
-            ON property_party."PropertyId" = property."Id"
+           ON property_party."PropertyId" = property."Id"
            AND property_party."PartyId" = @CurrentPartyId
            AND property_party."IsDeleted" = FALSE
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
            AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "masterdata"."MasterDataValues" relationship_type
             ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -113,6 +115,7 @@ public static class InfrastructureQueryConstants
                  WHERE property_party."PropertyId" = unit."PropertyId"
                    AND property_party."PartyId" = @CurrentPartyId
                    AND property_party."IsDeleted" = FALSE
+                   AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                    AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
            )
         LIMIT 1;
@@ -137,6 +140,7 @@ public static class InfrastructureQueryConstants
                     ON property_party."PropertyId" = property."Id"
                    AND property_party."PartyId" = {2}
                    AND property_party."IsDeleted" = FALSE
+                   AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                    AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
                 INNER JOIN "masterdata"."MasterDataValues" relationship_type
                     ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -173,6 +177,9 @@ public static class InfrastructureQueryConstants
             ON property_party."PropertyId" = property."Id"
            AND property_party."PartyId" = @CurrentPartyId
            AND property_party."IsDeleted" = FALSE
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
+           AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
            AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "masterdata"."MasterDataValues" relationship_type
             ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -208,6 +215,7 @@ public static class InfrastructureQueryConstants
                     ON property_party."PropertyId" = property."Id"
                    AND property_party."IsDeleted" = FALSE
                    AND property_party."PartyId" = {1}
+                   AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                    AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
                 INNER JOIN "masterdata"."MasterDataValues" relationship_type
                     ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -257,7 +265,7 @@ public static class InfrastructureQueryConstants
         """;
 
     /// <summary>
-    /// Loads the current authenticated user's selected party context.
+    /// Loads the active Party selected by the current refresh-token client session.
     /// </summary>
     public const string GET_CURRENT_PARTY_CONTEXT_QUERY = """
         SELECT
@@ -266,9 +274,16 @@ public static class InfrastructureQueryConstants
             party."DisplayName",
             party_type."Code" AS "PartyTypeCode",
             party_status."Code" AS "StatusCode"
-        FROM "identity"."Users" "user"
+        FROM "identity"."RefreshTokens" auth_session
+        INNER JOIN "identity"."Users" "user"
+            ON "user"."Id" = auth_session."UserId"
+           AND "user"."IsDeleted" = FALSE
+        INNER JOIN "identity"."UserParties" user_party
+            ON user_party."UserId" = auth_session."UserId"
+           AND user_party."PartyId" = auth_session."CurrentPartyId"
+           AND user_party."IsDeleted" = FALSE
         INNER JOIN "core"."Parties" party
-            ON party."Id" = "user"."CurrentPartyId"
+            ON party."Id" = user_party."PartyId"
            AND party."IsDeleted" = FALSE
         INNER JOIN "masterdata"."MasterDataValues" party_type
             ON party_type."Id" = party."PartyTypeId"
@@ -278,8 +293,11 @@ public static class InfrastructureQueryConstants
             ON party_status."Id" = party."StatusId"
            AND party_status."IsDeleted" = FALSE
            AND party_status."IsActive" = TRUE
-        WHERE "user"."PublicId" = @UserPublicId
-          AND "user"."IsDeleted" = FALSE
+        WHERE auth_session."SessionPublicId" = @SessionPublicId
+          AND auth_session."RevokedAt" IS NULL
+          AND auth_session."ExpiresAt" > NOW()
+          AND auth_session."IsDeleted" = FALSE
+          AND "user"."PublicId" = @UserPublicId
         LIMIT 1;
         """;
 
@@ -337,6 +355,7 @@ public static class InfrastructureQueryConstants
                     WHERE property_party."PropertyId" = property."Id"
                       AND property_party."IsDeleted" = FALSE
                       AND property_party."PartyId" = @CurrentPartyId
+                      AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                       AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
               )
         ),
@@ -477,8 +496,8 @@ public static class InfrastructureQueryConstants
             property."FormattedAddress",
             property."Latitude",
             property."Longitude",
-            COALESCE(NULLIF(property."TotalFloors", 0), summary."TotalFloors", 0)::int AS "TotalFloors",
-            COALESCE(NULLIF(property."TotalUnits", 0), summary."TotalUnits", 0)::int AS "TotalUnits",
+            COALESCE(property."TotalFloors", 0)::int AS "TotalFloors",
+            COALESCE(property."TotalUnits", 0)::int AS "TotalUnits",
             COALESCE(summary."AvailableUnitCount", 0)::int AS "AvailableUnitCount",
             COALESCE(summary."OccupiedUnitCount", 0)::int AS "OccupiedUnitCount",
             CASE
@@ -551,13 +570,14 @@ public static class InfrastructureQueryConstants
             property."FormattedAddress",
             property."Latitude",
             property."Longitude",
-            COALESCE(NULLIF(property."TotalFloors", 0), summary."TotalFloors", 0)::int AS "TotalFloors",
-            COALESCE(NULLIF(property."TotalUnits", 0), summary."TotalUnits", 0)::int AS "TotalUnits"
+            COALESCE(property."TotalFloors", 0)::int AS "TotalFloors",
+            COALESCE(property."TotalUnits", 0)::int AS "TotalUnits"
         FROM "asset"."Properties" property
         INNER JOIN "asset"."PropertyParties" property_party
             ON property_party."PropertyId" = property."Id"
            AND property_party."IsDeleted" = FALSE
            AND property_party."PartyId" = @CurrentPartyId
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
            AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "masterdata"."MasterDataValues" relationship_type
             ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -581,14 +601,6 @@ public static class InfrastructureQueryConstants
         LEFT JOIN "core"."Wards" ward
             ON ward."Id" = property."WardId"
            AND ward."IsDeleted" = FALSE
-        LEFT JOIN LATERAL (
-            SELECT
-                COUNT(unit."Id")::int AS "TotalUnits",
-                COUNT(DISTINCT unit."FloorNumber") FILTER (WHERE unit."FloorNumber" IS NOT NULL)::int AS "TotalFloors"
-            FROM "asset"."Units" unit
-            WHERE unit."PropertyId" = property."Id"
-              AND unit."IsDeleted" = FALSE
-        ) summary ON TRUE
         WHERE property."IsDeleted" = FALSE
           AND property."PublicId" = @PropertyPublicId
         ORDER BY property."UpdatedAt" DESC NULLS LAST, property."CreatedAt" DESC
@@ -1040,6 +1052,7 @@ public static class InfrastructureQueryConstants
                 ON property_party."PropertyId" = property."Id"
                AND property_party."IsDeleted" = FALSE
                AND property_party."PartyId" = @CurrentPartyId
+               AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
             INNER JOIN "masterdata"."MasterDataValues" relationship_type
                 ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -1321,6 +1334,8 @@ public static class InfrastructureQueryConstants
             ON property_party."PropertyId" = property."Id"
            AND property_party."PartyId" = @CurrentPartyId
            AND property_party."IsDeleted" = FALSE
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
+           AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "masterdata"."MasterDataValues" relationship_type
             ON relationship_type."Id" = property_party."RelationshipTypeId"
            AND relationship_type."IsDeleted" = FALSE
@@ -1409,6 +1424,8 @@ public static class InfrastructureQueryConstants
             ON property_party."PropertyId" = property."Id"
            AND property_party."PartyId" = @CurrentPartyId
            AND property_party."IsDeleted" = FALSE
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
+           AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "masterdata"."MasterDataValues" relationship_type
             ON relationship_type."Id" = property_party."RelationshipTypeId"
            AND relationship_type."IsDeleted" = FALSE
@@ -1466,6 +1483,8 @@ public static class InfrastructureQueryConstants
         INNER JOIN "asset"."PropertyParties" property_party
             ON property_party."PropertyId" = property."Id"
            AND property_party."IsDeleted" = FALSE
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
+           AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "core"."Parties" landlord_party
             ON landlord_party."Id" = property_party."PartyId"
            AND landlord_party."PublicId" = @LandlordPartyPublicId
@@ -1530,6 +1549,7 @@ public static class InfrastructureQueryConstants
             ON property_party."PropertyId" = property."Id"
            AND property_party."IsDeleted" = FALSE
            AND property_party."PartyId" = @CurrentPartyId
+           AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
            AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
         INNER JOIN "masterdata"."MasterDataValues" relationship_type
             ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -1565,6 +1585,7 @@ public static class InfrastructureQueryConstants
                 ON property_party."PropertyId" = unit."PropertyId"
                AND property_party."PartyId" = @CurrentPartyId
                AND property_party."IsDeleted" = FALSE
+               AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
             INNER JOIN "masterdata"."MasterDataValues" relationship_type
                 ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -1630,6 +1651,7 @@ public static class InfrastructureQueryConstants
                   ON property_party."PropertyId" = unit."PropertyId"
                  AND property_party."PartyId" = @CurrentPartyId
                  AND property_party."IsDeleted" = FALSE
+                 AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                  AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
               INNER JOIN "masterdata"."MasterDataValues" relationship_type
                   ON relationship_type."Id" = property_party."RelationshipTypeId"
@@ -1886,6 +1908,7 @@ public static class InfrastructureQueryConstants
               WHERE property_party."PropertyId" = property."Id"
                 AND property_party."PartyId" = @CurrentPartyId
                 AND property_party."IsDeleted" = FALSE
+                AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                 AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE))
         LIMIT 1;
         """;
@@ -1934,6 +1957,7 @@ public static class InfrastructureQueryConstants
               WHERE property_party."PropertyId" = property."Id"
                 AND property_party."PartyId" = @CurrentPartyId
                 AND property_party."IsDeleted" = FALSE
+                AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                 AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE))
         ORDER BY reading."BillingPeriodFrom" DESC, line_type."Code";
         """;
@@ -2007,6 +2031,7 @@ public static class InfrastructureQueryConstants
               WHERE property_party."PropertyId" = property."Id"
                 AND property_party."PartyId" = @CurrentPartyId
                 AND property_party."IsDeleted" = FALSE
+                AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                 AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE))
         ORDER BY reading."BillingPeriodFrom" DESC, line_type."Code";
         """;
@@ -2025,7 +2050,29 @@ public static class InfrastructureQueryConstants
 
     /// <summary>Loads the next invoice state for one room meter period.</summary>
     public const string GET_METER_INVOICE_IMPACT_QUERY = """
-        SELECT invoice."PublicId" AS "InvoicePublicId", status."Code" AS "StatusCode", invoice."PaidAmount"
+        SELECT
+            invoice."PublicId" AS "InvoicePublicId",
+            status."Code" AS "StatusCode",
+            invoice."PaidAmount",
+            EXISTS (
+                SELECT 1
+                FROM "billing"."PaymentAllocations" allocation
+                INNER JOIN "billing"."Payments" payment
+                    ON payment."Id" = allocation."PaymentId"
+                   AND payment."IsDeleted" = FALSE
+                INNER JOIN "masterdata"."MasterDataValues" payment_status
+                    ON payment_status."Id" = payment."StatusId"
+                   AND payment_status."Code" = @SuccessfulPaymentStatusCode
+                   AND payment_status."IsDeleted" = FALSE
+                   AND payment_status."IsActive" = TRUE
+                INNER JOIN "masterdata"."MasterDataTypes" payment_status_type
+                    ON payment_status_type."Id" = payment_status."MasterDataTypeId"
+                   AND payment_status_type."Code" = @PaymentStatusTypeCode
+                   AND payment_status_type."IsDeleted" = FALSE
+                   AND payment_status_type."IsActive" = TRUE
+                WHERE allocation."InvoiceId" = invoice."Id"
+                  AND allocation."IsDeleted" = FALSE
+            ) AS "HasSuccessfulPayment"
         FROM "billing"."Invoices" invoice
         INNER JOIN "leasing"."Contracts" contract ON contract."Id" = invoice."ContractId"
         INNER JOIN "masterdata"."MasterDataValues" status ON status."Id" = invoice."StatusId"
