@@ -368,14 +368,13 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         Guid userPublicId,
         CancellationToken cancellationToken = default)
     {
-        // Step 1: Require the mutation transaction before serialising updates for this account.
-        var transaction = GetRequiredDbTransaction();
-
-        // Step 2: Lock only the matching user identifier through Dapper on the EF transaction.
+        // Step 1: Lock the matching user identifier through Dapper on the required EF mutation transaction.
         var userId = await _dapperService.ExecuteScalarAsync<long?>(
             InfrastructureQueryConstants.GET_USER_ID_BY_PUBLIC_ID_FOR_UPDATE_QUERY,
             new { UserPublicId = userPublicId },
-            DapperCommandOptionsHelper.CreateText(cancellationToken, transaction));
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _authenticationDbContext,
+                cancellationToken));
         if (!userId.HasValue)
         {
             return null;
@@ -402,14 +401,13 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             return null;
         }
 
-        // Step 1: Require the password-change transaction before locking the reset-session owner.
-        var transaction = GetRequiredDbTransaction();
-
-        // Step 2: Lock only the password-owner identifier through Dapper on the EF transaction.
+        // Step 1: Lock the password-owner identifier through Dapper on the required password-change transaction.
         var userId = await _dapperService.ExecuteScalarAsync<long?>(
             InfrastructureQueryConstants.GET_PASSWORD_IDENTITY_USER_ID_BY_EMAIL_FOR_UPDATE_QUERY,
             new { NormalizedEmail = normalizedEmail },
-            DapperCommandOptionsHelper.CreateText(cancellationToken, transaction));
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _authenticationDbContext,
+                cancellationToken));
         if (!userId.HasValue)
         {
             return null;
@@ -418,19 +416,6 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         // Step 3: Load the locked identity through EF so password mutation reuses one tracked user row.
         return await _authenticationDbContext.Users
             .FirstOrDefaultAsync(x => x.Id == userId.Value, cancellationToken);
-    }
-
-    /// <summary>
-    /// Gets the active database transaction required to keep a PostgreSQL row lock until commit or rollback.
-    /// </summary>
-    /// <returns>The underlying provider transaction owned by the current EF transaction.</returns>
-    private IDbTransaction GetRequiredDbTransaction()
-    {
-        // Row locks outside an explicit transaction would not protect the subsequent account mutation.
-        var currentTransaction = _authenticationDbContext.Database.CurrentTransaction
-                                 ?? throw new InvalidOperationException(ACTIVE_DATABASE_TRANSACTION_REQUIRED);
-
-        return currentTransaction.GetDbTransaction();
     }
 
     /// <summary>

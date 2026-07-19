@@ -6,14 +6,19 @@ namespace Authentication.Application.Commands.SwitchParty;
 public class SwitchPartyCommandHandler : ICommandHandler<SwitchPartyCommand, ResponseDto<SwitchPartyResponseDto>>
 {
     private readonly IUserService _userService;
+    private readonly ILogger<SwitchPartyCommandHandler> _logger;
 
     /// <summary>
     /// Creates the party-context switch handler with the user-context service.
     /// </summary>
     /// <param name="userService">The service that switches or creates the requested party context.</param>
-    public SwitchPartyCommandHandler(IUserService userService)
+    /// <param name="logger">The structured party-context workflow logger.</param>
+    public SwitchPartyCommandHandler(
+        IUserService userService,
+        ILogger<SwitchPartyCommandHandler> logger)
     {
         _userService = userService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -30,6 +35,10 @@ public class SwitchPartyCommandHandler : ICommandHandler<SwitchPartyCommand, Res
         var result = await _userService.SwitchPartyAsync(
             request.Adapt<SwitchPartyRequestDto>(),
             cancellationToken);
+
+        // Record the context transition without duplicating profile or token data in Application logs.
+        _logger.LogInformation(ApplicationLogConstants.UserLogs.PARTY_CONTEXT_SWITCHED);
+
         return new ResponseDto<SwitchPartyResponseDto>(result);
     }
 }

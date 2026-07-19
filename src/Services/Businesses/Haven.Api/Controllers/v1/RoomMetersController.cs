@@ -14,6 +14,14 @@ public sealed class RoomMetersController : BaseApiController
     /// <param name="year">The calendar year selected by the user.</param>
     /// <returns>The room meter history ordered from newest to oldest.</returns>
     [HttpGet]
+    [SwaggerValueExample<MeterSwaggerExamples.Values>]
+    [SwaggerResponseExample<MeterSwaggerExamples.HistoryResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseDto<IReadOnlyList<MeterHistoryItemResponseDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> GetHistory(
         [FromRoute(Name = ROOM_ID_ROUTE_PARAMETER)] Guid roomId,
         [FromQuery] int year)
@@ -30,6 +38,14 @@ public sealed class RoomMetersController : BaseApiController
     /// <returns>The current meter period and its live invoice impact.</returns>
     [HttpGet]
     [Route(ROOM_METERS_PERIOD)]
+    [SwaggerValueExample<MeterSwaggerExamples.Values>]
+    [SwaggerResponseExample<MeterSwaggerExamples.PeriodResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseDto<MeterPeriodDetailResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
     public async Task<IActionResult> GetPeriod(
         [FromRoute(Name = ROOM_ID_ROUTE_PARAMETER)] Guid roomId,
         [FromQuery] int month,
@@ -46,9 +62,15 @@ public sealed class RoomMetersController : BaseApiController
     /// <returns>The committed meter period.</returns>
     [HttpPost]
     [Consumes(MULTIPART_FORM_DATA)]
+    [SwaggerValueExample<MeterSwaggerExamples.CreateValues>]
+    [SwaggerResponseExample<MeterSwaggerExamples.PeriodResponse>(StatusCodes.Status200OK)]
     [RequestSizeLimit(ObjectStorageConstants.MAX_METER_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<MeterPeriodDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Create(
         [FromRoute(Name = ROOM_ID_ROUTE_PARAMETER)] Guid roomId,
@@ -68,9 +90,15 @@ public sealed class RoomMetersController : BaseApiController
     /// <returns>The committed meter period.</returns>
     [HttpPut]
     [Consumes(MULTIPART_FORM_DATA)]
+    [SwaggerValueExample<MeterSwaggerExamples.UpdateValues>]
+    [SwaggerResponseExample<MeterSwaggerExamples.PeriodResponse>(StatusCodes.Status200OK)]
     [RequestSizeLimit(ObjectStorageConstants.MAX_METER_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<MeterPeriodDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status500InternalServerError)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Update(
         [FromRoute(Name = ROOM_ID_ROUTE_PARAMETER)] Guid roomId,

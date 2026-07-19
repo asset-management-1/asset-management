@@ -7,18 +7,22 @@ public class UnlinkExternalProviderCommandHandler : ICommandHandler<UnlinkExtern
 {
     private readonly IExternalAuthenticationService _externalAuthenticationService;
     private readonly IAuthService _authService;
+    private readonly ILogger<UnlinkExternalProviderCommandHandler> _logger;
 
     /// <summary>
     /// Creates the external-provider unlink handler with current-user resolution.
     /// </summary>
     /// <param name="externalAuthenticationService">The service that validates and persists external-provider unlinking.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
+    /// <param name="logger">The structured external-provider unlink logger.</param>
     public UnlinkExternalProviderCommandHandler(
         IExternalAuthenticationService externalAuthenticationService,
-        IAuthService authService)
+        IAuthService authService,
+        ILogger<UnlinkExternalProviderCommandHandler> logger)
     {
         _externalAuthenticationService = externalAuthenticationService;
         _authService = authService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -43,6 +47,13 @@ public class UnlinkExternalProviderCommandHandler : ICommandHandler<UnlinkExtern
             request.Adapt<UnlinkExternalProviderRequestDto>(),
             currentUserPublicId,
             cancellationToken);
+
+        // Log only provider and public account identifiers after final-sign-in-method validation succeeds.
+        _logger.LogInformation(
+            ApplicationLogConstants.ExternalLogs.PROVIDER_UNLINKED,
+            request.Provider,
+            currentUserPublicId);
+
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 }

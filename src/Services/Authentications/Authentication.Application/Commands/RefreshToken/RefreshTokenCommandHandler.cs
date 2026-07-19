@@ -6,14 +6,19 @@ namespace Authentication.Application.Commands.RefreshToken;
 public class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCommand, ResponseDto<LoginResponseDto>>
 {
     private readonly IAuthenticationService _authenticationService;
+    private readonly ILogger<RefreshTokenCommandHandler> _logger;
 
     /// <summary>
     /// Creates the refresh-token handler with token rotation services.
     /// </summary>
     /// <param name="authenticationService">The service that validates and rotates refresh tokens.</param>
-    public RefreshTokenCommandHandler(IAuthenticationService authenticationService)
+    /// <param name="logger">The structured refresh-token workflow logger.</param>
+    public RefreshTokenCommandHandler(
+        IAuthenticationService authenticationService,
+        ILogger<RefreshTokenCommandHandler> logger)
     {
         _authenticationService = authenticationService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -30,6 +35,10 @@ public class RefreshTokenCommandHandler : ICommandHandler<RefreshTokenCommand, R
         var result = await _authenticationService.RefreshTokenAsync(
             request.Adapt<RefreshTokenRequestDto>(),
             cancellationToken);
+
+        // Never log the submitted or issued token values; only record successful rotation.
+        _logger.LogInformation(ApplicationLogConstants.SessionLogs.REFRESH_TOKEN_ROTATED);
+
         return new ResponseDto<LoginResponseDto>(result);
     }
 }

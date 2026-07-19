@@ -113,11 +113,34 @@ public static class InfrastructureLogConstants
     /// </summary>
     public static class VehicleLogs
     {
+        /// <summary>
+        /// Logged after scoped vehicle rows are loaded.
+        /// </summary>
         public const string VEHICLES_LOADED = "Loaded {Count} vehicle rows for party {PartyPublicId}.";
+
+        /// <summary>
+        /// Logged after a vehicle is created.
+        /// </summary>
         public const string VEHICLE_CREATED = "Created vehicle {VehiclePublicId} for party {PartyPublicId}.";
+
+        /// <summary>
+        /// Logged after a vehicle is updated.
+        /// </summary>
         public const string VEHICLE_UPDATED = "Updated vehicle {VehiclePublicId} for party {PartyPublicId}.";
+
+        /// <summary>
+        /// Logged after a vehicle is deleted.
+        /// </summary>
         public const string VEHICLE_DELETED = "Deleted vehicle {VehiclePublicId} for party {PartyPublicId}.";
+
+        /// <summary>
+        /// Logged when vehicle image upload fails.
+        /// </summary>
         public const string VEHICLE_IMAGE_UPLOAD_FAILED = "Vehicle image upload failed for vehicle {VehiclePublicId}.";
+
+        /// <summary>
+        /// Logged when compensation cannot remove a vehicle image.
+        /// </summary>
         public const string VEHICLE_IMAGE_CLEANUP_FAILED = "Vehicle image cleanup failed for vehicle {VehiclePublicId}.";
     }
 
@@ -205,10 +228,19 @@ public static class InfrastructureLogConstants
         public const string LOCATION_CODE_MISSING = "Location code missing for kind {LocationKind} and code {Code}.";
     }
 
-    /// <summary>Contains structured utility workflow log templates.</summary>
+    /// <summary>
+    /// Contains structured utility workflow log templates.
+    /// </summary>
     public static class MeterLogs
     {
+        /// <summary>
+        /// Logged after one utility period is loaded.
+        /// </summary>
         public const string PERIOD_LOADED = "Loaded utility period {BillingMonth} for property {PropertyId} and room {RoomId}.";
+
+        /// <summary>
+        /// Logged when compensation cannot remove utility evidence.
+        /// </summary>
         public const string EVIDENCE_CLEANUP_FAILED = "Utility evidence cleanup failed for property {PropertyId}.";
     }
 }

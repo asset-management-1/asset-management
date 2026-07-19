@@ -7,18 +7,22 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<O
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly IAuthService _authService;
+    private readonly ILogger<LogoutCommandHandler> _logger;
 
     /// <summary>
     /// Creates the logout handler with session revocation services.
     /// </summary>
     /// <param name="authenticationService">The service that revokes refresh-token state.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
+    /// <param name="logger">The structured session-revocation logger.</param>
     public LogoutCommandHandler(
         IAuthenticationService authenticationService,
-        IAuthService authService)
+        IAuthService authService,
+        ILogger<LogoutCommandHandler> logger)
     {
         _authenticationService = authenticationService;
         _authService = authService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -48,6 +52,13 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<O
             currentUserPublicId,
             currentSessionPublicId,
             cancellationToken);
+
+        // Public identifiers are safe correlation values; no access or refresh token is logged.
+        _logger.LogInformation(
+            ApplicationLogConstants.SessionLogs.LOGOUT_COMPLETED,
+            currentUserPublicId,
+            currentSessionPublicId);
+
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 }

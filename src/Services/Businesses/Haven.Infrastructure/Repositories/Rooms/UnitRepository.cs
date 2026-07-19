@@ -103,7 +103,7 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
     /// <summary>
     /// Loads effective package templates for a room.
     /// </summary>
-    /// <param name="roomPublicId">The room public identifier.</param>
+    /// <param name="parameters">The landlord-scoped room and fallback-package query parameters.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The effective package template rows.</returns>
     public async Task<IReadOnlyList<RoomPackageTemplateRowModel>> GetEffectivePackageTemplatesAsync(
@@ -129,16 +129,20 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
         RoomScopedQueryParametersModel parameters,
         CancellationToken cancellationToken = default)
     {
-        // Lock only after the same active relationship-code scope used by room reads has been applied.
-        var lockedRoomId = await _havenDbContext.Database
-            .SqlQueryRaw<long>(
-                InfrastructureQueryConstants.LOCK_ROOM_FOR_PACKAGE_MUTATION_QUERY,
+        // Lock only after the same relationship-code scope has been applied on the required EF mutation transaction.
+        var lockedRoomId = await _dapperService.ExecuteScalarAsync<long?>(
+            InfrastructureQueryConstants.GET_ROOM_ID_FOR_PACKAGE_MUTATION_QUERY,
+            new
+            {
                 parameters.RoomPublicId,
                 parameters.CurrentPartyId,
-                parameters.RelationshipCodes.ToArray())
-            .SingleOrDefaultAsync(cancellationToken);
+                RelationshipCodes = parameters.RelationshipCodes.ToArray()
+            },
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _havenDbContext,
+                cancellationToken));
 
-        if (lockedRoomId == 0)
+        if (!lockedRoomId.HasValue)
         {
             return null;
         }
@@ -150,7 +154,7 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
             .Include(unit => unit.Property)
                 .ThenInclude(property => property.UnitPackages.Where(package => package.UnitId == null && !package.IsDeleted))
                     .ThenInclude(package => package.Items.Where(item => !item.IsDeleted))
-            .FirstOrDefaultAsync(unit => unit.Id == lockedRoomId, cancellationToken);
+            .FirstOrDefaultAsync(unit => unit.Id == lockedRoomId.Value, cancellationToken);
     }
 
     /// <summary>
@@ -180,26 +184,26 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
     /// <param name="parameters">The scoped room parameters.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The tracked room graph, or <c>null</c>.</returns>
-    public Task<Unit> GetRoomGraphAsync(
+    public async Task<Unit> GetRoomGraphAsync(
         RoomScopedQueryParametersModel parameters,
         CancellationToken cancellationToken = default)
     {
-        var relationshipCodes = parameters.RelationshipCodes.ToArray();
+        // Step 1: Resolve the authorised room identifier without materialising an EF entity through SQL text.
+        var roomId = await GetScopedRoomIdAsync(parameters, cancellationToken);
+        if (!roomId.HasValue)
+        {
+            return null;
+        }
 
-        // EF applies authorization inside the scoped graph load; split includes keep navigation loading bounded.
-        return _havenDbContext.Units
-            .FromSqlRaw(
-                InfrastructureQueryConstants.GET_SCOPED_ROOM_GRAPH_QUERY,
-                parameters.RoomPublicId,
-                parameters.CurrentPartyId,
-                relationshipCodes)
+        // Step 2: Load the tracked graph through EF LINQ; split includes keep navigation loading bounded.
+        return await _havenDbContext.Units
             .Include(unit => unit.Property)
                 .ThenInclude(property => property.Units.Where(propertyUnit => !propertyUnit.IsDeleted))
             .Include(unit => unit.UnitPackages.Where(unitPackage => !unitPackage.IsDeleted))
                 .ThenInclude(unitPackage => unitPackage.Items.Where(item => !item.IsDeleted))
             .Include(unit => unit.RentalChargePolicies.Where(policy => !policy.IsDeleted))
             .AsSplitQuery()
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(unit => unit.Id == roomId.Value, cancellationToken);
     }
 
     /// <summary>
@@ -208,21 +212,21 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
     /// <param name="parameters">The scoped room parameters.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The tracked room and property, or <c>null</c>.</returns>
-    public Task<Unit> GetRoomForOccupancyMutationAsync(
+    public async Task<Unit> GetRoomForOccupancyMutationAsync(
         RoomScopedQueryParametersModel parameters,
         CancellationToken cancellationToken = default)
     {
-        var relationshipCodes = parameters.RelationshipCodes.ToArray();
+        // Step 1: Resolve the same landlord scope used by room detail and package mutations.
+        var roomId = await GetScopedRoomIdAsync(parameters, cancellationToken);
+        if (!roomId.HasValue)
+        {
+            return null;
+        }
 
-        // Occupancy mutations need room capacity, pricing, and property identity without package or policy graphs.
-        return _havenDbContext.Units
-            .FromSqlRaw(
-                InfrastructureQueryConstants.GET_SCOPED_ROOM_GRAPH_QUERY,
-                parameters.RoomPublicId,
-                parameters.CurrentPartyId,
-                relationshipCodes)
+        // Step 2: Load only the tracked room and property fields required by occupancy mutation guards.
+        return await _havenDbContext.Units
             .Include(unit => unit.Property)
-            .FirstOrDefaultAsync(cancellationToken);
+            .FirstOrDefaultAsync(unit => unit.Id == roomId.Value, cancellationToken);
     }
 
     /// <summary>
@@ -291,6 +295,27 @@ public class UnitRepository : GenericRepository<Unit>, IUnitRepository
             RentalModeId = room.RentalModeId,
             BedCount = room.BedCount
         };
+    }
+
+    /// <summary>
+    /// Resolves one room identifier inside the current landlord relationship scope.
+    /// </summary>
+    /// <param name="parameters">The landlord and room scope.</param>
+    /// <param name="cancellationToken">The token used to cancel the Dapper query.</param>
+    /// <returns>The scoped internal room identifier, or <c>null</c>.</returns>
+    private Task<long?> GetScopedRoomIdAsync(
+        RoomScopedQueryParametersModel parameters,
+        CancellationToken cancellationToken)
+    {
+        return _dapperService.ExecuteScalarAsync<long?>(
+            InfrastructureQueryConstants.GET_SCOPED_ROOM_ID_QUERY,
+            new
+            {
+                parameters.RoomPublicId,
+                parameters.CurrentPartyId,
+                RelationshipCodes = parameters.RelationshipCodes.ToArray()
+            },
+            DapperCommandOptionsHelper.CreateText(cancellationToken));
     }
 
     /// <summary>

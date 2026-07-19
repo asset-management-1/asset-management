@@ -95,36 +95,58 @@ public enum MasterDataTypeEnum
     /// </summary>
     CommonStatus = 18,
 
-    /// <summary>Invoice status values.</summary>
+    /// <summary>
+    /// Invoice status values.
+    /// </summary>
     InvoiceStatus = 19,
 
-    /// <summary>Invoice type values.</summary>
+    /// <summary>
+    /// Invoice type values.
+    /// </summary>
     InvoiceType = 20,
 
-    /// <summary>Utility-reading workflow status values.</summary>
+    /// <summary>
+    /// Utility-reading workflow status values.
+    /// </summary>
     MeterStatus = 21,
 
-    /// <summary>Utility charge-mode values.</summary>
+    /// <summary>
+    /// Utility charge-mode values.
+    /// </summary>
     UtilityChargeMode = 22,
 
-    /// <summary>Document type values.</summary>
+    /// <summary>
+    /// Document type values.
+    /// </summary>
     DocumentType = 23,
 
-    /// <summary>Object-storage provider values.</summary>
+    /// <summary>
+    /// Object-storage provider values.
+    /// </summary>
     StorageProvider = 24,
 
-    /// <summary>Document status values.</summary>
+    /// <summary>
+    /// Document status values.
+    /// </summary>
     DocumentStatus = 25,
 
-    /// <summary>Generic linked-entity type values.</summary>
+    /// <summary>
+    /// Generic linked-entity type values.
+    /// </summary>
     EntityType = 26,
 
-    /// <summary>Document-link purpose values.</summary>
+    /// <summary>
+    /// Document-link purpose values.
+    /// </summary>
     DocumentLinkType = 27,
 
-    /// <summary>Document-link status values.</summary>
+    /// <summary>
+    /// Document-link status values.
+    /// </summary>
     DocumentLinkStatus = 28,
 
-    /// <summary>Payment status values.</summary>
+    /// <summary>
+    /// Payment status values.
+    /// </summary>
     PaymentStatus = 29
 }

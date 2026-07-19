@@ -72,10 +72,29 @@ public static class ApplicationLogConstants
     /// </summary>
     public static class RoomPackageLogs
     {
+        /// <summary>
+        /// Log template for room-package list query completion at the application boundary.
+        /// </summary>
         public const string ROOM_PACKAGE_LIST_QUERY_COMPLETED = "Room package list query completed for room {RoomPublicId} and party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for room-package detail query completion at the application boundary.
+        /// </summary>
         public const string ROOM_PACKAGE_DETAIL_QUERY_COMPLETED = "Room package detail query completed for package {PackagePublicId}, room {RoomPublicId}, and party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for room-package creation completion at the application boundary.
+        /// </summary>
         public const string ROOM_PACKAGE_CREATE_COMMAND_COMPLETED = "Room package create command completed for package {PackagePublicId}, room {RoomPublicId}, and party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for room-package update completion at the application boundary.
+        /// </summary>
         public const string ROOM_PACKAGE_UPDATE_COMMAND_COMPLETED = "Room package update command completed for package {PackagePublicId}, room {RoomPublicId}, and party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for room-package deletion completion at the application boundary.
+        /// </summary>
         public const string ROOM_PACKAGE_DELETE_COMMAND_COMPLETED = "Room package delete command completed for package {PackagePublicId}, room {RoomPublicId}, and party {PartyPublicId}.";
     }
 
@@ -125,14 +144,35 @@ public static class ApplicationLogConstants
     /// </summary>
     public static class VehicleLogs
     {
+        /// <summary>
+        /// Log template for vehicle list query completion at the application boundary.
+        /// </summary>
         public const string VEHICLE_LIST_QUERY_COMPLETED = "Vehicle list query completed for party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for vehicle detail query completion at the application boundary.
+        /// </summary>
         public const string VEHICLE_DETAIL_QUERY_COMPLETED = "Vehicle detail query completed for vehicle {VehiclePublicId} and party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for vehicle creation completion at the application boundary.
+        /// </summary>
         public const string VEHICLE_CREATE_COMMAND_COMPLETED = "Vehicle create command completed for vehicle {VehiclePublicId} and party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for vehicle update completion at the application boundary.
+        /// </summary>
         public const string VEHICLE_UPDATE_COMMAND_COMPLETED = "Vehicle update command completed for vehicle {VehiclePublicId} and party {PartyPublicId}.";
+
+        /// <summary>
+        /// Log template for vehicle deletion completion at the application boundary.
+        /// </summary>
         public const string VEHICLE_DELETE_COMMAND_COMPLETED = "Vehicle delete command completed for vehicle {VehiclePublicId} and party {PartyPublicId}.";
     }
 
-    /// <summary>Contains meter record command and query log templates.</summary>
+    /// <summary>
+    /// Contains meter record command and query log templates.
+    /// </summary>
     public static class MeterLogs
     {
         /// <summary>

@@ -144,4 +144,83 @@ public static class ApplicationLogConstants
         /// </summary>
         public const string KYC_SUBMITTED = "KYC submitted for manual review by user {UserPublicId}.";
     }
+
+    /// <summary>
+    /// Contains current-user profile and party-context log messages.
+    /// </summary>
+    public static class UserLogs
+    {
+        /// <summary>
+        /// Logged after the current authenticated profile is loaded.
+        /// </summary>
+        public const string USER_INFO_LOADED = "Current-user profile loaded.";
+
+        /// <summary>
+        /// Logged after the current authenticated profile is updated.
+        /// </summary>
+        public const string USER_INFO_UPDATED = "Current-user profile updated.";
+
+        /// <summary>
+        /// Logged after the current client switches its active party context.
+        /// </summary>
+        public const string PARTY_CONTEXT_SWITCHED = "Current client party context switched.";
+    }
+
+    /// <summary>
+    /// Contains session and token rotation log messages.
+    /// </summary>
+    public static class SessionLogs
+    {
+        /// <summary>
+        /// Logged after the current authenticated session is revoked.
+        /// </summary>
+        public const string LOGOUT_COMPLETED = "Logout completed for user {UserPublicId} and session {SessionPublicId}.";
+
+        /// <summary>
+        /// Logged after refresh-token rotation returns a new token pair.
+        /// </summary>
+        public const string REFRESH_TOKEN_ROTATED = "Refresh-token rotation completed.";
+    }
+
+    /// <summary>
+    /// Contains password mutation log messages.
+    /// </summary>
+    public static class PasswordLogs
+    {
+        /// <summary>
+        /// Logged after forgot-password reset authority changes the password.
+        /// </summary>
+        public const string FORGOT_PASSWORD_CHANGED = "Forgot-password reset completed and prior sessions were revoked.";
+
+        /// <summary>
+        /// Logged after an authenticated password change rotates the current session.
+        /// </summary>
+        public const string PASSWORD_CHANGED = "Password changed for user {UserPublicId} and session {SessionPublicId}.";
+    }
+
+    /// <summary>
+    /// Contains external authentication orchestration log messages.
+    /// </summary>
+    public static class ExternalLogs
+    {
+        /// <summary>
+        /// Logged after an external provider is linked to the current account.
+        /// </summary>
+        public const string PROVIDER_LINKED = "External provider {Provider} linked for user {UserPublicId}.";
+
+        /// <summary>
+        /// Logged after an external provider is unlinked from the current account.
+        /// </summary>
+        public const string PROVIDER_UNLINKED = "External provider {Provider} unlinked for user {UserPublicId}.";
+
+        /// <summary>
+        /// Logged after external login resolves its existing-account or registration branch.
+        /// </summary>
+        public const string EXTERNAL_LOGIN_COMPLETED = "External login completed for provider {Provider}. RegistrationRequired={IsNewRegistration}.";
+
+        /// <summary>
+        /// Logged after first-time external registration creates the local account graph.
+        /// </summary>
+        public const string EXTERNAL_REGISTRATION_COMPLETED = "External registration completed for provider {Provider}.";
+    }
 }

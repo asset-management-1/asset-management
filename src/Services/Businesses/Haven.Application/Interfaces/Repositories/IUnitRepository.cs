@@ -38,7 +38,7 @@ public interface IUnitRepository : IGenericRepository<Unit>
     /// <summary>
     /// Gets effective charge policies for one room.
     /// </summary>
-    /// <param name="parameters">The landlord-scoped room query parameters.</param>
+    /// <param name="roomPublicId">The room public identifier.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The effective charge policy rows.</returns>
     Task<IReadOnlyList<RoomChargePolicyRowModel>> GetEffectiveChargePoliciesAsync(

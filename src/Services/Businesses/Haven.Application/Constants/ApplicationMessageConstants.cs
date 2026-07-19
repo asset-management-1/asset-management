@@ -37,6 +37,9 @@ public static class ApplicationMessageConstants
     /// </summary>
     public static class RoomPackageMessages
     {
+        /// <summary>
+        /// Success message returned after a room package is deleted.
+        /// </summary>
         public const string ROOM_PACKAGE_DELETE_SUCCESS_MESSAGE = "Room package deleted successfully.";
     }
 
@@ -56,6 +59,9 @@ public static class ApplicationMessageConstants
     /// </summary>
     public static class VehicleMessages
     {
+        /// <summary>
+        /// Success message returned after a vehicle is deleted.
+        /// </summary>
         public const string VEHICLE_DELETE_SUCCESS_MESSAGE = "Vehicle deleted successfully.";
     }
 

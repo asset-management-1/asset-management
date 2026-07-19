@@ -7,18 +7,22 @@ public class LinkExternalProviderCommandHandler : ICommandHandler<LinkExternalPr
 {
     private readonly IExternalAuthenticationService _externalAuthenticationService;
     private readonly IAuthService _authService;
+    private readonly ILogger<LinkExternalProviderCommandHandler> _logger;
 
     /// <summary>
     /// Creates the external-provider link handler with current-user resolution.
     /// </summary>
     /// <param name="externalAuthenticationService">The service that validates and persists external-provider links.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
+    /// <param name="logger">The structured external-provider link logger.</param>
     public LinkExternalProviderCommandHandler(
         IExternalAuthenticationService externalAuthenticationService,
-        IAuthService authService)
+        IAuthService authService,
+        ILogger<LinkExternalProviderCommandHandler> logger)
     {
         _externalAuthenticationService = externalAuthenticationService;
         _authService = authService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -43,6 +47,13 @@ public class LinkExternalProviderCommandHandler : ICommandHandler<LinkExternalPr
             request.Adapt<LinkExternalProviderRequestDto>(),
             currentUserPublicId,
             cancellationToken);
+
+        // Provider name and public user id are safe correlation values; the provider credential is never logged.
+        _logger.LogInformation(
+            ApplicationLogConstants.ExternalLogs.PROVIDER_LINKED,
+            request.Provider,
+            currentUserPublicId);
+
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 }

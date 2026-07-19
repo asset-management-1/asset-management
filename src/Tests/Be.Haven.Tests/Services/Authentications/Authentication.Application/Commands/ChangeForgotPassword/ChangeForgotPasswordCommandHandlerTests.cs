@@ -27,7 +27,8 @@ public sealed class ChangeForgotPasswordCommandHandlerTests
         var sut = new ChangeForgotPasswordCommandHandler(
             authenticationService.Object,
             cachingService.Object,
-            new InMemoryAtomicCacheService(Mock.Of<ILogger<InMemoryAtomicCacheService>>()));
+            new InMemoryAtomicCacheService(Mock.Of<ILogger<InMemoryAtomicCacheService>>()),
+            Mock.Of<ILogger<ChangeForgotPasswordCommandHandler>>());
         var command = new ChangeForgotPasswordCommand
         {
             PasswordResetToken = "reset-token",

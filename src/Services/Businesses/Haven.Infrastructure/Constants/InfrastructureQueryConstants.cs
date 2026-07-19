@@ -8,7 +8,7 @@ public static class InfrastructureQueryConstants
     /// <summary>
     /// Locks one active room row before package materialization and mutation.
     /// </summary>
-    public const string LOCK_ROOM_FOR_PACKAGE_MUTATION_QUERY = """
+    public const string GET_ROOM_ID_FOR_PACKAGE_MUTATION_QUERY = """
         SELECT unit."Id" AS "Value"
         FROM "asset"."Units" unit
         INNER JOIN "asset"."Properties" property
@@ -16,7 +16,7 @@ public static class InfrastructureQueryConstants
            AND property."IsDeleted" = FALSE
         INNER JOIN "asset"."PropertyParties" property_party
            ON property_party."PropertyId" = property."Id"
-           AND property_party."PartyId" = {1}
+           AND property_party."PartyId" = @CurrentPartyId
            AND property_party."IsDeleted" = FALSE
            AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
            AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
@@ -24,8 +24,8 @@ public static class InfrastructureQueryConstants
             ON relationship_type."Id" = property_party."RelationshipTypeId"
            AND relationship_type."IsDeleted" = FALSE
            AND relationship_type."IsActive" = TRUE
-           AND relationship_type."Code" = ANY({2})
-        WHERE unit."PublicId" = {0}
+           AND relationship_type."Code" = ANY(@RelationshipCodes)
+        WHERE unit."PublicId" = @RoomPublicId
           AND unit."IsDeleted" = FALSE
         FOR UPDATE;
         """;
@@ -124,21 +124,21 @@ public static class InfrastructureQueryConstants
     /// <summary>
     /// Loads one tracked vehicle only when its property is visible to the current landlord relationship scope.
     /// </summary>
-    public const string GET_SCOPED_VEHICLE_FOR_MUTATION_QUERY = """
-        SELECT vehicle.*
+    public const string GET_SCOPED_VEHICLE_ID_QUERY = """
+        SELECT vehicle."Id" AS "Value"
         FROM "core"."PartyVehicles" vehicle
         INNER JOIN "asset"."Units" unit
             ON unit."Id" = vehicle."UnitId"
            AND unit."IsDeleted" = FALSE
-        WHERE vehicle."PublicId" = {0}
-          AND unit."PublicId" = {1}
+        WHERE vehicle."PublicId" = @VehiclePublicId
+          AND unit."PublicId" = @RoomPublicId
           AND vehicle."IsDeleted" = FALSE
           AND EXISTS (
                 SELECT 1
                 FROM "asset"."Properties" property
                 INNER JOIN "asset"."PropertyParties" property_party
                     ON property_party."PropertyId" = property."Id"
-                   AND property_party."PartyId" = {2}
+                   AND property_party."PartyId" = @CurrentPartyId
                    AND property_party."IsDeleted" = FALSE
                    AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                    AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
@@ -146,7 +146,7 @@ public static class InfrastructureQueryConstants
                     ON relationship_type."Id" = property_party."RelationshipTypeId"
                    AND relationship_type."IsDeleted" = FALSE
                    AND relationship_type."IsActive" = TRUE
-                   AND relationship_type."Code" = ANY({3})
+                   AND relationship_type."Code" = ANY(@RelationshipCodes)
                 WHERE property."Id" = unit."PropertyId"
                   AND property."IsDeleted" = FALSE
           )
@@ -203,10 +203,10 @@ public static class InfrastructureQueryConstants
     /// <summary>
     /// Loads one room row under an active property-party relationship for tracked EF graph composition.
     /// </summary>
-    public const string GET_SCOPED_ROOM_GRAPH_QUERY = """
-        SELECT unit.*
+    public const string GET_SCOPED_ROOM_ID_QUERY = """
+        SELECT unit."Id" AS "Value"
         FROM "asset"."Units" unit
-        WHERE unit."PublicId" = {0}
+        WHERE unit."PublicId" = @RoomPublicId
           AND unit."IsDeleted" = FALSE
           AND EXISTS (
                 SELECT 1
@@ -214,14 +214,14 @@ public static class InfrastructureQueryConstants
                 INNER JOIN "asset"."PropertyParties" property_party
                     ON property_party."PropertyId" = property."Id"
                    AND property_party."IsDeleted" = FALSE
-                   AND property_party."PartyId" = {1}
+                   AND property_party."PartyId" = @CurrentPartyId
                    AND (property_party."StartDate" IS NULL OR property_party."StartDate" <= CURRENT_DATE)
                    AND (property_party."EndDate" IS NULL OR property_party."EndDate" >= CURRENT_DATE)
                 INNER JOIN "masterdata"."MasterDataValues" relationship_type
                     ON relationship_type."Id" = property_party."RelationshipTypeId"
                    AND relationship_type."IsDeleted" = FALSE
                    AND relationship_type."IsActive" = TRUE
-                   AND relationship_type."Code" = ANY({2})
+                   AND relationship_type."Code" = ANY(@RelationshipCodes)
                 WHERE property."Id" = unit."PropertyId"
                   AND property."IsDeleted" = FALSE
           )
@@ -1918,7 +1918,46 @@ public static class InfrastructureQueryConstants
     /// <summary>
     /// Resolves and locks one room inside the current landlord scope for meter mutation.
     /// </summary>
-    public const string GET_METER_MUTATION_SCOPE_QUERY = GET_SCOPED_ROOM_GRAPH_QUERY + "\nFOR UPDATE";
+    public const string GET_METER_MUTATION_SCOPE_ID_FOR_UPDATE_QUERY = GET_SCOPED_ROOM_ID_QUERY + "\nFOR UPDATE";
+
+    /// <summary>
+    /// Locks the latest active invoice for one room and billing period.
+    /// </summary>
+    public const string GET_INVOICE_ID_FOR_UPDATE_QUERY = """
+        SELECT invoice."Id" AS "Value"
+        FROM "billing"."Invoices" invoice
+        INNER JOIN "leasing"."Contracts" contract ON contract."Id" = invoice."ContractId"
+        WHERE contract."UnitId" = @UnitId
+          AND invoice."BillingPeriodFrom" = @PeriodFrom
+          AND invoice."BillingPeriodTo" = @PeriodTo
+          AND invoice."IsDeleted" = FALSE
+        ORDER BY invoice."Id" DESC
+        LIMIT 1
+        FOR UPDATE;
+        """;
+
+    /// <summary>
+    /// Checks whether an invoice has an allocation backed by a successful payment.
+    /// </summary>
+    public const string HAS_SUCCESSFUL_INVOICE_PAYMENT_QUERY = """
+        SELECT EXISTS (
+            SELECT 1 FROM "billing"."PaymentAllocations" allocation
+            INNER JOIN "billing"."Payments" payment ON payment."Id" = allocation."PaymentId"
+            INNER JOIN "masterdata"."MasterDataValues" payment_status
+                ON payment_status."Id" = payment."StatusId"
+               AND payment_status."Code" = @SuccessfulPaymentStatusCode
+               AND payment_status."IsDeleted" = FALSE
+               AND payment_status."IsActive" = TRUE
+            INNER JOIN "masterdata"."MasterDataTypes" payment_status_type
+                ON payment_status_type."Id" = payment_status."MasterDataTypeId"
+               AND payment_status_type."Code" = @PaymentStatusTypeCode
+               AND payment_status_type."IsDeleted" = FALSE
+               AND payment_status_type."IsActive" = TRUE
+            WHERE allocation."InvoiceId" = @InvoiceId
+              AND allocation."IsDeleted" = FALSE
+              AND payment."IsDeleted" = FALSE
+        );
+        """;
 
     /// <summary>
     /// Loads current and previous meter records for one scoped room.

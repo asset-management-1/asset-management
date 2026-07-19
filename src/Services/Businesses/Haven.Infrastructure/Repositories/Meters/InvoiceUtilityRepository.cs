@@ -33,36 +33,25 @@ public sealed class InvoiceUtilityRepository : IInvoiceUtilityRepository
         DateOnly periodTo,
         CancellationToken cancellationToken = default)
     {
-        // Lock the latest matching invoice through the active EF transaction before payment and status guards run.
-        var invoiceId = await _dbContext.Database.SqlQueryRaw<long>(
-                """
-                SELECT invoice."Id" AS "Value"
-                FROM "billing"."Invoices" invoice
-                INNER JOIN "leasing"."Contracts" contract ON contract."Id" = invoice."ContractId"
-                WHERE contract."UnitId" = {0}
-                  AND invoice."BillingPeriodFrom" = {1}
-                  AND invoice."BillingPeriodTo" = {2}
-                  AND invoice."IsDeleted" = FALSE
-                ORDER BY invoice."Id" DESC
-                LIMIT 1
-                FOR UPDATE
-                """,
-                unitId,
-                periodFrom,
-                periodTo)
-            .SingleOrDefaultAsync(cancellationToken);
+        // Step 1: Lock the latest matching invoice identifier on the required EF mutation transaction.
+        var invoiceId = await _dapperService.ExecuteScalarAsync<long?>(
+            InfrastructureQueryConstants.GET_INVOICE_ID_FOR_UPDATE_QUERY,
+            new { UnitId = unitId, PeriodFrom = periodFrom, PeriodTo = periodTo },
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _dbContext,
+                cancellationToken));
 
-        if (invoiceId == 0)
+        if (!invoiceId.HasValue)
         {
             return null;
         }
 
-        // Load only the tracked graph needed to replace utility lines or create a replacement invoice.
+        // Step 2: Load only the tracked graph needed to replace utility lines or create a replacement invoice.
         return await _dbContext.Invoices
             .Include(invoice => invoice.Contract)
             .Include(invoice => invoice.InvoiceLines)
                 .ThenInclude(line => line.Utility)
-            .FirstOrDefaultAsync(invoice => invoice.Id == invoiceId, cancellationToken);
+            .FirstOrDefaultAsync(invoice => invoice.Id == invoiceId.Value, cancellationToken);
     }
 
     /// <summary>
@@ -71,32 +60,20 @@ public sealed class InvoiceUtilityRepository : IInvoiceUtilityRepository
     /// <param name="invoiceId">The internal invoice identifier.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns><see langword="true"/> when a successful payment allocation exists.</returns>
-    public Task<bool> HasSuccessfulPaymentAsync(long invoiceId, CancellationToken cancellationToken = default)
+    public async Task<bool> HasSuccessfulPaymentAsync(long invoiceId, CancellationToken cancellationToken = default)
     {
-        // Run the authoritative payment check on the EF connection so it participates in the caller transaction.
-        return _dbContext.Database.SqlQueryRaw<bool>(
-            """
-            SELECT EXISTS (
-                SELECT 1 FROM "billing"."PaymentAllocations" allocation
-                INNER JOIN "billing"."Payments" payment ON payment."Id" = allocation."PaymentId"
-                INNER JOIN "masterdata"."MasterDataValues" payment_status
-                    ON payment_status."Id" = payment."StatusId"
-                   AND payment_status."Code" = {1}
-                   AND payment_status."IsDeleted" = FALSE
-                   AND payment_status."IsActive" = TRUE
-                INNER JOIN "masterdata"."MasterDataTypes" payment_status_type
-                    ON payment_status_type."Id" = payment_status."MasterDataTypeId"
-                   AND payment_status_type."Code" = {2}
-                   AND payment_status_type."IsDeleted" = FALSE
-                   AND payment_status_type."IsActive" = TRUE
-                WHERE allocation."InvoiceId" = {0}
-                  AND allocation."IsDeleted" = FALSE AND payment."IsDeleted" = FALSE
-            ) AS "Value"
-            """,
-            invoiceId,
-            MASTER_CODE_PAYMENT_STATUS_SUCCESS,
-            MasterDataTypeEnum.PaymentStatus.ToString())
-            .SingleAsync(cancellationToken);
+        // The payment guard must observe the same transaction snapshot and locks as the invoice mutation.
+        return await _dapperService.ExecuteScalarAsync<bool>(
+            InfrastructureQueryConstants.HAS_SUCCESSFUL_INVOICE_PAYMENT_QUERY,
+            new
+            {
+                InvoiceId = invoiceId,
+                SuccessfulPaymentStatusCode = MASTER_CODE_PAYMENT_STATUS_SUCCESS,
+                PaymentStatusTypeCode = MasterDataTypeEnum.PaymentStatus.ToString()
+            },
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _dbContext,
+                cancellationToken));
     }
 
     /// <summary>
@@ -227,4 +204,5 @@ public sealed class InvoiceUtilityRepository : IInvoiceUtilityRepository
         await _dbContext.Invoices.AddAsync(replacement, cancellationToken);
         return replacement;
     }
+
 }

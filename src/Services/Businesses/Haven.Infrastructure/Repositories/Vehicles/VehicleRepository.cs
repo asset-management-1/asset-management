@@ -64,19 +64,29 @@ public class VehicleRepository : GenericRepository<PartyVehicle>, IVehicleReposi
     /// <param name="parameters">The public vehicle identifier and landlord scope.</param>
     /// <param name="cancellationToken">The token used to cancel the query.</param>
     /// <returns>The tracked vehicle entity, or <c>null</c>.</returns>
-    public Task<PartyVehicle> GetForMutationAsync(
+    public async Task<PartyVehicle> GetForMutationAsync(
         VehicleScopeQueryParametersModel parameters,
         CancellationToken cancellationToken = default)
     {
-        // Authorization stays in the query so inaccessible vehicles resolve as not found.
-        return _havenDbContext.PartyVehicles
-            .FromSqlRaw(
-                InfrastructureQueryConstants.GET_SCOPED_VEHICLE_FOR_MUTATION_QUERY,
+        // Step 1: Resolve only the authorised vehicle identifier through parameterised Dapper SQL.
+        var vehicleId = await _dapperService.ExecuteScalarAsync<long?>(
+            InfrastructureQueryConstants.GET_SCOPED_VEHICLE_ID_QUERY,
+            new
+            {
                 parameters.VehiclePublicId,
                 parameters.RoomPublicId,
                 parameters.CurrentPartyId,
-                parameters.RelationshipCodes.ToArray())
-            .FirstOrDefaultAsync(cancellationToken);
+                RelationshipCodes = parameters.RelationshipCodes.ToArray()
+            },
+            DapperCommandOptionsHelper.CreateText(cancellationToken));
+        if (!vehicleId.HasValue)
+        {
+            return null;
+        }
+
+        // Step 2: Materialise the scoped vehicle through EF so the caller receives tracked mutation state.
+        return await _havenDbContext.PartyVehicles
+            .FirstOrDefaultAsync(vehicle => vehicle.Id == vehicleId.Value, cancellationToken);
     }
 
     /// <summary>

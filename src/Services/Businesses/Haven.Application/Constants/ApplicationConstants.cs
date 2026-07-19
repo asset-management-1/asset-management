@@ -173,22 +173,89 @@ public static class ApplicationConstants
     /// </summary>
     public const string CALCULATION_METHOD_FIXED = "FIXED";
 
+    /// <summary>
+    /// Invoice-line type code for electricity charges.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_LINE_TYPE_ELECTRIC = "ELECTRIC";
+
+    /// <summary>
+    /// Invoice-line type code for water charges.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_LINE_TYPE_WATER = "WATER";
+
+    /// <summary>
+    /// Meter status code for a submitted reading.
+    /// </summary>
     public const string MASTER_CODE_METER_STATUS_SUBMITTED = "SUBMITTED";
+
+    /// <summary>
+    /// Meter status code for a confirmed reading.
+    /// </summary>
     public const string MASTER_CODE_METER_STATUS_CONFIRMED = "CONFIRMED";
+
+    /// <summary>
+    /// Utility charge-mode code for meter readings.
+    /// </summary>
     public const string MASTER_CODE_UTILITY_CHARGE_MODE_METER_READING = "METER_READING";
+
+    /// <summary>
+    /// Invoice status code for a draft invoice.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_STATUS_DRAFT = "DRAFT";
+
+    /// <summary>
+    /// Invoice status code for an issued invoice.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_STATUS_ISSUED = "ISSUED";
+
+    /// <summary>
+    /// Invoice status code for an overdue invoice.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_STATUS_OVERDUE = "OVERDUE";
+
+    /// <summary>
+    /// Invoice status code for a partially paid invoice.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_STATUS_PARTIALLY_PAID = "PARTIALLY_PAID";
+
+    /// <summary>
+    /// Invoice status code for a paid invoice.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_STATUS_PAID = "PAID";
+
+    /// <summary>
+    /// Invoice status code for a cancelled invoice.
+    /// </summary>
     public const string MASTER_CODE_INVOICE_STATUS_CANCELLED = "CANCELLED";
+
+    /// <summary>
+    /// Document type code for a meter evidence photo.
+    /// </summary>
     public const string MASTER_CODE_DOCUMENT_TYPE_METER_PHOTO = "METER_PHOTO";
+
+    /// <summary>
+    /// Storage-provider code for Cloudflare R2.
+    /// </summary>
     public const string MASTER_CODE_STORAGE_PROVIDER_R2 = "R2";
+
+    /// <summary>
+    /// Active document status code.
+    /// </summary>
     public const string MASTER_CODE_DOCUMENT_STATUS_ACTIVE = "ACTIVE";
+
+    /// <summary>
+    /// Entity-type code used to link evidence to a meter.
+    /// </summary>
     public const string MASTER_CODE_ENTITY_TYPE_METER = "METER";
+
+    /// <summary>
+    /// Document-link type code for meter evidence.
+    /// </summary>
     public const string MASTER_CODE_DOCUMENT_LINK_TYPE_METER_PHOTO = "METER_PHOTO";
+
+    /// <summary>
+    /// Active document-link status code.
+    /// </summary>
     public const string MASTER_CODE_DOCUMENT_LINK_STATUS_ACTIVE = "ACTIVE";
 
     /// <summary>
@@ -196,18 +263,69 @@ public static class ApplicationConstants
     /// </summary>
     public const string MASTER_CODE_PAYMENT_STATUS_SUCCESS = "SUCCESS";
 
+    /// <summary>
+    /// Description stored on generated utility invoice lines.
+    /// </summary>
     public const string UTILITY_INVOICE_LINE_DESCRIPTION = "Utility meter reading";
+
+    /// <summary>
+    /// Prefix used for generated invoice codes.
+    /// </summary>
     public const string INVOICE_CODE_PREFIX = "INV";
+
+    /// <summary>
+    /// Number of random digits used in generated invoice codes.
+    /// </summary>
     public const int INVOICE_CODE_RANDOM_LENGTH = 12;
+
+    /// <summary>
+    /// Previous-reading source code for a manually supplied baseline.
+    /// </summary>
     public const string UTILITY_PREVIOUS_SOURCE_MANUAL = "MANUAL_BASELINE";
+
+    /// <summary>
+    /// Previous-reading source code for the latest confirmed period.
+    /// </summary>
     public const string UTILITY_PREVIOUS_SOURCE_PRIOR_CONFIRMED = "PRIOR_CONFIRMED";
+
+    /// <summary>
+    /// Invoice-impact action used when no invoice change is required.
+    /// </summary>
     public const string UTILITY_INVOICE_ACTION_NONE = "NONE";
+
+    /// <summary>
+    /// Invoice-impact action used while waiting for invoice creation.
+    /// </summary>
     public const string UTILITY_INVOICE_ACTION_WAITING = "WAITING_FOR_BILL";
+
+    /// <summary>
+    /// Invoice-impact action used when a draft invoice can be updated.
+    /// </summary>
     public const string UTILITY_INVOICE_ACTION_UPDATE_DRAFT = "UPDATE_DRAFT";
+
+    /// <summary>
+    /// Invoice-impact action used when an issued invoice needs replacement.
+    /// </summary>
     public const string UTILITY_INVOICE_ACTION_REPLACE_ISSUED = "REPLACE_ISSUED";
+
+    /// <summary>
+    /// Invoice-impact action used when payment blocks meter mutation.
+    /// </summary>
     public const string UTILITY_INVOICE_ACTION_BLOCKED_PAID = "BLOCKED_PAID";
+
+    /// <summary>
+    /// Distributed-lock key prefix for room meter mutations.
+    /// </summary>
     public const string METER_LOCK_KEY_PREFIX = "haven:meter:";
+
+    /// <summary>
+    /// Initial meter mutation lock lease in seconds.
+    /// </summary>
     public const int METER_LOCK_LEASE_SECONDS = 30;
+
+    /// <summary>
+    /// Composite slot format for meter type and evidence position.
+    /// </summary>
     public const string METER_EVIDENCE_SLOT_FORMAT = "{0}-{1}";
 
     /// <summary>

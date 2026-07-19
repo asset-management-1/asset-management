@@ -6,14 +6,19 @@ namespace Authentication.Application.Commands.UpdateUserInfo;
 public class UpdateUserInfoCommandHandler : ICommandHandler<UpdateUserInfoCommand, ResponseDto<OperationStatusResponseDto>>
 {
     private readonly IUserService _userService;
+    private readonly ILogger<UpdateUserInfoCommandHandler> _logger;
 
     /// <summary>
     /// Creates the current-user profile update handler with the profile service.
     /// </summary>
     /// <param name="userService">The service that updates profile data and linked party contacts.</param>
-    public UpdateUserInfoCommandHandler(IUserService userService)
+    /// <param name="logger">The structured profile-update logger.</param>
+    public UpdateUserInfoCommandHandler(
+        IUserService userService,
+        ILogger<UpdateUserInfoCommandHandler> logger)
     {
         _userService = userService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -28,6 +33,9 @@ public class UpdateUserInfoCommandHandler : ICommandHandler<UpdateUserInfoComman
     {
         // UserService resolves the authenticated account and synchronizes linked party contact snapshots.
         var result = await _userService.UpdateUserInfoAsync(request.Adapt<UpdateUserInfoRequestDto>(), cancellationToken);
+
+        // Keep submitted profile values out of logs while recording successful orchestration.
+        _logger.LogInformation(ApplicationLogConstants.UserLogs.USER_INFO_UPDATED);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

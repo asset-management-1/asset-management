@@ -12,6 +12,8 @@ public class RoomsController : BaseApiController
     /// <param name="request">The room-list query filters.</param>
     /// <returns>The standardized paged room response.</returns>
     [HttpGet]
+    [SwaggerValueExample<RoomSwaggerExamples.Values>]
+    [SwaggerResponseExample<RoomSwaggerExamples.ListResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<PaginationResponse<IReadOnlyList<RoomListPropertyResponseDto>>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -28,6 +30,8 @@ public class RoomsController : BaseApiController
     /// <returns>The standardized room detail response.</returns>
     [HttpGet]
     [Route(ROOM_BY_ID)]
+    [SwaggerValueExample<RoomSwaggerExamples.Values>]
+    [SwaggerResponseExample<RoomSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<RoomDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -45,6 +49,8 @@ public class RoomsController : BaseApiController
     /// <param name="request">The room update request body, including the frontend-safe room identifier.</param>
     /// <returns>The standardized refreshed room detail response.</returns>
     [HttpPut]
+    [SwaggerRequestExample<RoomSwaggerExamples.UpdateRequest>]
+    [SwaggerResponseExample<RoomSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<RoomDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
@@ -63,6 +69,8 @@ public class RoomsController : BaseApiController
     /// <returns>The standardized delete status response.</returns>
     [HttpDelete]
     [Route(ROOM_BY_ID)]
+    [SwaggerValueExample<RoomSwaggerExamples.Values>]
+    [SwaggerResponseExample<RoomSwaggerExamples.OperationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<OperationStatusResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]

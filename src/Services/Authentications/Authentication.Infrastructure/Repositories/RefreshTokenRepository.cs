@@ -64,14 +64,13 @@ public class RefreshTokenRepository : GenericRepository<RefreshToken>, IRefreshT
             return null;
         }
 
-        // Step 1: Require the owning EF transaction so the Dapper lock survives through token rotation.
-        var transaction = GetRequiredDbTransaction();
-
-        // Step 2: Lock only the matching row identifier without mapping an EF entity through Dapper.
+        // Step 1: Lock the matching row identifier on the required EF rotation transaction.
         var refreshTokenId = await _dapperService.ExecuteScalarAsync<long?>(
             InfrastructureQueryConstants.GET_REFRESH_TOKEN_ID_FOR_UPDATE_QUERY,
             new { RefreshTokenHash = refreshTokenHash },
-            DapperCommandOptionsHelper.CreateText(cancellationToken, transaction));
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _authenticationDbContext,
+                cancellationToken));
         if (!refreshTokenId.HasValue)
         {
             return null;
@@ -119,14 +118,13 @@ public class RefreshTokenRepository : GenericRepository<RefreshToken>, IRefreshT
         Guid sessionPublicId,
         CancellationToken cancellationToken = default)
     {
-        // Step 1: Require the credential-change transaction before acquiring the current-session lock.
-        var transaction = GetRequiredDbTransaction();
-
-        // Step 2: Lock the active session identifier through Dapper on the same transaction connection.
+        // Step 1: Lock the active session identifier on the required credential-change transaction.
         var refreshTokenId = await _dapperService.ExecuteScalarAsync<long?>(
             InfrastructureQueryConstants.GET_ACTIVE_REFRESH_TOKEN_ID_BY_SESSION_FOR_UPDATE_QUERY,
             new { UserId = userId, SessionPublicId = sessionPublicId },
-            DapperCommandOptionsHelper.CreateText(cancellationToken, transaction));
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _authenticationDbContext,
+                cancellationToken));
         if (!refreshTokenId.HasValue)
         {
             return null;
@@ -135,19 +133,6 @@ public class RefreshTokenRepository : GenericRepository<RefreshToken>, IRefreshT
         // Step 3: Materialise the locked session through EF so subsequent rotation mutates tracked state.
         return await _authenticationDbContext.RefreshTokens
             .FirstOrDefaultAsync(x => x.Id == refreshTokenId.Value, cancellationToken);
-    }
-
-    /// <summary>
-    /// Gets the active database transaction required to keep a PostgreSQL row lock until commit or rollback.
-    /// </summary>
-    /// <returns>The underlying provider transaction owned by the current EF transaction.</returns>
-    private IDbTransaction GetRequiredDbTransaction()
-    {
-        // Row locks outside an explicit transaction would be released before the protected mutation executes.
-        var currentTransaction = _authenticationDbContext.Database.CurrentTransaction
-                                 ?? throw new InvalidOperationException(ACTIVE_DATABASE_TRANSACTION_REQUIRED);
-
-        return currentTransaction.GetDbTransaction();
     }
 
     /// <summary>

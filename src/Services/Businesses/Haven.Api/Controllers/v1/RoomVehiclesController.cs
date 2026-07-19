@@ -13,6 +13,8 @@ public sealed class RoomVehiclesController : BaseApiController
     /// <param name="roomId">The room identifier from the route.</param>
     /// <returns>The standardized room vehicle collection.</returns>
     [HttpGet]
+    [SwaggerValueExample<VehicleSwaggerExamples.Values>]
+    [SwaggerResponseExample<VehicleSwaggerExamples.ListResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<IReadOnlyList<VehicleListItemResponseDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -30,6 +32,8 @@ public sealed class RoomVehiclesController : BaseApiController
     /// <returns>The created vehicle detail response.</returns>
     [HttpPost]
     [Consumes(MULTIPART_FORM_DATA)]
+    [SwaggerValueExample<VehicleSwaggerExamples.CreateValues>]
+    [SwaggerResponseExample<VehicleSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [RequestSizeLimit(ObjectStorageConstants.MAX_VEHICLE_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<VehicleDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
@@ -54,6 +58,8 @@ public sealed class RoomVehiclesController : BaseApiController
     /// <returns>The vehicle detail response.</returns>
     [HttpGet]
     [Route(ROOM_VEHICLE_BY_ID)]
+    [SwaggerValueExample<VehicleSwaggerExamples.Values>]
+    [SwaggerResponseExample<VehicleSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<VehicleDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -75,6 +81,8 @@ public sealed class RoomVehiclesController : BaseApiController
     [HttpPut]
     [Route(ROOM_VEHICLE_BY_ID)]
     [Consumes(MULTIPART_FORM_DATA)]
+    [SwaggerValueExample<VehicleSwaggerExamples.UpdateValues>]
+    [SwaggerResponseExample<VehicleSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [RequestSizeLimit(ObjectStorageConstants.MAX_VEHICLE_MULTIPART_BODY_BYTES)]
     [ProducesResponseType(typeof(ResponseDto<VehicleDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
@@ -101,6 +109,8 @@ public sealed class RoomVehiclesController : BaseApiController
     /// <returns>The successful operation response.</returns>
     [HttpDelete]
     [Route(ROOM_VEHICLE_BY_ID)]
+    [SwaggerValueExample<VehicleSwaggerExamples.Values>]
+    [SwaggerResponseExample<VehicleSwaggerExamples.OperationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<OperationStatusResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]

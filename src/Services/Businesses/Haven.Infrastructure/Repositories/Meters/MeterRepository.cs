@@ -95,21 +95,29 @@ public sealed class MeterRepository : GenericRepository<Meter>, IMeterRepository
         var relationshipCodes = request.RelationshipCodes.ToArray();
         var lineTypeIds = new[] { request.ElectricLineTypeId, request.WaterLineTypeId };
 
-        // Resolve authorization and lock the room through EF so the scope check shares the active write transaction.
-        var room = await _havenDbContext.Units
-            .FromSqlRaw(
-                InfrastructureQueryConstants.GET_METER_MUTATION_SCOPE_QUERY,
+        // Step 1: Resolve and lock the scoped room identifier on the required EF mutation transaction.
+        var roomId = await _dapperService.ExecuteScalarAsync<long?>(
+            InfrastructureQueryConstants.GET_METER_MUTATION_SCOPE_ID_FOR_UPDATE_QUERY,
+            new
+            {
                 request.RoomPublicId,
                 request.CurrentPartyId,
-                relationshipCodes)
-            .FirstOrDefaultAsync(cancellationToken);
+                RelationshipCodes = relationshipCodes
+            },
+            DapperCommandOptionsHelper.CreateTransactionalText(
+                _havenDbContext,
+                cancellationToken));
 
-        if (room is null)
+        if (!roomId.HasValue)
         {
             return null;
         }
 
-        // Load the display scope after the room lock; all remaining queries use its internal identifiers.
+        // Step 2: Materialise the locked room through EF so later mutation phases share tracked state.
+        var room = await _havenDbContext.Units
+            .FirstAsync(unit => unit.Id == roomId.Value, cancellationToken);
+
+        // Step 3: Load the display scope after the room lock; all remaining queries use its internal identifiers.
         var scope = await _havenDbContext.Properties
             .AsNoTracking()
             .Where(property => property.Id == room.PropertyId && !property.IsDeleted)
@@ -276,4 +284,5 @@ public sealed class MeterRepository : GenericRepository<Meter>, IMeterRepository
         await _havenDbContext.Documents.AddRangeAsync(documents, cancellationToken);
         await _havenDbContext.DocumentLinks.AddRangeAsync(links, cancellationToken);
     }
+
 }

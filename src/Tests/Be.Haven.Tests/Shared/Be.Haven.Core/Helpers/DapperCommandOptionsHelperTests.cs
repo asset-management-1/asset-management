@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore.Storage;
+
 namespace Be.Haven.Tests.Shared.Be.Haven.Core.Helpers;
 
 public sealed class DapperCommandOptionsHelperTests
@@ -35,5 +37,51 @@ public sealed class DapperCommandOptionsHelperTests
 
         // Assert
         result.Transaction.Should().BeSameAs(transaction);
+    }
+
+    [Fact]
+    public async Task CreateTransactionalText_Should_UseActiveEfTransactionAndCommandSettings()
+    {
+        // Arrange
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<DbContext>()
+                      .UseSqlite(connection)
+                      .Options;
+        await using var dbContext = new DbContext(options);
+        await using var transaction = await dbContext.Database.BeginTransactionAsync();
+        using var cancellationTokenSource = new CancellationTokenSource();
+
+        // Act
+        var result = DapperCommandOptionsHelper.CreateTransactionalText(
+            dbContext,
+            cancellationTokenSource.Token);
+
+        // Assert
+        result.CommandType.Should().Be(CommandType.Text);
+        result.CancellationToken.Should().Be(cancellationTokenSource.Token);
+        result.Transaction.Should().BeSameAs(transaction.GetDbTransaction());
+    }
+
+    [Fact]
+    public async Task CreateTransactionalText_Should_Throw_WhenEfTransactionIsNotActive()
+    {
+        // Arrange
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<DbContext>()
+                      .UseSqlite(connection)
+                      .Options;
+        await using var dbContext = new DbContext(options);
+
+        // Act
+        var act = () => DapperCommandOptionsHelper.CreateTransactionalText(
+            dbContext,
+            CancellationToken.None);
+
+        // Assert
+        act.Should()
+           .Throw<InvalidOperationException>()
+           .WithMessage(ACTIVE_DATABASE_TRANSACTION_REQUIRED);
     }
 }

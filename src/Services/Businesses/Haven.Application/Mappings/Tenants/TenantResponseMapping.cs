@@ -43,5 +43,9 @@ public sealed class TenantResponseMapping : IRegister
         config.NewConfig<TenantJoinRoomRowModel, TenantJoinRoomSummaryResponseDto>()
             .Map(dest => dest.Id, src => src.RoomPublicId)
             .Map(dest => dest.Name, src => src.RoomName);
+
+        config.NewConfig<TenantJoinRoomRowModel, TenantJoinPreviewResponseDto>()
+            .Map(dest => dest.Property, src => src.Adapt<TenantPropertySummaryResponseDto>())
+            .Map(dest => dest.Room, src => src.Adapt<TenantJoinRoomSummaryResponseDto>());
     }
 }

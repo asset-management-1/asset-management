@@ -12,5 +12,9 @@ namespace Haven.Api.Controllers;
 public abstract class BaseApiController : ControllerBase
 {
     private IMediator _mediator;
+
+    /// <summary>
+    /// Gets the request-scoped mediator used to dispatch application commands and queries.
+    /// </summary>
     protected IMediator Mediator => _mediator ??= HttpContext.RequestServices.GetService<IMediator>();
 }

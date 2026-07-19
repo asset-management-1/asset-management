@@ -12,6 +12,8 @@ public class TenantsController : BaseApiController
     /// <param name="request">The tenant creation request.</param>
     /// <returns>The standardized tenant detail response.</returns>
     [HttpPost]
+    [SwaggerRequestExample<TenantSwaggerExamples.CreateRequest>]
+    [SwaggerResponseExample<TenantSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<TenantDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
@@ -30,6 +32,8 @@ public class TenantsController : BaseApiController
     /// <param name="request">The tenant-list query filters.</param>
     /// <returns>The standardized paged tenant response.</returns>
     [HttpGet]
+    [SwaggerValueExample<TenantSwaggerExamples.Values>]
+    [SwaggerResponseExample<TenantSwaggerExamples.ListResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<PaginationResponse<IReadOnlyList<TenantListItemResponseDto>>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -46,6 +50,8 @@ public class TenantsController : BaseApiController
     /// <returns>The standardized tenant detail response.</returns>
     [HttpGet]
     [Route(BY_ID)]
+    [SwaggerValueExample<TenantSwaggerExamples.Values>]
+    [SwaggerResponseExample<TenantSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<TenantDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -63,6 +69,8 @@ public class TenantsController : BaseApiController
     /// <returns>The standardized operation status response.</returns>
     [HttpDelete]
     [Route(BY_ID)]
+    [SwaggerValueExample<TenantSwaggerExamples.Values>]
+    [SwaggerResponseExample<TenantSwaggerExamples.OperationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<OperationStatusResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -82,6 +90,8 @@ public class TenantsController : BaseApiController
     /// <returns>The standardized QR token response.</returns>
     [HttpGet]
     [Route(ROOM_TENANT_JOIN_QR)]
+    [SwaggerValueExample<TenantSwaggerExamples.Values>]
+    [SwaggerResponseExample<TenantSwaggerExamples.JoinQrResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<TenantJoinQrResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
@@ -103,6 +113,8 @@ public class TenantsController : BaseApiController
     /// <returns>The standardized join preview response.</returns>
     [HttpGet]
     [Route(TENANT_JOIN_BY_TOKEN)]
+    [SwaggerValueExample<TenantSwaggerExamples.Values>]
+    [SwaggerResponseExample<TenantSwaggerExamples.JoinPreviewResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<TenantJoinPreviewResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
@@ -119,6 +131,8 @@ public class TenantsController : BaseApiController
     /// <returns>The standardized tenant detail response.</returns>
     [HttpPost]
     [Route(TENANT_JOIN_ROOT)]
+    [SwaggerRequestExample<TenantSwaggerExamples.ConfirmRequest>]
+    [SwaggerResponseExample<TenantSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<TenantDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]

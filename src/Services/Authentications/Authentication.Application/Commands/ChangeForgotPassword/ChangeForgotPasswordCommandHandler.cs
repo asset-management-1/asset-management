@@ -8,6 +8,7 @@ public class ChangeForgotPasswordCommandHandler : ICommandHandler<ChangeForgotPa
     private readonly IAuthenticationService _authenticationService;
     private readonly ICachingService _cachingService;
     private readonly IAtomicCacheService _atomicCacheService;
+    private readonly ILogger<ChangeForgotPasswordCommandHandler> _logger;
 
     /// <summary>
     /// Creates the forgot-password password-change handler with reset-session cache and password update services.
@@ -15,14 +16,17 @@ public class ChangeForgotPasswordCommandHandler : ICommandHandler<ChangeForgotPa
     /// <param name="authenticationService">The service that changes the password after reset-session validation.</param>
     /// <param name="cachingService">The cache service used for reset-session state.</param>
     /// <param name="atomicCacheService">The atomic cache service used to consume a reset token once.</param>
+    /// <param name="logger">The structured forgot-password mutation logger.</param>
     public ChangeForgotPasswordCommandHandler(
         IAuthenticationService authenticationService,
         ICachingService cachingService,
-        IAtomicCacheService atomicCacheService)
+        IAtomicCacheService atomicCacheService,
+        ILogger<ChangeForgotPasswordCommandHandler> logger)
     {
         _authenticationService = authenticationService;
         _cachingService = cachingService;
         _atomicCacheService = atomicCacheService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -70,6 +74,10 @@ public class ChangeForgotPasswordCommandHandler : ICommandHandler<ChangeForgotPa
                 NewPassword = request.NewPassword
             },
             cancellationToken);
+
+        // Do not log email, reset token, or password; record only the completed security transition.
+        _logger.LogInformation(ApplicationLogConstants.PasswordLogs.FORGOT_PASSWORD_CHANGED);
+
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 }

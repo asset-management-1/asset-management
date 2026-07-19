@@ -12,6 +12,8 @@ public class PropertiesController : BaseApiController
     /// <param name="request">The property list filters.</param>
     /// <returns>The standardized paged property list response.</returns>
     [HttpGet]
+    [SwaggerValueExample<PropertySwaggerExamples.ListValues>]
+    [SwaggerResponseExample<PropertySwaggerExamples.ListResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<PaginationResponse<IReadOnlyList<PropertyListItemResponseDto>>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -28,6 +30,8 @@ public class PropertiesController : BaseApiController
     /// <returns>The standardized property detail response.</returns>
     [HttpGet]
     [Route(PROPERTY_BY_PUBLIC_ID)]
+    [SwaggerValueExample<PropertySwaggerExamples.RouteValues>]
+    [SwaggerResponseExample<PropertySwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<PropertyDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -45,6 +49,8 @@ public class PropertiesController : BaseApiController
     /// <param name="request">The create property request.</param>
     /// <returns>The standardized created-property response.</returns>
     [HttpPost]
+    [SwaggerRequestExample<PropertySwaggerExamples.CreateRequest>]
+    [SwaggerResponseExample<PropertySwaggerExamples.CreateResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<CreatedPropertyResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
@@ -61,6 +67,8 @@ public class PropertiesController : BaseApiController
     /// <param name="request">The update property request body, including the frontend-safe property identifier.</param>
     /// <returns>The standardized refreshed property detail response.</returns>
     [HttpPut]
+    [SwaggerRequestExample<PropertySwaggerExamples.UpdateRequest>]
+    [SwaggerResponseExample<PropertySwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<PropertyDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
@@ -79,6 +87,8 @@ public class PropertiesController : BaseApiController
     /// <returns>The standardized delete status response.</returns>
     [HttpDelete]
     [Route(PROPERTY_BY_PUBLIC_ID)]
+    [SwaggerValueExample<PropertySwaggerExamples.RouteValues>]
+    [SwaggerResponseExample<PropertySwaggerExamples.OperationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<OperationStatusResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]
@@ -97,6 +107,8 @@ public class PropertiesController : BaseApiController
     /// <returns>The standardized restore status response.</returns>
     [HttpPost]
     [Route(PROPERTY_RESTORE_DELETE)]
+    [SwaggerValueExample<PropertySwaggerExamples.RouteValues>]
+    [SwaggerResponseExample<PropertySwaggerExamples.OperationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<OperationStatusResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status403Forbidden)]

@@ -10,11 +10,34 @@ public static class ApplicationErrorConstants
     /// </summary>
     public static class RoomPackageErrors
     {
+        /// <summary>
+        /// Error returned when a room package is outside the current room scope.
+        /// </summary>
         public const string ERROR_ROOM_PACKAGE_NOT_FOUND = "Room package was not found in the current room scope.";
+
+        /// <summary>
+        /// Error returned when contract dependencies block package mutation.
+        /// </summary>
         public const string ERROR_ROOM_PACKAGE_MUTATION_BLOCKED = "Room package cannot be changed because it is referenced by a contract.";
+
+        /// <summary>
+        /// Error returned when the system fallback package is mutated.
+        /// </summary>
         public const string ERROR_ROOM_PACKAGE_DEFAULT_IMMUTABLE = "The default no-furniture package cannot be changed or deleted.";
+
+        /// <summary>
+        /// Error returned when package item names are duplicated.
+        /// </summary>
         public const string ERROR_ROOM_PACKAGE_ITEMS_DUPLICATED = "Room package item names must be unique.";
+
+        /// <summary>
+        /// Error returned when the room package limit is exceeded.
+        /// </summary>
         public const string ERROR_ROOM_PACKAGE_LIMIT_EXCEEDED = "The room package limit has been exceeded.";
+
+        /// <summary>
+        /// Error returned when an unused package code cannot be generated.
+        /// </summary>
         public const string ERROR_ROOM_PACKAGE_CODE_GENERATION_FAILED = "A room package code could not be generated.";
     }
 
@@ -249,19 +272,64 @@ public static class ApplicationErrorConstants
         public const string ERROR_VEHICLE_IMAGE_UPLOAD_FAILED = "Vehicle images could not be uploaded.";
     }
 
-    /// <summary>Contains meter validation and invoice synchronization errors.</summary>
+    /// <summary>
+    /// Contains meter validation and invoice synchronization errors.
+    /// </summary>
     public static class MeterErrors
     {
+        /// <summary>
+        /// Error returned when the billing date is missing or invalid.
+        /// </summary>
         public const string ERROR_METER_DATE_INVALID = "Billing date is required.";
+
+        /// <summary>
+        /// Error returned when the requested meter period is outside the current scope.
+        /// </summary>
         public const string ERROR_METER_NOT_FOUND = "Meter period was not found in the current party scope.";
+
+        /// <summary>
+        /// Error returned when neither electricity nor water data is supplied.
+        /// </summary>
         public const string ERROR_METER_SECTION_REQUIRED = "At least one electricity or water meter value must be supplied.";
+
+        /// <summary>
+        /// Error returned when no effective usage-based charge policy exists.
+        /// </summary>
         public const string ERROR_METER_POLICY_REQUIRED = "A meter-reading charge policy is required for this room.";
+
+        /// <summary>
+        /// Error returned when the current reading is below the previous reading.
+        /// </summary>
         public const string ERROR_METER_RANGE = "Current reading must be greater than or equal to the previous reading.";
+
+        /// <summary>
+        /// Error returned when the submitted baseline differs from the confirmed reading.
+        /// </summary>
         public const string ERROR_METER_PREVIOUS_MISMATCH = "Previous value must match the last confirmed meter value.";
+
+        /// <summary>
+        /// Error returned when the room already has a meter record for the month.
+        /// </summary>
         public const string ERROR_METER_ALREADY_EXISTS = "A meter record already exists for this room and billing month.";
+
+        /// <summary>
+        /// Error returned when invoice payment prevents meter mutation.
+        /// </summary>
         public const string ERROR_METER_MUTATION_BLOCKED = "The meter period cannot be changed after invoice payment.";
+
+        /// <summary>
+        /// Error returned when another request owns the room meter lock.
+        /// </summary>
         public const string ERROR_METER_LOCKED = "Another meter update is in progress. Please try again.";
+
+        /// <summary>
+        /// Error returned when one utility contains too many evidence images.
+        /// </summary>
         public const string ERROR_METER_EVIDENCE_LIMIT = "Each electricity or water meter value can contain up to five images.";
+
+        /// <summary>
+        /// Error returned when selected evidence does not belong to the meter period.
+        /// </summary>
         public const string ERROR_METER_EVIDENCE_NOT_FOUND = "One or more selected meter evidence images were not found.";
     }
 }

@@ -6,14 +6,19 @@ namespace Authentication.Application.Commands.CompleteExternalRegistration;
 public class CompleteExternalRegistrationCommandHandler : ICommandHandler<CompleteExternalRegistrationCommand, ResponseDto<LoginResponseDto>>
 {
     private readonly IExternalAuthenticationService _externalAuthenticationService;
+    private readonly ILogger<CompleteExternalRegistrationCommandHandler> _logger;
 
     /// <summary>
     /// Creates the complete external-registration handler.
     /// </summary>
     /// <param name="externalAuthenticationService">The service that revalidates provider identity and creates the account graph.</param>
-    public CompleteExternalRegistrationCommandHandler(IExternalAuthenticationService externalAuthenticationService)
+    /// <param name="logger">The structured external-registration workflow logger.</param>
+    public CompleteExternalRegistrationCommandHandler(
+        IExternalAuthenticationService externalAuthenticationService,
+        ILogger<CompleteExternalRegistrationCommandHandler> logger)
     {
         _externalAuthenticationService = externalAuthenticationService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -31,6 +36,11 @@ public class CompleteExternalRegistrationCommandHandler : ICommandHandler<Comple
         var result = await _externalAuthenticationService.CompleteRegistrationAsync(
             registrationRequest,
             cancellationToken);
+
+        // Record the provider branch only; external credentials and returned tokens remain secret.
+        _logger.LogInformation(
+            ApplicationLogConstants.ExternalLogs.EXTERNAL_REGISTRATION_COMPLETED,
+            request.Provider);
 
         return new ResponseDto<LoginResponseDto>(result);
     }

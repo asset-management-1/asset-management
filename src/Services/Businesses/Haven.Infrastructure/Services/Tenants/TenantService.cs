@@ -338,11 +338,7 @@ public class TenantService : ITenantService
                 StatusCodes.Status400BadRequest);
         }
 
-        return new TenantJoinPreviewResponseDto
-        {
-            Property = room.Adapt<TenantPropertySummaryResponseDto>(),
-            Room = room.Adapt<TenantJoinRoomSummaryResponseDto>()
-        };
+        return room.Adapt<TenantJoinPreviewResponseDto>();
     }
 
     /// <summary>

@@ -12,6 +12,8 @@ public sealed class RoomPackagesController : BaseApiController
     /// <param name="request">The room package query containing the frontend-safe room identifier.</param>
     /// <returns>The effective room package list.</returns>
     [HttpGet]
+    [SwaggerValueExample<RoomPackageSwaggerExamples.Values>]
+    [SwaggerResponseExample<RoomPackageSwaggerExamples.ListResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<RoomPackageListResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetRoomPackages([FromQuery] GetRoomPackagesQuery request)
@@ -27,6 +29,8 @@ public sealed class RoomPackagesController : BaseApiController
     /// <returns>The requested room package detail.</returns>
     [HttpGet]
     [Route(BY_ID)]
+    [SwaggerValueExample<RoomPackageSwaggerExamples.Values>]
+    [SwaggerResponseExample<RoomPackageSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<RoomPackageDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetRoomPackageDetail(
@@ -42,6 +46,8 @@ public sealed class RoomPackagesController : BaseApiController
     /// <param name="request">The room identifier and package fields.</param>
     /// <returns>The created room package detail.</returns>
     [HttpPost]
+    [SwaggerRequestExample<RoomPackageSwaggerExamples.CreateRequest>]
+    [SwaggerResponseExample<RoomPackageSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<RoomPackageDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
@@ -56,6 +62,8 @@ public sealed class RoomPackagesController : BaseApiController
     /// <param name="request">The package identifier, room identifier, and partial fields.</param>
     /// <returns>The updated room package detail.</returns>
     [HttpPut]
+    [SwaggerRequestExample<RoomPackageSwaggerExamples.UpdateRequest>]
+    [SwaggerResponseExample<RoomPackageSwaggerExamples.DetailResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<RoomPackageDetailResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]
@@ -72,6 +80,8 @@ public sealed class RoomPackagesController : BaseApiController
     /// <returns>The successful operation response.</returns>
     [HttpDelete]
     [Route(BY_ID)]
+    [SwaggerValueExample<RoomPackageSwaggerExamples.Values>]
+    [SwaggerResponseExample<RoomPackageSwaggerExamples.OperationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<OperationStatusResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status404NotFound)]

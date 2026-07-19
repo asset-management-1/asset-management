@@ -7,18 +7,22 @@ public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordComman
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly IAuthService _authService;
+    private readonly ILogger<ChangePasswordCommandHandler> _logger;
 
     /// <summary>
     /// Creates the authenticated password-change handler with current-principal access and password update services.
     /// </summary>
     /// <param name="authenticationService">The service that verifies and changes the current password.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
+    /// <param name="logger">The structured authenticated password-change logger.</param>
     public ChangePasswordCommandHandler(
         IAuthenticationService authenticationService,
-        IAuthService authService)
+        IAuthService authService,
+        ILogger<ChangePasswordCommandHandler> logger)
     {
         _authenticationService = authenticationService;
         _authService = authService;
+        _logger = logger;
     }
 
     /// <summary>
@@ -50,6 +54,13 @@ public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordComman
             currentSessionPublicId,
             changeRequest,
             cancellationToken);
+
+        // Correlate the successful security transition without logging either password or issued tokens.
+        _logger.LogInformation(
+            ApplicationLogConstants.PasswordLogs.PASSWORD_CHANGED,
+            currentUserPublicId,
+            currentSessionPublicId);
+
         return new ResponseDto<ChangePasswordResponseDto>(result);
     }
 }
