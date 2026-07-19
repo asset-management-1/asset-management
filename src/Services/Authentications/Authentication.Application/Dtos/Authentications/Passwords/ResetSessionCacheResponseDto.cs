@@ -6,7 +6,12 @@ namespace Authentication.Application.Dtos.Authentications.Passwords;
 public class ResetSessionCacheResponseDto
 {
     /// <summary>
-    /// Gets or sets the UTC creation timestamp.
+    /// Gets or sets the normalised email authorised for password reset.
     /// </summary>
-    public DateTime CreatedAt { get; set; }
+    public string Email { get; set; }
+
+    /// <summary>
+    /// Gets or sets the UTC expiration of the reset authority.
+    /// </summary>
+    public DateTime ExpiresAtUtc { get; set; }
 }

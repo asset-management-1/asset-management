@@ -18,7 +18,7 @@ public interface IAuthenticationService
     /// <summary>
     /// Builds the pending registration payload after validating uniqueness and hashing the password.
     /// </summary>
-    /// <param name="request">The normalized registration request payload.</param>
+    /// <param name="request">The normalised registration request payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The pending registration payload to cache for email verification.</returns>
     Task<PendingRegisterCacheRequestDto> BuildPendingRegisterAsync(
@@ -28,7 +28,7 @@ public interface IAuthenticationService
     /// <summary>
     /// Determines whether a non-deleted user exists for the supplied email.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns><c>true</c> when a matching user exists; otherwise <c>false</c>.</returns>
     Task<bool> UserExistsByEmailAsync(
@@ -101,11 +101,13 @@ public interface IAuthenticationService
     /// Changes the current authenticated user's password.
     /// </summary>
     /// <param name="currentUserPublicId">The current authenticated user's public identifier.</param>
+    /// <param name="currentSessionPublicId">The current authenticated session's public identifier.</param>
     /// <param name="request">The authenticated change-password payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The password-change result.</returns>
-    Task<OperationStatusResponseDto> ChangePasswordAsync(
+    Task<ChangePasswordResponseDto> ChangePasswordAsync(
         Guid currentUserPublicId,
+        Guid currentSessionPublicId,
         ChangePasswordRequestDto request,
         CancellationToken cancellationToken = default);
 }

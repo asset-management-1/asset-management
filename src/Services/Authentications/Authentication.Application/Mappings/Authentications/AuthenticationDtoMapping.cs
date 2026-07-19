@@ -30,5 +30,14 @@ public class AuthenticationDtoMapping : IRegister
         // Change-email notification request has the same email shape as the prepared change-email response.
         config.NewConfig<ChangeEmailStartResponseDto, ChangeEmailSecurityNotificationRequestDto>();
 
+        // Provider profiles expose only normalised prefill fields for first-time registration.
+        config.NewConfig<ExternalIdentityProfileResponseDto, ExternalRegistrationPrefillDto>()
+            .Map(dest => dest.Email, src => src.Email.NormalizeEmail());
+
+        // Existing external identities reuse the standard login payload inside one stable response envelope.
+        config.NewConfig<LoginResponseDto, ExternalLoginResponseDto>()
+            .Map(dest => dest.IsNewRegistration, _ => false)
+            .Map(dest => dest.Login, src => src)
+            .Map(dest => dest.Registration, _ => (ExternalRegistrationPrefillDto)null);
     }
 }

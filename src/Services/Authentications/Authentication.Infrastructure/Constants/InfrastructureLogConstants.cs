@@ -11,11 +11,6 @@ public static class InfrastructureLogConstants
     public static class SessionLogs
     {
         /// <summary>
-        /// Logged after a local username/password login completes.
-        /// </summary>
-        public const string LOCAL_LOGIN_COMPLETED = "Local login completed.";
-
-        /// <summary>
         /// Logged after a client session is created.
         /// </summary>
         public const string CLIENT_SESSION_CREATED = "Client session {SessionPublicId} created for user {UserPublicId}.";
@@ -44,11 +39,6 @@ public static class InfrastructureLogConstants
         /// Logged when an immediate previous refresh token is reused after rotation.
         /// </summary>
         public const string REFRESH_TOKEN_REUSE_REJECTED = "Refresh token reuse rejected for user {UserPublicId} and client session {SessionPublicId}.";
-
-        /// <summary>
-        /// Logged after a refresh token is rotated and a new token pair is issued.
-        /// </summary>
-        public const string REFRESH_TOKEN_ROTATED = "Refresh token rotated.";
 
         /// <summary>
         /// Logged after a user completes register email verification.

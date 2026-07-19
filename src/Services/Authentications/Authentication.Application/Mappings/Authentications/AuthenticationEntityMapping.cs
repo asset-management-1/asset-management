@@ -32,16 +32,18 @@ public class AuthenticationEntityMapping : IRegister
             .Map(dest => dest.PartyTypeId, src => src.PartyTypeId)
             .Map(dest => dest.DisplayName, src => src.FullName)
             .Map(dest => dest.PrimaryEmail, src => src.Email)
+            .Map(dest => dest.PrimaryPhone, src => src.PhoneNumber)
             .Map(dest => dest.StatusId, src => src.PartyStatusId);
 
         config.NewConfig<ExternalAccountProvisionRequestDto, User>()
             .Map(dest => dest.UserName, src => src.UserName)
             .Map(dest => dest.Email, src => src.Email)
+            .Map(dest => dest.PhoneNumber, src => src.PhoneNumber)
             .Map(dest => dest.FullName, src => src.FullName)
             .Map(dest => dest.EmailConfirmed, src => src.EmailConfirmed)
             .Map(dest => dest.StatusId, src => src.UserStatusId);
 
-        // Password hashing only needs a normalized identity-shaped user object, not persistence state.
+        // Password hashing only needs a normalised identity-shaped user object, not persistence state.
         config.NewConfig<RegisterRequestDto, User>()
             .Map(dest => dest.UserName, src => src.UserName)
             .Map(dest => dest.Email, src => src.Email);

@@ -6,9 +6,9 @@ namespace Authentication.Application.Commands.ChangeForgotPassword;
 public class ChangeForgotPasswordCommand : ICommand<ResponseDto<OperationStatusResponseDto>>
 {
     /// <summary>
-    /// Email address of the account that completed OTP verification.
+    /// Opaque authority returned after successful forgot-password OTP verification.
     /// </summary>
-    public string Email { get; set; }
+    public string PasswordResetToken { get; set; }
 
     /// <summary>
     /// New password to be set for the account.

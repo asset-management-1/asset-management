@@ -6,9 +6,9 @@ namespace Authentication.Application.Interfaces.Repositories;
 public interface IUserRepository : IGenericRepository<User>
 {
     /// <summary>
-    /// Loads a user by normalized username with authentication graph data.
+    /// Loads a user by normalised username with authentication graph data.
     /// </summary>
-    /// <param name="normalizedUserName">The normalized username used for login.</param>
+    /// <param name="normalizedUserName">The normalised username used for login.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched user with authentication state; otherwise <c>null</c>.</returns>
     Task<User> GetUserForAuthenticationByUserNameAsync(string normalizedUserName, CancellationToken cancellationToken = default);
@@ -46,20 +46,30 @@ public interface IUserRepository : IGenericRepository<User>
     Task<User> GetPasswordIdentityByPublicIdAsync(Guid userPublicId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads a user by normalized email address.
+    /// Loads a user by normalised email address.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched user; otherwise <c>null</c>.</returns>
     Task<User> GetByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads the minimal user fields required for password reset by normalized email address.
+    /// Loads the minimal user fields required for password reset by normalised email address.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched password identity; otherwise <c>null</c>.</returns>
     Task<User> GetPasswordIdentityByEmailAsync(string normalizedEmail, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Loads and locks the user row identified by normalised email for password reset mutation.
+    /// </summary>
+    /// <param name="normalizedEmail">The normalised email authorised by the consumed reset session.</param>
+    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
+    /// <returns>The tracked locked password identity; otherwise <c>null</c>.</returns>
+    Task<User> GetPasswordIdentityByEmailForUpdateAsync(
+        string normalizedEmail,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Stages a last-login timestamp update without loading the full user entity.
@@ -101,7 +111,7 @@ public interface IUserRepository : IGenericRepository<User>
     Task<User> GetByPublicIdWithExternalLoginsAsync(Guid userPublicId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Loads the user-info response model by public identifier using an optimized read query.
+    /// Loads the user-info response model by public identifier using an optimised read query.
     /// </summary>
     /// <param name="userPublicId">The public identifier of the user to load.</param>
     /// <param name="sessionPublicId">The authenticated client-session identifier.</param>
@@ -125,7 +135,7 @@ public interface IUserRepository : IGenericRepository<User>
     /// <summary>
     /// Determines whether a username already exists.
     /// </summary>
-    /// <param name="normalizedUserName">The normalized username.</param>
+    /// <param name="normalizedUserName">The normalised username.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns><c>true</c> when the username exists; otherwise <c>false</c>.</returns>
     Task<bool> UserNameExistsAsync(string normalizedUserName, CancellationToken cancellationToken = default);
@@ -133,7 +143,7 @@ public interface IUserRepository : IGenericRepository<User>
     /// <summary>
     /// Determines whether an email address already exists.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns><c>true</c> when the email exists; otherwise <c>false</c>.</returns>
     Task<bool> EmailExistsAsync(string normalizedEmail, CancellationToken cancellationToken = default);

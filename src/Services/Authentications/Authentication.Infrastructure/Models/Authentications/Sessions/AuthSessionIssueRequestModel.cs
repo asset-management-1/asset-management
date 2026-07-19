@@ -21,7 +21,7 @@ internal sealed class AuthSessionIssueRequestModel
     public RefreshToken SessionRefreshToken { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized request device metadata.
+    /// Gets or sets the normalised request device metadata.
     /// </summary>
     public ClientDeviceContextModel DeviceContext { get; set; }
 

@@ -11,7 +11,7 @@ public class AuthenticationRequestMapping : IRegister
     /// <param name="config">The Mapster configuration instance.</param>
     public void Register(TypeAdapterConfig config)
     {
-        // Flat request mappings apply only the approved username/email normalization and enum conversions.
+        // Flat request mappings apply only the approved username/email normalisation and enum conversions.
         config.NewConfig<LoginCommand, LoginRequestDto>()
             .Map(dest => dest.UserName, src => src.UserName.NormalizeUserName());
 
@@ -27,13 +27,13 @@ public class AuthenticationRequestMapping : IRegister
 
         config.NewConfig<ExternalLoginCommand, ExternalLoginRequestDto>();
 
+        config.NewConfig<CompleteExternalRegistrationCommand, CompleteExternalRegistrationRequestDto>()
+            .Map(dest => dest.PartyType, src => src.PartyType.Trim().ToUpperInvariant());
+
         config.NewConfig<ForgotPasswordCommand, ForgotPasswordRequestDto>()
             .Map(dest => dest.Email, src => src.Email.NormalizeEmail());
 
         config.NewConfig<VerifyForgotPasswordOtpCommand, VerifyForgotPasswordOtpRequestDto>()
-            .Map(dest => dest.Email, src => src.Email.NormalizeEmail());
-
-        config.NewConfig<ChangeForgotPasswordCommand, ChangeForgotPasswordRequestDto>()
             .Map(dest => dest.Email, src => src.Email.NormalizeEmail());
 
         config.NewConfig<ChangePasswordCommand, ChangePasswordRequestDto>();

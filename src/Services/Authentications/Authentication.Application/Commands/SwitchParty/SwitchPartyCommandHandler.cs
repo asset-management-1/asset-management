@@ -6,23 +6,14 @@ namespace Authentication.Application.Commands.SwitchParty;
 public class SwitchPartyCommandHandler : ICommandHandler<SwitchPartyCommand, ResponseDto<SwitchPartyResponseDto>>
 {
     private readonly IUserService _userService;
-    private readonly IAuthService _authService;
-    private readonly ILogger<SwitchPartyCommandHandler> _logger;
 
     /// <summary>
-    /// Creates the party-context switch handler with current-user services and flow logging.
+    /// Creates the party-context switch handler with the user-context service.
     /// </summary>
     /// <param name="userService">The service that switches or creates the requested party context.</param>
-    /// <param name="authService">The service that reads the current authenticated principal.</param>
-    /// <param name="logger">The logger used for context-switch completion tracking.</param>
-    public SwitchPartyCommandHandler(
-        IUserService userService,
-        IAuthService authService,
-        ILogger<SwitchPartyCommandHandler> logger)
+    public SwitchPartyCommandHandler(IUserService userService)
     {
         _userService = userService;
-        _authService = authService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -31,19 +22,14 @@ public class SwitchPartyCommandHandler : ICommandHandler<SwitchPartyCommand, Res
     /// <param name="request">The switch-party payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The standardized response that wraps the resolved active context.</returns>
-    public async ValueTask<ResponseDto<SwitchPartyResponseDto>> Handle(SwitchPartyCommand request, CancellationToken cancellationToken)
+    public async ValueTask<ResponseDto<SwitchPartyResponseDto>> Handle(
+        SwitchPartyCommand request,
+        CancellationToken cancellationToken)
     {
-        // Context switching uses the authenticated account and creates the target party context only when missing.
-        var currentUserPublicId = _authService.UserId()
-                                  ?? throw new HttpStatusCodeException(
-                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
-                                      UNAUTHORIZED,
-                                      StatusCodes.Status401Unauthorized);
+        // UserService resolves the authenticated user/session and persists only the selected client context.
         var result = await _userService.SwitchPartyAsync(
             request.Adapt<SwitchPartyRequestDto>(),
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ContextLogs.CONTEXT_SWITCHED, result.CurrentContext, currentUserPublicId);
-
         return new ResponseDto<SwitchPartyResponseDto>(result);
     }
 }

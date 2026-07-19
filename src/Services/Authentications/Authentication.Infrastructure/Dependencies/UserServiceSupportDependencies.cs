@@ -6,7 +6,7 @@ namespace Authentication.Infrastructure.Dependencies;
 public class UserServiceSupportDependencies
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="UserServiceSupportDependencies"/> class.
+    /// Initialises a new instance of the <see cref="UserServiceSupportDependencies"/> class.
     /// </summary>
     /// <param name="objectStorageService">The private object storage service used for file uploads.</param>
     /// <param name="imageOptimizationService">The shared image processor used before image objects are uploaded.</param>

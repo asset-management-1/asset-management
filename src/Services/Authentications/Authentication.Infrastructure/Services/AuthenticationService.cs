@@ -111,15 +111,13 @@ public class AuthenticationService : IAuthenticationService
                 : InfrastructureLogConstants.SessionLogs.CLIENT_SESSION_REPLACED_BY_LOGIN,
             sessionRefreshToken.SessionPublicId,
             user.PublicId);
-        _logger.LogInformation(InfrastructureLogConstants.SessionLogs.LOCAL_LOGIN_COMPLETED);
-
         return response;
     }
 
     /// <summary>
     /// Builds the pending registration payload after validating uniqueness and hashing the password.
     /// </summary>
-    /// <param name="request">The normalized registration request payload.</param>
+    /// <param name="request">The normalised registration request payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The pending registration payload to cache for email verification.</returns>
     public async Task<PendingRegisterCacheRequestDto> BuildPendingRegisterAsync(
@@ -144,8 +142,8 @@ public class AuthenticationService : IAuthenticationService
     /// <summary>
     /// Validates that a registration request can still create a unique account for the target party type.
     /// </summary>
-    /// <param name="request">The normalized uniqueness values from the registration payload.</param>
-    /// <param name="partyType">The normalized party type master-data value.</param>
+    /// <param name="request">The normalised uniqueness values from the registration payload.</param>
+    /// <param name="partyType">The normalised party type master-data value.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that completes when the registration can proceed.</returns>
     private async Task EnsureRegistrationCanStartAsync(
@@ -172,7 +170,7 @@ public class AuthenticationService : IAuthenticationService
     /// <summary>
     /// Validates that username, email, and phone number can create a unique account.
     /// </summary>
-    /// <param name="request">The normalized uniqueness values from the registration payload.</param>
+    /// <param name="request">The normalised uniqueness values from the registration payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that completes when uniqueness checks pass.</returns>
     private async Task EnsureRegistrationUniquenessAsync(
@@ -205,7 +203,7 @@ public class AuthenticationService : IAuthenticationService
     /// <summary>
     /// Determines whether a non-deleted user exists for the supplied email.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns><c>true</c> when a matching user exists; otherwise <c>false</c>.</returns>
     public async Task<bool> UserExistsByEmailAsync(
@@ -428,7 +426,7 @@ public class AuthenticationService : IAuthenticationService
         RefreshTokenRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        // A missing refresh token cannot be rotated into a new session.
+        // Step 1: Reject an empty credential before hashing or entering the session transaction.
         if (string.IsNullOrWhiteSpace(request.RefreshToken))
         {
             throw new ApiException(
@@ -437,79 +435,104 @@ public class AuthenticationService : IAuthenticationService
                 StatusCodes.Status401Unauthorized);
         }
 
-        // Resolve the active client session and user login state from the hashed refresh token.
         var refreshTokenHash = AuthSessionHelper.HashRefreshToken(request.RefreshToken);
-        var existingToken = await _repositories.RefreshTokenRepository.GetForRefreshAsync(
-            refreshTokenHash,
-            cancellationToken);
-        if (existingToken is null
-            || !existingToken.SessionPublicId.HasValue
-            || existingToken.RevokedAt.HasValue
-            || existingToken.ExpiresAt <= DateTime.UtcNow
-            || existingToken.User is null
-            || existingToken.User.IsDeleted
-            || existingToken.User.Status is null
-            || !string.Equals(
-                existingToken.User.Status.Code,
-                ACTIVE_STATUS,
-                StringComparison.OrdinalIgnoreCase)
-            || !existingToken.User.EmailConfirmed)
-        {
-            throw new ApiException(
-                ApplicationErrorConstants.AccountErrors.INVALID_REFRESH_TOKEN_MESSAGE,
-                ApplicationErrorConstants.TokenErrorCodes.AUTH_INVALID_REFRESH_TOKEN,
-                StatusCodes.Status401Unauthorized);
-        }
-
-        if (!string.Equals(existingToken.TokenHash, refreshTokenHash, StringComparison.Ordinal))
-        {
-            // Reusing the immediately previous refresh token revokes the current client session
-            // and rejects the request.
-            existingToken.RevokedAt = DateTime.UtcNow;
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            _logger.LogWarning(
-                InfrastructureLogConstants.SessionLogs.REFRESH_TOKEN_REUSE_REJECTED,
-                existingToken.User.PublicId,
-                existingToken.SessionPublicId);
-            throw new ApiException(
-                ApplicationErrorConstants.AccountErrors.INVALID_REFRESH_TOKEN_MESSAGE,
-                ApplicationErrorConstants.TokenErrorCodes.AUTH_INVALID_REFRESH_TOKEN,
-                StatusCodes.Status401Unauthorized);
-        }
-
-        // Refresh rotates the token hash in place and keeps the same server-issued session id.
-        var replacementRefreshToken = AuthSessionHelper.GenerateRefreshToken();
         var deviceContext = _clientDeviceContextAccessor.GetCurrent();
+        User refreshedUser = null;
+        RefreshToken refreshedSession = null;
 
-        // Recheck the session Party before rotation so a stale relation cannot survive into user-info.
-        existingToken.CurrentPartyId = await _repositories.UserPartyRepository.ResolveSessionPartyIdAsync(
-                                           existingToken.UserId,
-                                           existingToken.CurrentPartyId,
-                                           cancellationToken)
-                                       ?? throw new ApiException(
-                                           ApplicationErrorConstants.ContextErrors.PARTY_CONTEXT_NOT_AVAILABLE_MESSAGE,
-                                           ApplicationErrorConstants.AccountErrorCodes.AUTH_PARTY_CONTEXT_NOT_AVAILABLE);
-
-        // Reissue the token pair while preserving the existing session identifier for this client instance.
-        var response = await IssueAsync(
-            new AuthSessionIssueRequestModel
+        var response = await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
             {
-                User = existingToken.User,
-                RawRefreshToken = replacementRefreshToken,
-                SessionRefreshToken = existingToken,
-                DeviceContext = deviceContext,
-                RenewSessionPublicId = false,
-                AuthOptions = _authOptions,
-                JwtSecurityTokenHandler = _jwtSecurityTokenHandler
+                // Step 2: Lock the matching current or previous hash and recheck session eligibility under that lock.
+                var existingToken = await _repositories.RefreshTokenRepository.GetForRefreshForUpdateAsync(
+                    refreshTokenHash,
+                    ct);
+                if (!IsRefreshTokenUsable(existingToken))
+                {
+                    throw CreateInvalidRefreshTokenException();
+                }
+
+                // Step 3: An immediate previous hash is a duplicate retry, so reject it without revoking the session.
+                if (!string.Equals(existingToken.TokenHash, refreshTokenHash, StringComparison.Ordinal))
+                {
+                    _logger.LogWarning(
+                        InfrastructureLogConstants.SessionLogs.REFRESH_TOKEN_REUSE_REJECTED,
+                        existingToken.User.PublicId,
+                        existingToken.SessionPublicId);
+                    throw new ApiException(
+                        ApplicationErrorConstants.AccountErrors.REFRESH_TOKEN_DUPLICATE_MESSAGE,
+                        ApplicationErrorConstants.TokenErrorCodes.AUTH_REFRESH_DUPLICATE,
+                        StatusCodes.Status409Conflict);
+                }
+
+                // Step 4: Rotate the locked current session in place and preserve its public session identifier.
+                existingToken.CurrentPartyId = await _repositories.UserPartyRepository.ResolveSessionPartyIdAsync(
+                                                   existingToken.UserId,
+                                                   existingToken.CurrentPartyId,
+                                                   ct)
+                                               ?? throw new ApiException(
+                                                   ApplicationErrorConstants.ContextErrors.PARTY_CONTEXT_NOT_AVAILABLE_MESSAGE,
+                                                   ApplicationErrorConstants.AccountErrorCodes.AUTH_PARTY_CONTEXT_NOT_AVAILABLE);
+
+                refreshedUser = existingToken.User;
+                refreshedSession = existingToken;
+                return await StageIssueAsync(
+                    new AuthSessionIssueRequestModel
+                    {
+                        User = existingToken.User,
+                        RawRefreshToken = AuthSessionHelper.GenerateRefreshToken(),
+                        SessionRefreshToken = existingToken,
+                        DeviceContext = deviceContext,
+                        RenewSessionPublicId = false,
+                        AuthOptions = _authOptions,
+                        JwtSecurityTokenHandler = _jwtSecurityTokenHandler
+                    },
+                    ct);
             },
+            cancellationToken);
+
+        // Step 5: Publish required auth-reset cache state only after the refresh transaction commits.
+        await TrySeedAuthResetMarkerAsync(
+            refreshedUser.PublicId,
+            refreshedUser.AuthResetAt,
             cancellationToken);
         _logger.LogInformation(
             InfrastructureLogConstants.SessionLogs.CLIENT_SESSION_REFRESHED,
-            existingToken.SessionPublicId,
-            existingToken.User.PublicId);
-        _logger.LogInformation(InfrastructureLogConstants.SessionLogs.REFRESH_TOKEN_ROTATED);
-
+            refreshedSession.SessionPublicId,
+            refreshedUser.PublicId);
         return response;
+    }
+
+    /// <summary>
+    /// Determines whether a locked refresh-token row and its owning account can rotate safely.
+    /// </summary>
+    /// <param name="refreshToken">The refresh-token row loaded for rotation.</param>
+    /// <returns><c>true</c> when the session and account remain eligible; otherwise <c>false</c>.</returns>
+    private static bool IsRefreshTokenUsable(RefreshToken refreshToken)
+    {
+        // Require active session state and an active confirmed account before any hash branch can rotate.
+        return refreshToken is not null
+               && refreshToken.SessionPublicId.HasValue
+               && !refreshToken.RevokedAt.HasValue
+               && refreshToken.ExpiresAt > DateTime.UtcNow
+               && refreshToken.User is not null
+               && !refreshToken.User.IsDeleted
+               && refreshToken.User.Status is not null
+               && string.Equals(refreshToken.User.Status.Code, ACTIVE_STATUS, StringComparison.OrdinalIgnoreCase)
+               && refreshToken.User.EmailConfirmed;
+    }
+
+    /// <summary>
+    /// Creates the stable unauthorised error returned for unusable refresh credentials.
+    /// </summary>
+    /// <returns>The invalid-refresh-token API exception.</returns>
+    private static ApiException CreateInvalidRefreshTokenException()
+    {
+        // Centralize the public error contract shared by all invalid refresh states.
+        return new ApiException(
+            ApplicationErrorConstants.AccountErrors.INVALID_REFRESH_TOKEN_MESSAGE,
+            ApplicationErrorConstants.TokenErrorCodes.AUTH_INVALID_REFRESH_TOKEN,
+            StatusCodes.Status401Unauthorized);
     }
 
     /// <summary>
@@ -555,29 +578,42 @@ public class AuthenticationService : IAuthenticationService
         ChangeForgotPasswordRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        // Load password state from the verified reset-session email.
-        var user = await _repositories.UserRepository.GetPasswordIdentityByEmailAsync(request.Email, cancellationToken);
-
-        if (user is null)
-        {
-            throw new ApiException(
-                ApplicationErrorConstants.OtpErrors.RESET_SESSION_INVALID_MESSAGE,
-                ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
-        }
-
-        // Forgot-password completion rotates the password and invalidates every existing session.
         var authResetAt = DateTime.UtcNow;
+        User changedUser = null;
+        await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                // Step 1: Lock and recheck the reset target before changing credential state.
+                var user = await _repositories.UserRepository.GetPasswordIdentityByEmailForUpdateAsync(
+                               request.Email,
+                               ct)
+                           ?? throw new ApiException(
+                               ApplicationErrorConstants.OtpErrors.RESET_SESSION_INVALID_MESSAGE,
+                               ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
 
-        // Persist the new password, write the auth-reset marker, and revoke every active client session together.
-        await ResetPasswordAuthStateAndRevokeClientSessionsAsync(
-            user,
-            _passwordHasher.HashPassword(user, request.NewPassword),
-            authResetAt,
+                // Step 2: Advance required auth-reset state, replace the password, and revoke every old session atomically.
+                await WriteAuthResetMarkerAsync(user.PublicId, authResetAt, ct);
+                await _repositories.UserRepository.StagePasswordHashChangeAsync(
+                    user.Id,
+                    _passwordHasher.HashPassword(user, request.NewPassword),
+                    authResetAt,
+                    authResetAt);
+                await _repositories.RefreshTokenRepository.StageActiveRevocationsByUserIdAsync(
+                    user.Id,
+                    authResetAt,
+                    ct);
+                changedUser = user;
+            },
             cancellationToken);
+        // Step 3: Seed the committed reset marker before reporting password-reset success.
+        await TrySeedAuthResetMarkerAsync(changedUser.PublicId, authResetAt, cancellationToken);
 
         _logger.LogInformation(
             InfrastructureLogConstants.PasswordLogs.FORGOT_PASSWORD_CHANGED,
-            user.PublicId);
+            changedUser.PublicId);
+        _logger.LogInformation(
+            InfrastructureLogConstants.SessionLogs.CLIENT_SESSIONS_REVOKED_BY_CREDENTIAL_CHANGE,
+            changedUser.PublicId);
 
         return OperationStatusResponseHelper.Success(
             ApplicationMessageConstants.PasswordMessages.PASSWORD_CHANGED_SUCCESS_MESSAGE);
@@ -587,49 +623,91 @@ public class AuthenticationService : IAuthenticationService
     /// Changes the current authenticated user's password.
     /// </summary>
     /// <param name="currentUserPublicId">The current authenticated user's public identifier.</param>
+    /// <param name="currentSessionPublicId">The current authenticated session's public identifier.</param>
     /// <param name="request">The authenticated change-password payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The password-change result.</returns>
-    public async Task<OperationStatusResponseDto> ChangePasswordAsync(
+    public async Task<ChangePasswordResponseDto> ChangePasswordAsync(
         Guid currentUserPublicId,
+        Guid currentSessionPublicId,
         ChangePasswordRequestDto request,
         CancellationToken cancellationToken = default)
     {
-        // Load current password state from the authenticated public user id.
-        var user = await _repositories.UserRepository.GetPasswordIdentityByPublicIdAsync(
-                       currentUserPublicId,
-                       cancellationToken)
-                   ?? throw new HttpStatusCodeException(
-                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
-                       UNAUTHORIZED,
-                       StatusCodes.Status401Unauthorized);
-        if (string.IsNullOrWhiteSpace(user.PasswordHash)
-            || _passwordHasher.VerifyHashedPassword(
-                user,
-                user.PasswordHash,
-                request.CurrentPassword) == PasswordVerificationResult.Failed)
-        {
-            throw new ApiException(
-                ApplicationErrorConstants.PasswordErrors.CURRENT_PASSWORD_INVALID_MESSAGE,
-                ApplicationErrorConstants.AccountErrorCodes.AUTH_INVALID_CREDENTIALS);
-        }
-
-        // Authenticated password change rotates the password and invalidates every existing session.
         var authResetAt = DateTime.UtcNow;
+        User changedUser = null;
+        var login = await _unitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                // Step 1: Lock the user row so concurrent password changes cannot verify the same old password.
+                var user = await _repositories.UserRepository.GetTrackedByPublicIdForUpdateAsync(
+                               currentUserPublicId,
+                               ct)
+                           ?? throw new HttpStatusCodeException(
+                               ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                               UNAUTHORIZED,
+                               StatusCodes.Status401Unauthorized);
+                // Step 2: Verify the submitted current password against the locked, latest credential state.
+                if (string.IsNullOrWhiteSpace(user.PasswordHash)
+                    || _passwordHasher.VerifyHashedPassword(
+                        user,
+                        user.PasswordHash,
+                        request.CurrentPassword) == PasswordVerificationResult.Failed)
+                {
+                    throw new ApiException(
+                        ApplicationErrorConstants.PasswordErrors.CURRENT_PASSWORD_INVALID_MESSAGE,
+                        ApplicationErrorConstants.AccountErrorCodes.AUTH_INVALID_CREDENTIALS);
+                }
 
-        // Persist the new password, write the auth-reset marker, and revoke every active client session together.
-        await ResetPasswordAuthStateAndRevokeClientSessionsAsync(
-            user,
-            _passwordHasher.HashPassword(user, request.NewPassword),
-            authResetAt,
+                // Step 3: Lock the trusted current session before revoking all other device sessions.
+                var currentSession = await _repositories.RefreshTokenRepository
+                                         .GetByUserAndSessionPublicIdForUpdateAsync(
+                                             user.Id,
+                                             currentSessionPublicId,
+                                             ct)
+                                     ?? throw new HttpStatusCodeException(
+                                         ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                         UNAUTHORIZED,
+                                         StatusCodes.Status401Unauthorized);
+
+                // Step 4: Change the password, revoke other sessions, and rotate the current session in one transaction.
+                await WriteAuthResetMarkerAsync(user.PublicId, authResetAt, ct);
+                user.PasswordHash = _passwordHasher.HashPassword(user, request.NewPassword);
+                user.AuthResetAt = authResetAt;
+                user.UpdatedAt = authResetAt;
+                await _repositories.RefreshTokenRepository.StageActiveRevocationsExceptSessionAsync(
+                    user.Id,
+                    currentSessionPublicId,
+                    authResetAt,
+                    ct);
+
+                changedUser = user;
+                return await StageIssueAsync(
+                    new AuthSessionIssueRequestModel
+                    {
+                        User = user,
+                        RawRefreshToken = AuthSessionHelper.GenerateRefreshToken(),
+                        SessionRefreshToken = currentSession,
+                        DeviceContext = _clientDeviceContextAccessor.GetCurrent(),
+                        RenewSessionPublicId = false,
+                        AuthOptions = _authOptions,
+                        JwtSecurityTokenHandler = _jwtSecurityTokenHandler
+                    },
+                    ct);
+            },
             cancellationToken);
+
+        // Step 5: Publish the committed auth-reset marker before returning the replacement token pair.
+        await TrySeedAuthResetMarkerAsync(changedUser.PublicId, changedUser.AuthResetAt, cancellationToken);
 
         _logger.LogInformation(
             InfrastructureLogConstants.PasswordLogs.PASSWORD_CHANGED,
             currentUserPublicId);
 
-        return OperationStatusResponseHelper.Success(
-            ApplicationMessageConstants.PasswordMessages.PASSWORD_CHANGED_SUCCESS_MESSAGE);
+        return new ChangePasswordResponseDto
+        {
+            Message = ApplicationMessageConstants.PasswordMessages.PASSWORD_CHANGED_SUCCESS_MESSAGE,
+            Login = login
+        };
     }
 
     /// <summary>
@@ -642,21 +720,7 @@ public class AuthenticationService : IAuthenticationService
         AuthSessionIssueRequestModel request,
         CancellationToken cancellationToken = default)
     {
-        // Prepare the JWT response and refresh token through the shared auth-session helper.
-        var issueModel = AuthSessionHelper.BuildIssueModel(request);
-
-        if (issueModel.RefreshToken.Id == 0)
-        {
-            // First login for this client instance creates the single persistent row.
-            await _repositories.RefreshTokenRepository.AddAsync(
-                issueModel.RefreshToken,
-                cancellationToken);
-        }
-        else
-        {
-            // Repeat login or refresh mutates the existing row instead of appending a new one.
-            await _repositories.RefreshTokenRepository.UpdateAsync(issueModel.RefreshToken);
-        }
+        var response = await StageIssueAsync(request, cancellationToken);
 
         // Commit refresh-token state before publishing the auth-reset marker used to invalidate issued access tokens.
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -664,45 +728,32 @@ public class AuthenticationService : IAuthenticationService
         // Seed the reset marker after persistence so the cache never represents an uncommitted auth state.
         await TrySeedAuthResetMarkerAsync(request.User.PublicId, request.User.AuthResetAt, cancellationToken);
 
-        return issueModel.LoginResponse;
+        return response;
     }
 
     /// <summary>
-    /// Updates password state, resets authentication state, and revokes every active session.
+    /// Stages access-token response data and the matching refresh-session mutation without committing it.
     /// </summary>
-    /// <param name="user">The password identity being changed.</param>
-    /// <param name="passwordHash">The new password hash to persist.</param>
-    /// <param name="authResetAt">The UTC auth reset timestamp.</param>
-    /// <param name="cancellationToken">The token used to cancel the reset operation.</param>
-    /// <returns>A task that completes when password, reset state, and refresh-token revocations are persisted.</returns>
-    private async Task ResetPasswordAuthStateAndRevokeClientSessionsAsync(
-        User user,
-        string passwordHash,
-        DateTime authResetAt,
+    /// <param name="request">The grouped auth-session issue request.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The staged login response.</returns>
+    private async Task<LoginResponseDto> StageIssueAsync(
+        AuthSessionIssueRequestModel request,
         CancellationToken cancellationToken)
     {
-        // Write Redis first so already-issued access tokens are invalidated before password persistence.
-        await WriteAuthResetMarkerAsync(user.PublicId, authResetAt, cancellationToken);
+        // Build the token pair and stage either a new device session or an in-place session rotation.
+        var issueModel = AuthSessionHelper.BuildIssueModel(request);
 
-        // Stage password and reset timestamp together so access-token validity follows credential changes.
-        await _repositories.UserRepository.StagePasswordHashChangeAsync(
-            user.Id,
-            passwordHash,
-            authResetAt,
-            authResetAt);
+        if (issueModel.RefreshToken.Id == 0)
+        {
+            await _repositories.RefreshTokenRepository.AddAsync(issueModel.RefreshToken, cancellationToken);
+        }
+        else
+        {
+            await _repositories.RefreshTokenRepository.UpdateAsync(issueModel.RefreshToken);
+        }
 
-        // Revoke every client session in the same save boundary as the password change.
-        await _repositories.RefreshTokenRepository.StageActiveRevocationsByUserIdAsync(
-            user.Id,
-            authResetAt,
-            cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation(
-            InfrastructureLogConstants.SessionLogs.CLIENT_SESSIONS_REVOKED_BY_CREDENTIAL_CHANGE,
-            user.PublicId);
-
-        // Seed Redis again after the DB write so handler fast-path stays aligned with source of truth.
-        await TrySeedAuthResetMarkerAsync(user.PublicId, authResetAt, cancellationToken);
+        return issueModel.LoginResponse;
     }
 
     /// <summary>

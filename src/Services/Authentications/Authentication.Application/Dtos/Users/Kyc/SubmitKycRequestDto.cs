@@ -6,7 +6,7 @@ namespace Authentication.Application.Dtos.Users.Kyc;
 public class SubmitKycRequestDto
 {
     /// <summary>
-    /// Gets or sets the normalized personal identity document type code.
+    /// Gets or sets the normalised personal identity document type code.
     /// </summary>
     public string IdentifierType { get; set; }
 

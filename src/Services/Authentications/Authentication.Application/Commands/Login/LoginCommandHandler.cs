@@ -10,11 +10,11 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, ResponseDto<Log
     private readonly ILogger<LoginCommandHandler> _logger;
 
     /// <summary>
-    /// Creates the local-login handler with credential verification services and flow logging.
+    /// Creates the local-login handler with credential verification and invalid-attempt tracking services.
     /// </summary>
     /// <param name="authenticationService">The service that verifies local credentials and issues tokens.</param>
     /// <param name="loginAttemptService">The service that tracks failed local-login attempts and temporary locks.</param>
-    /// <param name="logger">The logger used for login flow completion tracking.</param>
+    /// <param name="logger">The logger used for security-relevant credential failure tracking.</param>
     public LoginCommandHandler(
         IAuthenticationService authenticationService,
         ILoginAttemptService loginAttemptService,
@@ -31,21 +31,21 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, ResponseDto<Log
     /// <param name="request">The login command payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The standardized response that wraps the login payload.</returns>
-    public async ValueTask<ResponseDto<LoginResponseDto>> Handle(LoginCommand request, CancellationToken cancellationToken)
+    public async ValueTask<ResponseDto<LoginResponseDto>> Handle(
+        LoginCommand request,
+        CancellationToken cancellationToken)
     {
-        // Mapster owns request normalization after FluentValidation has accepted the payload shape.
+        // Mapster owns request normalisation after FluentValidation has accepted the payload shape.
         var loginRequest = request.Adapt<LoginRequestDto>();
 
         // Block locked usernames before password verification to avoid extending brute-force work.
         await _loginAttemptService.CheckAccountLockedAsync(loginRequest.UserName, cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.LoginLogs.LOCAL_LOGIN_FLOW_STEP1_LOCK_CHECKED);
 
         LoginResponseDto result;
         try
         {
             // AuthenticationService verifies credentials and persists the refresh-token session.
             result = await _authenticationService.LoginAsync(loginRequest, cancellationToken);
-            _logger.LogInformation(ApplicationLogConstants.LoginLogs.LOCAL_LOGIN_FLOW_STEP2_CREDENTIALS_ACCEPTED);
         }
         catch (ApiException ex) when (ex.ErrorCode == ApplicationErrorConstants.AccountErrorCodes.AUTH_INVALID_CREDENTIALS)
         {
@@ -62,9 +62,6 @@ public class LoginCommandHandler : ICommandHandler<LoginCommand, ResponseDto<Log
 
         // Successful local login clears any previous failed-attempt state for the username.
         await _loginAttemptService.RemoveAttemptsAsync(loginRequest.UserName, cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.LoginLogs.LOCAL_LOGIN_FLOW_STEP3_ATTEMPTS_RESET);
-        _logger.LogInformation(ApplicationLogConstants.LoginLogs.LOCAL_LOGIN_COMPLETED);
-
         return new ResponseDto<LoginResponseDto>(result);
     }
 }

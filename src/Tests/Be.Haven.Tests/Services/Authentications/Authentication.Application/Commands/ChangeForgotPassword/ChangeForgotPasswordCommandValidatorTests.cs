@@ -11,7 +11,7 @@ public sealed class ChangeForgotPasswordCommandValidatorTests
     {
         var command = new ChangeForgotPasswordCommand
         {
-            Email = "tenant@example.com",
+            PasswordResetToken = "reset-token",
             NewPassword = "New@123a"
         };
 
@@ -29,7 +29,7 @@ public sealed class ChangeForgotPasswordCommandValidatorTests
     {
         var command = new ChangeForgotPasswordCommand
         {
-            Email = "tenant@example.com",
+            PasswordResetToken = "reset-token",
             NewPassword = newPassword
         };
 

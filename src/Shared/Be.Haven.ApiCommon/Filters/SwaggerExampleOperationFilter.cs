@@ -34,7 +34,7 @@ public sealed class SwaggerExampleOperationFilter : IOperationFilter
 
         foreach (var responseExample in context.MethodInfo.GetCustomAttributes<SwaggerResponseExampleAttribute>())
         {
-            ApplyResponseExample(operation, responseExample.StatusCode, responseExample.ProviderType);
+            ApplyResponseExample(operation, responseExample);
         }
 
         // Field-level examples fill Try-it-out controls for path/query values and multipart form fields.
@@ -256,6 +256,61 @@ public sealed class SwaggerExampleOperationFilter : IOperationFilter
     {
         // Action-specific examples are provider-backed so each success payload can stay close to its API module.
         ApplyResponseExample(operation, statusCode, BuildExampleNode(providerType));
+    }
+
+    /// <summary>
+    /// Applies a provider-backed default or named response example declared on an action.
+    /// </summary>
+    /// <param name="operation">The operation being generated.</param>
+    /// <param name="responseExample">The response example metadata declared on the action.</param>
+    private static void ApplyResponseExample(
+        OpenApiOperation operation,
+        SwaggerResponseExampleAttribute responseExample)
+    {
+        var example = BuildExampleNode(responseExample.ProviderType);
+        if (string.IsNullOrWhiteSpace(responseExample.Name))
+        {
+            // Unnamed examples preserve the existing single-example behavior used by most endpoints.
+            ApplyResponseExample(operation, responseExample.StatusCode, example);
+            return;
+        }
+
+        // Named examples expose valid response branches without inventing an invalid combined payload.
+        ApplyNamedResponseExample(operation, responseExample, example);
+    }
+
+    /// <summary>
+    /// Adds one named response example to every media type documented for the selected status code.
+    /// </summary>
+    /// <param name="operation">The operation being generated.</param>
+    /// <param name="responseExample">The named response example metadata.</param>
+    /// <param name="example">The serialised response example node.</param>
+    private static void ApplyNamedResponseExample(
+        OpenApiOperation operation,
+        SwaggerResponseExampleAttribute responseExample,
+        JsonNode example)
+    {
+        var responses = operation.Responses;
+        if (responses is null
+            || !responses.TryGetValue(
+                responseExample.StatusCode.ToString(CultureInfo.InvariantCulture),
+                out var response)
+            || response.Content is null)
+        {
+            return;
+        }
+
+        // Clone both the OpenAPI example and its JSON value because each media type owns its model nodes.
+        foreach (var mediaType in response.Content.Values)
+        {
+            mediaType.Examples ??= new Dictionary<string, IOpenApiExample>();
+            mediaType.Examples[responseExample.Name] = new OpenApiExample
+            {
+                Summary = responseExample.Summary,
+                Description = responseExample.Description,
+                Value = example?.DeepClone()
+            };
+        }
     }
 
     /// <summary>

@@ -6,12 +6,12 @@ namespace Authentication.Application.Dtos.Authentications.Register;
 public class PendingRegisterCacheRequestDto
 {
     /// <summary>
-    /// Gets or sets the normalized username.
+    /// Gets or sets the normalised username.
     /// </summary>
     public string UserName { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized email address.
+    /// Gets or sets the normalised email address.
     /// </summary>
     public string Email { get; set; }
 

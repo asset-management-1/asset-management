@@ -26,6 +26,19 @@ public static class CodeGenerationHelper
     }
 
     /// <summary>
+    /// Generates a cryptographically secure opaque token encoded as URL-safe hexadecimal text.
+    /// </summary>
+    /// <param name="byteLength">The number of random bytes to encode.</param>
+    /// <returns>The uppercase hexadecimal opaque token.</returns>
+    public static string GenerateOpaqueToken(int byteLength = 32)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(byteLength);
+
+        // Use the runtime cryptographic generator directly; no feature-specific token helper is needed.
+        return Convert.ToHexString(RandomNumberGenerator.GetBytes(byteLength));
+    }
+
+    /// <summary>
     /// Generates a formatted code from a prefix and numeric random segment.
     /// </summary>
     /// <param name="prefix">The business prefix to put before the numeric segment.</param>

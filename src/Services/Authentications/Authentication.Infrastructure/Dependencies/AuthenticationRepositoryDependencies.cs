@@ -1,30 +1,33 @@
 namespace Authentication.Infrastructure.Dependencies;
 
 /// <summary>
-/// Groups authentication repositories shared by the three workflow services.
+/// Groups repositories used by authentication workflow services.
 /// </summary>
 public class AuthenticationRepositoryDependencies
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="AuthenticationRepositoryDependencies"/> class.
+    /// Initialises a new instance of the <see cref="AuthenticationRepositoryDependencies"/> class.
     /// </summary>
     /// <param name="userRepository">The user repository.</param>
     /// <param name="refreshTokenRepository">The refresh-token repository.</param>
     /// <param name="masterDataValueRepository">The master-data value repository.</param>
     /// <param name="partyRepository">The party repository.</param>
     /// <param name="userPartyRepository">The user-party repository.</param>
+    /// <param name="externalLoginRepository">The external-login repository.</param>
     public AuthenticationRepositoryDependencies(
         IUserRepository userRepository,
         IRefreshTokenRepository refreshTokenRepository,
         IMasterDataValueRepository masterDataValueRepository,
         IPartyRepository partyRepository,
-        IUserPartyRepository userPartyRepository)
+        IUserPartyRepository userPartyRepository,
+        IExternalLoginRepository externalLoginRepository)
     {
         UserRepository = userRepository;
         RefreshTokenRepository = refreshTokenRepository;
         MasterDataValueRepository = masterDataValueRepository;
         PartyRepository = partyRepository;
         UserPartyRepository = userPartyRepository;
+        ExternalLoginRepository = externalLoginRepository;
     }
 
     /// <summary>
@@ -52,4 +55,8 @@ public class AuthenticationRepositoryDependencies
     /// </summary>
     public IUserPartyRepository UserPartyRepository { get; }
 
+    /// <summary>
+    /// Gets the external-login repository.
+    /// </summary>
+    public IExternalLoginRepository ExternalLoginRepository { get; }
 }

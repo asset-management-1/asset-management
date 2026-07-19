@@ -13,6 +13,8 @@ public class UnlinkExternalProviderCommandValidator : AbstractValidator<UnlinkEx
         // Provider code selects the external login to unlink from the current account.
         RuleFor(x => x.Provider)
             .Required()
-            .MaxLen(50);
+            .MaxLen(50)
+            .Must(provider => provider is EXTERNAL_PROVIDER_GOOGLE or EXTERNAL_PROVIDER_FACEBOOK)
+            .WithMessage(ApplicationErrorConstants.ExternalProviderErrors.INVALID_EXTERNAL_PROVIDER_MESSAGE);
     }
 }

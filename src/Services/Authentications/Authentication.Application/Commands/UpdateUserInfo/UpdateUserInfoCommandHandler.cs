@@ -6,23 +6,14 @@ namespace Authentication.Application.Commands.UpdateUserInfo;
 public class UpdateUserInfoCommandHandler : ICommandHandler<UpdateUserInfoCommand, ResponseDto<OperationStatusResponseDto>>
 {
     private readonly IUserService _userService;
-    private readonly IAuthService _authService;
-    private readonly ILogger<UpdateUserInfoCommandHandler> _logger;
 
     /// <summary>
-    /// Creates the current-user profile update handler with profile services and flow logging.
+    /// Creates the current-user profile update handler with the profile service.
     /// </summary>
     /// <param name="userService">The service that updates profile data and linked party contacts.</param>
-    /// <param name="authService">The service that reads the current authenticated principal.</param>
-    /// <param name="logger">The logger used for profile-update completion tracking.</param>
-    public UpdateUserInfoCommandHandler(
-        IUserService userService,
-        IAuthService authService,
-        ILogger<UpdateUserInfoCommandHandler> logger)
+    public UpdateUserInfoCommandHandler(IUserService userService)
     {
         _userService = userService;
-        _authService = authService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -35,15 +26,8 @@ public class UpdateUserInfoCommandHandler : ICommandHandler<UpdateUserInfoComman
         UpdateUserInfoCommand request,
         CancellationToken cancellationToken)
     {
-        // Profile updates are account-scoped and also sync linked party contact snapshots in UserService.
-        var currentUserPublicId = _authService.UserId()
-                                  ?? throw new HttpStatusCodeException(
-                                      ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
-                                      UNAUTHORIZED,
-                                      StatusCodes.Status401Unauthorized);
+        // UserService resolves the authenticated account and synchronizes linked party contact snapshots.
         var result = await _userService.UpdateUserInfoAsync(request.Adapt<UpdateUserInfoRequestDto>(), cancellationToken);
-
-        _logger.LogInformation(ApplicationLogConstants.ProfileLogs.USER_INFO_UPDATED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
     }

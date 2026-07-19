@@ -6,7 +6,7 @@ namespace Authentication.Application.Dtos.Users.Profiles;
 public class ChangeEmailSessionCacheResponseDto
 {
     /// <summary>
-    /// Gets or sets the normalized new email address awaiting OTP verification.
+    /// Gets or sets the normalised new email address awaiting OTP verification.
     /// </summary>
     public string NewEmail { get; set; }
 

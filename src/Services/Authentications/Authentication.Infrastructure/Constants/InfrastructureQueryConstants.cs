@@ -7,6 +7,54 @@ namespace Authentication.Infrastructure.Constants;
 public static class InfrastructureQueryConstants
 {
     /// <summary>
+    /// Locking query that finds one refresh session by its current or immediate previous token hash.
+    /// </summary>
+    public const string GET_REFRESH_TOKEN_FOR_UPDATE_QUERY = """
+        SELECT refresh_token.*
+        FROM "identity"."RefreshTokens" refresh_token
+        WHERE (refresh_token."TokenHash" = {0}
+               OR refresh_token."PreviousTokenHash" = {0})
+          AND refresh_token."IsDeleted" = FALSE
+        FOR UPDATE OF refresh_token
+        """;
+
+    /// <summary>
+    /// Locking query that loads one active refresh session by user and public session identifiers.
+    /// </summary>
+    public const string GET_ACTIVE_REFRESH_TOKEN_BY_SESSION_FOR_UPDATE_QUERY = """
+        SELECT refresh_token.*
+        FROM "identity"."RefreshTokens" refresh_token
+        WHERE refresh_token."UserId" = {0}
+          AND refresh_token."SessionPublicId" = {1}
+          AND refresh_token."IsDeleted" = FALSE
+          AND refresh_token."RevokedAt" IS NULL
+          AND refresh_token."ExpiresAt" > CURRENT_TIMESTAMP
+        FOR UPDATE OF refresh_token
+        """;
+
+    /// <summary>
+    /// Locking query that loads one non-deleted user by public identifier.
+    /// </summary>
+    public const string GET_USER_BY_PUBLIC_ID_FOR_UPDATE_QUERY = """
+        SELECT user_row.*
+        FROM "identity"."Users" user_row
+        WHERE user_row."PublicId" = {0}
+          AND user_row."IsDeleted" = FALSE
+        FOR UPDATE OF user_row
+        """;
+
+    /// <summary>
+    /// Locking query that loads one non-deleted password identity by normalised email.
+    /// </summary>
+    public const string GET_PASSWORD_IDENTITY_BY_EMAIL_FOR_UPDATE_QUERY = """
+        SELECT user_row.*
+        FROM "identity"."Users" user_row
+        WHERE user_row."Email" = {0}
+          AND user_row."IsDeleted" = FALSE
+        FOR UPDATE OF user_row
+        """;
+
+    /// <summary>
     /// Batch query that resolves multiple active master-data values by requested type/value pairs.
     /// </summary>
     public const string GET_MASTER_DATA_VALUES_BY_TYPE_AND_VALUE_QUERY = """

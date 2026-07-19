@@ -39,7 +39,7 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
         RegisterCommand request,
         CancellationToken cancellationToken)
     {
-        // Mapster owns request normalization so cache keys and master-data lookups share one stable shape.
+        // Mapster owns request normalisation so cache keys and master-data lookups share one stable shape.
         var registerRequest = request.Adapt<RegisterRequestDto>();
         var normalizedEmail = registerRequest.Email;
 
@@ -59,17 +59,11 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
                 StatusCodes.Status429TooManyRequests);
         }
 
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP1_REQUEST_NORMALIZED);
-
         // Count accepted OTP requests before doing heavier user uniqueness and password-hash work.
         await CheckOtpThrottleAsync(REGISTER_PURPOSE, normalizedEmail, REGISTER_OTP_LIMIT, cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP2_THROTTLE_ACCEPTED);
-
         var pendingRegister = await _authenticationService.BuildPendingRegisterAsync(
             registerRequest,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP3_PENDING_BUILT);
-
         var otpCode = CodeGenerationHelper.GenerateNumericCode(OTP_LENGTH);
         var otpCacheResponse = new OtpCacheRequestDto
         {
@@ -93,8 +87,6 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
             registerSession,
             otpTtl,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP4_SESSION_CACHED);
-
         // Email delivery is the boundary where cached register session state becomes useful to the user.
         var sent = await _authenticationService.SendOtpEmailAsync(
             new OtpEmailRequestDto
@@ -119,8 +111,6 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
                 StatusCodes.Status503ServiceUnavailable);
         }
 
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_STEP5_OTP_SENT);
-
         _logger.LogInformation(ApplicationLogConstants.RegisterLogs.REGISTER_FLOW_COMPLETED);
 
         return new ResponseDto<OperationStatusResponseDto>(
@@ -131,7 +121,7 @@ public class RegisterCommandHandler : ICommandHandler<RegisterCommand, ResponseD
     /// Checks OTP request rate limits for the target purpose and email.
     /// </summary>
     /// <param name="purpose">The OTP purpose code.</param>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="limit">The maximum number of OTP requests allowed in the rate-limit window.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>A task that completes when the current OTP request is accepted and counted.</returns>

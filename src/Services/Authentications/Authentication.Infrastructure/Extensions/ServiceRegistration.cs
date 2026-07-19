@@ -47,6 +47,8 @@ public static class ServiceRegistration
 
         // Register application-facing authentication services after their infrastructure dependencies are available.
         services.AddScoped<IAuthenticationService, AuthenticationService>();
+        services.AddHttpClient(nameof(ExternalIdentityProviderService));
+        services.AddSingleton<IExternalIdentityProviderService, ExternalIdentityProviderService>();
         services.AddScoped<IExternalAuthenticationService, ExternalAuthenticationService>();
         services.AddScoped<IUserService, UserService>();
     }

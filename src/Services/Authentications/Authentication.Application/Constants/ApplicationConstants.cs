@@ -71,6 +71,16 @@ public static class ApplicationConstants
     public const string DEFAULT_EXTERNAL_USER_NAME = "user";
 
     /// <summary>
+    /// Canonical provider code for Google external authentication.
+    /// </summary>
+    public const string EXTERNAL_PROVIDER_GOOGLE = "google";
+
+    /// <summary>
+    /// Canonical provider code for Facebook external authentication.
+    /// </summary>
+    public const string EXTERNAL_PROVIDER_FACEBOOK = "facebook";
+
+    /// <summary>
     /// Number of digits generated for each OTP code.
     /// </summary>
     public const int OTP_LENGTH = 4;

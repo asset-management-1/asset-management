@@ -10,7 +10,7 @@ public class ForgotPasswordCommandValidator : AbstractValidator<ForgotPasswordCo
     /// </summary>
     public ForgotPasswordCommandValidator()
     {
-        // Reset email is normalized later, so validate shape and size at the boundary.
+        // Reset email is normalised later, so validate shape and size at the boundary.
         RuleFor(x => x.Email)
             .Required()
             .EmailFormat()

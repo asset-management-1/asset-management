@@ -1,7 +1,7 @@
 namespace Authentication.Domain.Entities;
 
 /// <summary>
-/// Defines one authorization capability that can be assigned to roles.
+/// Defines one authorisation capability that can be assigned to roles.
 /// </summary>
 public class Permission : BaseEntity
 {

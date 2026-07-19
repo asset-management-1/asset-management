@@ -8,7 +8,7 @@ public class PartyIdentifierRepository : GenericRepository<PartyIdentifier>, IPa
     private readonly AuthenticationDbContext _authenticationDbContext;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PartyIdentifierRepository"/> class.
+    /// Initialises a new instance of the <see cref="PartyIdentifierRepository"/> class.
     /// </summary>
     /// <param name="dbContext">The authentication database context.</param>
     public PartyIdentifierRepository(AuthenticationDbContext dbContext) : base(dbContext)

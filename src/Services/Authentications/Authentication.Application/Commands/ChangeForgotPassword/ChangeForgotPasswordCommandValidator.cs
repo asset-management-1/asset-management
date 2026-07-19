@@ -11,9 +11,8 @@ public class ChangeForgotPasswordCommandValidator : AbstractValidator<ChangeForg
     public ChangeForgotPasswordCommandValidator()
     {
         // Validate reset-session input and password strength before the handler checks cached reset state.
-        RuleFor(x => x.Email)
-            .Required()
-            .EmailFormat();
+        RuleFor(x => x.PasswordResetToken)
+            .Required();
 
         RuleFor(x => x.NewPassword)
             .Required()

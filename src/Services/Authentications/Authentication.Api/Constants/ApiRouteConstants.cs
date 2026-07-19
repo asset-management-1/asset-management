@@ -26,6 +26,11 @@ public static class ApiRouteConstants
     public const string EXTERNAL_LOGIN = "external-login";
 
     /// <summary>
+    /// Route segment for completing first-time external registration.
+    /// </summary>
+    public const string COMPLETE_REGISTRATION = "complete-registration";
+
+    /// <summary>
     /// Route segment for the external-provider link endpoint.
     /// </summary>
     public const string EXTERNAL_LINK = "external-link";

@@ -6,7 +6,7 @@ namespace Authentication.Infrastructure.Dependencies;
 public class AuthenticationServiceSupportDependencies
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="AuthenticationServiceSupportDependencies"/> class.
+    /// Initialises a new instance of the <see cref="AuthenticationServiceSupportDependencies"/> class.
     /// </summary>
     /// <param name="unitOfWork">The unit of work used for transactional writes.</param>
     /// <param name="emailService">The shared email sender used for OTP and security notifications.</param>

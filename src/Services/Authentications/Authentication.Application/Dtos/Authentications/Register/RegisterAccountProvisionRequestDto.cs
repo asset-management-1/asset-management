@@ -21,12 +21,12 @@ public class RegisterAccountProvisionRequestDto
     public long UserStatusId { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized username.
+    /// Gets or sets the normalised username.
     /// </summary>
     public string UserName { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized email.
+    /// Gets or sets the normalised email.
     /// </summary>
     public string Email { get; set; }
 

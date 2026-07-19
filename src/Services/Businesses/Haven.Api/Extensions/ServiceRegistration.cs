@@ -40,10 +40,7 @@ public static class ServiceRegistration
         // Bind shared token-validation settings so the ApiCommon auth handler can validate Haven tokens.
         services.AddHavenTokenValidationOptions(configuration);
 
-        // Bind GCP settings used by database, observability, and secret-manager infrastructure.
-        services.AddOptions<GcpOptions>()
-                .Bind(configuration.GetSection(GCP_SETTINGS))
-                .ValidateDataAnnotations()
-                .ValidateOnStart();
+        // Reuse shared binding, annotation validation, and startup validation for Haven GCP settings.
+        services.AddConfiguredOption<GcpOptions>(configuration, GCP_SETTINGS, validateDataAnnotations: true);
     }
 }

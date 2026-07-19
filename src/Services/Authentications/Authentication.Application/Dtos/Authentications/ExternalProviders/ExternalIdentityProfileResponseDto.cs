@@ -1,7 +1,7 @@
 namespace Authentication.Application.Dtos.Authentications.ExternalProviders;
 
 /// <summary>
-/// Represents the normalized profile extracted from an external identity provider token.
+/// Represents the normalised profile extracted from an external identity provider token.
 /// </summary>
 public class ExternalIdentityProfileResponseDto
 {
@@ -24,4 +24,9 @@ public class ExternalIdentityProfileResponseDto
     /// Gets or sets a value indicating whether the provider confirmed the email address.
     /// </summary>
     public bool EmailVerified { get; set; }
+
+    /// <summary>
+    /// Indicates whether this provider is authoritative enough to auto-link an existing local email.
+    /// </summary>
+    public bool CanAutoLinkByEmail { get; set; }
 }

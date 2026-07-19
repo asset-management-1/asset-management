@@ -3,7 +3,7 @@ namespace Authentication.Application.Commands.VerifyForgotPasswordOtp;
 /// <summary>
 /// Represents a request to verify forgot-password OTP.
 /// </summary>
-public class VerifyForgotPasswordOtpCommand : ICommand<ResponseDto<OperationStatusResponseDto>>
+public class VerifyForgotPasswordOtpCommand : ICommand<ResponseDto<PasswordResetTokenResponseDto>>
 {
     /// <summary>
     /// Email address that received the OTP.

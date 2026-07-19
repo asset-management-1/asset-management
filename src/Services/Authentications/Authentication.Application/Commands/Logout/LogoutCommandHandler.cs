@@ -7,22 +7,18 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<O
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly IAuthService _authService;
-    private readonly ILogger<LogoutCommandHandler> _logger;
 
     /// <summary>
-    /// Creates the logout handler with session revocation services and flow logging.
+    /// Creates the logout handler with session revocation services.
     /// </summary>
     /// <param name="authenticationService">The service that revokes refresh-token state.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
-    /// <param name="logger">The logger used for logout completion tracking.</param>
     public LogoutCommandHandler(
         IAuthenticationService authenticationService,
-        IAuthService authService,
-        ILogger<LogoutCommandHandler> logger)
+        IAuthService authService)
     {
         _authenticationService = authenticationService;
         _authService = authService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -31,7 +27,9 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<O
     /// <param name="request">The logout command payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The standardized response that wraps the logout result.</returns>
-    public async ValueTask<ResponseDto<OperationStatusResponseDto>> Handle(LogoutCommand request, CancellationToken cancellationToken)
+    public async ValueTask<ResponseDto<OperationStatusResponseDto>> Handle(
+        LogoutCommand request,
+        CancellationToken cancellationToken)
     {
         // Logout revocation always targets the authenticated account and session from the token.
         var currentUserPublicId = _authService.UserId()
@@ -50,8 +48,6 @@ public class LogoutCommandHandler : ICommandHandler<LogoutCommand, ResponseDto<O
             currentUserPublicId,
             currentSessionPublicId,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.SessionLogs.LOGOUT_COMPLETED, currentUserPublicId);
-
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 }

@@ -20,6 +20,7 @@ public class AuthSessionMapping : IRegister
 
         // Map common issue input into the JWT build model; the prepared refresh token and timestamps are set explicitly.
         config.NewConfig<AuthSessionIssueRequestModel, AuthJwtBuildModel>()
+            .Ignore(dest => dest.User)
             .Ignore(dest => dest.SessionRefreshToken)
             .Ignore(dest => dest.JwtId)
             .Ignore(dest => dest.IssuedAt)
@@ -29,7 +30,7 @@ public class AuthSessionMapping : IRegister
         config.NewConfig<AuthSessionIssueRequestModel, AuthLoginResponseBuildModel>()
             .Ignore(dest => dest.Jwt);
 
-        // Login responses expose only serialized token output and expiry metadata.
+        // Login responses expose only serialised token output and expiry metadata.
         config.NewConfig<AuthLoginResponseBuildModel, LoginResponseDto>()
             .Map(dest => dest.AccessToken, src => src.JwtSecurityTokenHandler.WriteToken(src.Jwt))
             .Map(dest => dest.RefreshToken, src => src.RawRefreshToken)

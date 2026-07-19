@@ -18,24 +18,16 @@ public static class ServiceRegistration
         // Token validation options bind after startup secret-overlay resolution has produced final values.
         services.AddHavenTokenValidationOptions(configuration);
         services.AddConfiguredOption<GcpOptions>(configuration, GCP_SETTINGS, validateDataAnnotations: true);
-        services.AddAuthOptions(configuration);
-        services.AddConfiguredOption<ExternalAuthenticationOptions>(configuration, EXTERNAL_AUTHENTICATION_SETTINGS);
-    }
-
-    /// <summary>
-    /// Binds authentication token issuing options after startup secret-overlay resolution.
-    /// </summary>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The application configuration.</param>
-    private static void AddAuthOptions(
-        this IServiceCollection services,
-        IConfiguration configuration)
-    {
-        // Token issuing uses the same final secret value as the shared token validator.
-        services.AddOptions<AuthOptions>()
-                .Bind(configuration.GetSection(AUTH_SETTINGS))
-                .ValidateDataAnnotations()
-                .ValidateOnStart();
+        services.AddConfiguredOption<AuthOptions>(
+            configuration,
+            AUTH_SETTINGS,
+            validateDataAnnotations: true);
+        services.AddConfiguredOption<ExternalAuthenticationOptions>(
+                    configuration,
+                    EXTERNAL_AUTHENTICATION_SETTINGS)
+                .Validate(
+                    ExternalProviderConfigurationIsValid,
+                    ApiErrorConstants.EXTERNAL_PROVIDER_OPTIONS_INVALID);
     }
 
     /// <summary>
@@ -62,28 +54,27 @@ public static class ServiceRegistration
     }
 
     /// <summary>
-    /// Binds and validates a strongly typed options object from configuration.
+    /// Determines whether the configured Google and Facebook provider contracts can fail fast safely.
     /// </summary>
-    /// <typeparam name="TOptions">The options type to bind.</typeparam>
-    /// <param name="services">The service collection.</param>
-    /// <param name="configuration">The application configuration.</param>
-    /// <param name="sectionName">The configuration section name.</param>
-    /// <param name="validateDataAnnotations">Indicates whether data-annotation validation should be applied.</param>
-    private static void AddConfiguredOption<TOptions>(
-        this IServiceCollection services,
-        IConfiguration configuration,
-        string sectionName,
-        bool validateDataAnnotations = false)
-        where TOptions : class
+    /// <param name="options">The external authentication options.</param>
+    /// <returns><c>true</c> when both supported provider configurations are complete.</returns>
+    private static bool ExternalProviderConfigurationIsValid(ExternalAuthenticationOptions options)
     {
-        var optionsBuilder = services.AddOptions<TOptions>()
-            .Bind(configuration.GetSection(sectionName));
+        // Resolve both required mobile providers before evaluating their provider-specific startup contract.
+        var google = options.Providers.FirstOrDefault(x => x.Name == ApplicationConstants.EXTERNAL_PROVIDER_GOOGLE);
+        var facebook = options.Providers.FirstOrDefault(x => x.Name == ApplicationConstants.EXTERNAL_PROVIDER_FACEBOOK);
 
-        if (validateDataAnnotations)
-        {
-            optionsBuilder.ValidateDataAnnotations();
-        }
-
-        optionsBuilder.ValidateOnStart();
+        // Reject missing credentials, incomplete validation metadata, and unsupported provider entries at startup.
+        return google is not null
+               && (!string.IsNullOrWhiteSpace(google.Authority)
+                   || !string.IsNullOrWhiteSpace(google.MetadataAddress))
+               && google.Audiences.Count > 0
+               && google.ValidIssuers.Count > 0
+               && facebook is not null
+               && !string.IsNullOrWhiteSpace(facebook.AppId)
+               && !string.IsNullOrWhiteSpace(facebook.AppSecret)
+               && !string.IsNullOrWhiteSpace(facebook.GraphApiBaseUrl)
+               && !string.IsNullOrWhiteSpace(facebook.GraphApiVersion)
+               && options.Providers.All(x => x.Name is ApplicationConstants.EXTERNAL_PROVIDER_GOOGLE or ApplicationConstants.EXTERNAL_PROVIDER_FACEBOOK);
     }
 }

@@ -3,7 +3,7 @@ namespace Authentication.Application.Commands.ChangePassword;
 /// <summary>
 /// Represents a request to change password for the current authenticated user.
 /// </summary>
-public class ChangePasswordCommand : ICommand<ResponseDto<OperationStatusResponseDto>>
+public class ChangePasswordCommand : ICommand<ResponseDto<ChangePasswordResponseDto>>
 {
     /// <summary>
     /// Current password of the authenticated user.

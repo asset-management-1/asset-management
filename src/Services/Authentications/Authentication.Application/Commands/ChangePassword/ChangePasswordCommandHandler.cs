@@ -3,26 +3,22 @@ namespace Authentication.Application.Commands.ChangePassword;
 /// <summary>
 /// Handles authenticated password-change requests.
 /// </summary>
-public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordCommand, ResponseDto<OperationStatusResponseDto>>
+public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordCommand, ResponseDto<ChangePasswordResponseDto>>
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly IAuthService _authService;
-    private readonly ILogger<ChangePasswordCommandHandler> _logger;
 
     /// <summary>
     /// Creates the authenticated password-change handler with current-principal access and password update services.
     /// </summary>
     /// <param name="authenticationService">The service that verifies and changes the current password.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
-    /// <param name="logger">The logger used for password-change flow tracking.</param>
     public ChangePasswordCommandHandler(
         IAuthenticationService authenticationService,
-        IAuthService authService,
-        ILogger<ChangePasswordCommandHandler> logger)
+        IAuthService authService)
     {
         _authenticationService = authenticationService;
         _authService = authService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -31,7 +27,9 @@ public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordComman
     /// <param name="request">The logged-in change-password payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The standardized response that wraps the password-change success message.</returns>
-    public async ValueTask<ResponseDto<OperationStatusResponseDto>> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
+    public async ValueTask<ResponseDto<ChangePasswordResponseDto>> Handle(
+        ChangePasswordCommand request,
+        CancellationToken cancellationToken)
     {
         // Authenticated password changes are account-level security updates and require the token public user id.
         var changeRequest = request.Adapt<ChangePasswordRequestDto>();
@@ -40,14 +38,18 @@ public class ChangePasswordCommandHandler : ICommandHandler<ChangePasswordComman
                                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
                                       UNAUTHORIZED,
                                       StatusCodes.Status401Unauthorized);
+        var currentSessionPublicId = _authService.SessionId()
+                                     ?? throw new HttpStatusCodeException(
+                                         ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
+                                         UNAUTHORIZED,
+                                         StatusCodes.Status401Unauthorized);
 
         // AuthenticationService owns password verification, hashing, refresh-token revocation, and transaction save.
         var result = await _authenticationService.ChangePasswordAsync(
             currentUserPublicId,
+            currentSessionPublicId,
             changeRequest,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.PasswordLogs.PASSWORD_CHANGED, currentUserPublicId);
-
-        return new ResponseDto<OperationStatusResponseDto>(result);
+        return new ResponseDto<ChangePasswordResponseDto>(result);
     }
 }

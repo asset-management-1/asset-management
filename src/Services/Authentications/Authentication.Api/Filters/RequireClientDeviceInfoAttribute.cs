@@ -6,14 +6,6 @@ namespace Authentication.Api.Filters;
 [AttributeUsage(AttributeTargets.Method)]
 public sealed class RequireClientDeviceInfoAttribute : Attribute, IAsyncResourceFilter
 {
-    private static readonly string[] RequiredHeaders =
-    [
-        ClientDeviceHeaders.DEVICE_ID,
-        ClientDeviceHeaders.DEVICE_NAME,
-        ClientDeviceHeaders.DEVICE_TYPE,
-        ClientDeviceHeaders.USER_AGENT
-    ];
-
     /// <summary>
     /// Validates required client device headers before token issuance reaches model binding, handlers, and services.
     /// </summary>
@@ -24,7 +16,7 @@ public sealed class RequireClientDeviceInfoAttribute : Attribute, IAsyncResource
         ResourceExecutingContext context,
         ResourceExecutionDelegate next)
     {
-        // Token issuance needs the full metadata bundle before services read the normalized accessor.
+        // Token issuance needs the full metadata bundle before services read the normalised accessor.
         if (HasRequiredDeviceInfo(context.HttpContext.Request.Headers))
         {
             await next();
@@ -46,7 +38,7 @@ public sealed class RequireClientDeviceInfoAttribute : Attribute, IAsyncResource
     private static bool HasRequiredDeviceInfo(IHeaderDictionary headers)
     {
         // Every required header must be present and meaningful before token metadata is captured.
-        return RequiredHeaders.All(headerName =>
+        return ClientDeviceHeaders.REQUIRED_HEADERS.All(headerName =>
             headers.TryGetValue(headerName, out var value)
             && !string.IsNullOrWhiteSpace(value.ToString()));
     }

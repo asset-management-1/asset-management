@@ -10,10 +10,10 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     private readonly IJsonSerializerService _jsonSerializerService;
 
     /// <summary>
-    /// Creates the user repository with EF write access and optimized Dapper read models.
+    /// Creates the user repository with EF write access and optimised Dapper read models.
     /// </summary>
     /// <param name="dbContext">The authentication database context.</param>
-    /// <param name="dapperService">The Dapper service used for optimized read queries.</param>
+    /// <param name="dapperService">The Dapper service used for optimised read queries.</param>
     /// <param name="jsonSerializerService">The shared JSON serializer used for SQL JSON projections.</param>
     public UserRepository(
         AuthenticationDbContext dbContext,
@@ -28,7 +28,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     /// <summary>
     /// Gets a user by username for authentication.
     /// </summary>
-    /// <param name="normalizedUserName">The normalized username used for login.</param>
+    /// <param name="normalizedUserName">The normalised username used for login.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched user with the status required for authentication; otherwise <c>null</c>.</returns>
     public Task<User> GetUserForAuthenticationByUserNameAsync(
@@ -170,9 +170,9 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     }
 
     /// <summary>
-    /// Gets a user by normalized email.
+    /// Gets a user by normalised email.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched user; otherwise <c>null</c>.</returns>
     public Task<User> GetByEmailAsync(
@@ -198,9 +198,9 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     }
 
     /// <summary>
-    /// Gets the minimal password identity by normalized email.
+    /// Gets the minimal password identity by normalised email.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>The matched password identity; otherwise <c>null</c>.</returns>
     public Task<User> GetPasswordIdentityByEmailAsync(
@@ -234,7 +234,9 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     /// <param name="userId">The internal user identifier.</param>
     /// <param name="lastLoginAt">The UTC last-login timestamp.</param>
     /// <returns>A completed task after the field-level update is staged.</returns>
-    public Task StageLastLoginAtAsync(long userId, DateTime lastLoginAt)
+    public Task StageLastLoginAtAsync(
+        long userId,
+        DateTime lastLoginAt)
     {
         // Attach a stub entity so EF updates only the last-login column.
         var user = new User { Id = userId, LastLoginAt = lastLoginAt };
@@ -258,16 +260,17 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         DateTime authResetAt,
         DateTime updatedAt)
     {
-        // Attach a stub entity so password changes and auth reset update only the intended columns.
-        var user = new User
+        // Reuse a row-lock query's tracked entity; attaching a second instance with the same key is invalid in EF.
+        var user = _authenticationDbContext.Users.Local.FirstOrDefault(x => x.Id == userId);
+        if (user is null)
         {
-            Id = userId,
-            PasswordHash = passwordHash,
-            AuthResetAt = authResetAt,
-            UpdatedAt = updatedAt
-        };
+            user = new User { Id = userId };
+            _authenticationDbContext.Users.Attach(user);
+        }
 
-        _authenticationDbContext.Users.Attach(user);
+        user.PasswordHash = passwordHash;
+        user.AuthResetAt = authResetAt;
+        user.UpdatedAt = updatedAt;
         _authenticationDbContext.Entry(user).Property(x => x.PasswordHash).IsModified = true;
         _authenticationDbContext.Entry(user).Property(x => x.AuthResetAt).IsModified = true;
         _authenticationDbContext.Entry(user).Property(x => x.UpdatedAt).IsModified = true;
@@ -282,7 +285,10 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     /// <param name="authResetAt">The UTC auth reset marker that invalidates older access tokens.</param>
     /// <param name="updatedAt">The UTC timestamp used for explicit auth-reset state.</param>
     /// <returns>A completed task after the field-level update is staged.</returns>
-    public Task StageAuthResetAsync(long userId, DateTime authResetAt, DateTime updatedAt)
+    public Task StageAuthResetAsync(
+        long userId,
+        DateTime authResetAt,
+        DateTime updatedAt)
     {
         // Attach a stub entity so credential reset flows can invalidate auth state without loading the full row.
         var user = new User
@@ -343,7 +349,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         Guid sessionPublicId,
         CancellationToken cancellationToken = default)
     {
-        // Use the optimized PostgreSQL read model query because user-info assembles several child collections.
+        // Use the optimised PostgreSQL read model query because user-info assembles several child collections.
         var readModel = await _dapperService.QueryFirstOrDefaultAsync<UserInfoReadModel>(
             InfrastructureQueryConstants.GET_USER_INFO_RESPONSE_BY_PUBLIC_ID_QUERY,
             new { UserPublicId = userPublicId, SessionPublicId = sessionPublicId },
@@ -364,18 +370,38 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     {
         // PostgreSQL row locking serializes context creation for the same account across application instances.
         return _authenticationDbContext.Users
-            .FromSqlInterpolated($$"""
-                SELECT user_row.*
-                FROM "identity"."Users" user_row
-                WHERE user_row."PublicId" = {userPublicId}
-                  AND user_row."IsDeleted" = FALSE
-                FOR UPDATE OF user_row
-                """)
+            .FromSqlRaw(
+                InfrastructureQueryConstants.GET_USER_BY_PUBLIC_ID_FOR_UPDATE_QUERY,
+                userPublicId)
             .FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <summary>
-    /// Maps the optimized single-row Dapper projection into the public user-info response.
+    /// Loads and locks one non-deleted user row for forgot-password completion.
+    /// </summary>
+    /// <param name="normalizedEmail">The normalised email authorised by the consumed reset session.</param>
+    /// <param name="cancellationToken">The token used to cancel the database operation.</param>
+    /// <returns>The tracked locked password identity when found; otherwise <c>null</c>.</returns>
+    public Task<User> GetPasswordIdentityByEmailForUpdateAsync(
+        string normalizedEmail,
+        CancellationToken cancellationToken = default)
+    {
+        // Empty reset-session identity cannot select a password owner and must not reach SQL.
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return Task.FromResult<User>(null);
+        }
+
+        // Lock the password owner so concurrent credential mutations recheck one latest row serially.
+        return _authenticationDbContext.Users
+            .FromSqlRaw(
+                InfrastructureQueryConstants.GET_PASSWORD_IDENTITY_BY_EMAIL_FOR_UPDATE_QUERY,
+                normalizedEmail)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Maps the optimised single-row Dapper projection into the public user-info response.
     /// </summary>
     /// <param name="readModel">The read model returned by the user-info SQL query.</param>
     /// <returns>The assembled user-info response; otherwise <c>null</c> when no user was found.</returns>
@@ -428,7 +454,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     /// <summary>
     /// Checks whether a username already exists.
     /// </summary>
-    /// <param name="normalizedUserName">The normalized username to check.</param>
+    /// <param name="normalizedUserName">The normalised username to check.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns><c>true</c> if the username exists; otherwise <c>false</c>.</returns>
     public Task<bool> UserNameExistsAsync(
@@ -453,7 +479,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
     /// <summary>
     /// Checks whether an email already exists.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address to check.</param>
+    /// <param name="normalizedEmail">The normalised email address to check.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns><c>true</c> if the email exists; otherwise <c>false</c>.</returns>
     public Task<bool> EmailExistsAsync(

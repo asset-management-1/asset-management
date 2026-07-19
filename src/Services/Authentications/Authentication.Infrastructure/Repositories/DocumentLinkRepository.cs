@@ -6,7 +6,7 @@ namespace Authentication.Infrastructure.Repositories;
 public class DocumentLinkRepository : GenericRepository<DocumentLink>, IDocumentLinkRepository
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="DocumentLinkRepository"/> class.
+    /// Initialises a new instance of the <see cref="DocumentLinkRepository"/> class.
     /// </summary>
     /// <param name="dbContext">The authentication database context.</param>
     public DocumentLinkRepository(AuthenticationDbContext dbContext) : base(dbContext)

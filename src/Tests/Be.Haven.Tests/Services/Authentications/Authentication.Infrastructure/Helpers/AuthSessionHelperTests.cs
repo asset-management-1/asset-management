@@ -12,6 +12,51 @@ namespace Be.Haven.Tests.Services.Authentications.Authentication.Infrastructure.
 
 public sealed class AuthSessionHelperTests
 {
+    /// <summary>
+    /// Ensures token issuance reuses EF navigation references without recursively cloning the loaded identity graph.
+    /// </summary>
+    [Fact]
+    public void BuildIssueModel_Should_ReuseLoadedUserAndSession_WhenNavigationGraphIsBidirectional()
+    {
+        // Arrange
+        var user = new User
+        {
+            Id = 10,
+            PublicId = Guid.NewGuid(),
+            UserName = "tenant@example.com",
+            Email = "tenant@example.com"
+        };
+        var session = new RefreshToken
+        {
+            User = user,
+            UserId = user.Id,
+            SessionPublicId = Guid.NewGuid(),
+            TokenHash = "current-hash"
+        };
+        user.RefreshTokens.Add(session);
+        var request = new AuthSessionIssueRequestModel
+        {
+            User = user,
+            RawRefreshToken = AuthSessionHelper.GenerateRefreshToken(),
+            SessionRefreshToken = session,
+            DeviceContext = new ClientDeviceContextModel { DeviceId = "device-1" },
+            AuthOptions = new AuthOptions
+            {
+                Issuer = "Authentication",
+                Audiences = ["Haven.Tests"],
+                SecretKey = "0123456789ABCDEF0123456789ABCDEF"
+            },
+            JwtSecurityTokenHandler = new JwtSecurityTokenHandler()
+        };
+
+        // Act
+        var result = AuthSessionHelper.BuildIssueModel(request);
+
+        // Assert
+        result.RefreshToken.Should().BeSameAs(session);
+        result.LoginResponse.AccessToken.Should().NotBeNullOrWhiteSpace();
+    }
+
     [Fact]
     public void BuildIssueModel_Should_KeepDeviceMetadataInSession_AndExcludeItFromJwt()
     {

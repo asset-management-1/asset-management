@@ -7,7 +7,7 @@ namespace Be.Haven.ApiCommon.Swagger.Attributes;
 public class SwaggerResponseExampleAttribute : Attribute
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="SwaggerResponseExampleAttribute"/> class.
+    /// Initialises a new instance of the <see cref="SwaggerResponseExampleAttribute"/> class.
     /// </summary>
     /// <param name="statusCode">The HTTP response status code that receives the example.</param>
     /// <param name="providerType">The provider type that creates the response example.</param>
@@ -26,6 +26,21 @@ public class SwaggerResponseExampleAttribute : Attribute
     /// Gets the provider type that creates the response example.
     /// </summary>
     public Type ProviderType { get; }
+
+    /// <summary>
+    /// Gets or sets the optional OpenAPI example name used when one status code has multiple valid response shapes.
+    /// </summary>
+    public string Name { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional short label displayed for a named response example.
+    /// </summary>
+    public string Summary { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional explanation displayed for a named response example.
+    /// </summary>
+    public string Description { get; set; }
 }
 
 /// <summary>
@@ -37,7 +52,7 @@ public sealed class SwaggerResponseExampleAttribute<TProvider> : SwaggerResponse
     where TProvider : ISwaggerExampleProvider
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="SwaggerResponseExampleAttribute{TProvider}"/> class.
+    /// Initialises a new instance of the <see cref="SwaggerResponseExampleAttribute{TProvider}"/> class.
     /// </summary>
     /// <param name="statusCode">The HTTP response status code that receives the example.</param>
     public SwaggerResponseExampleAttribute(int statusCode)

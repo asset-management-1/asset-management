@@ -11,7 +11,7 @@ public class ChangeEmailStartResponseDto
     public string OldEmail { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized new email address.
+    /// Gets or sets the normalised new email address.
     /// </summary>
     public string NewEmail { get; set; }
 }

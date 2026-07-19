@@ -3,7 +3,7 @@ namespace Authentication.Application.Commands.VerifyForgotPasswordOtp;
 /// <summary>
 /// Handles forgot-password OTP verification requests.
 /// </summary>
-public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgotPasswordOtpCommand, ResponseDto<OperationStatusResponseDto>>
+public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgotPasswordOtpCommand, ResponseDto<PasswordResetTokenResponseDto>>
 {
     private readonly ICachingService _cachingService;
     private readonly IAtomicCacheService _atomicCacheService;
@@ -31,15 +31,13 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
     /// <param name="request">The forgot-password OTP verification payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The standardized response that wraps the OTP-verification success message.</returns>
-    public async ValueTask<ResponseDto<OperationStatusResponseDto>> Handle(
+    public async ValueTask<ResponseDto<PasswordResetTokenResponseDto>> Handle(
         VerifyForgotPasswordOtpCommand request,
         CancellationToken cancellationToken)
     {
-        // Step 1: Normalize the request before resolving OTP and reset-session keys.
+        // Step 1: Normalise the request before resolving OTP and reset-session keys.
         var verifyRequest = request.Adapt<VerifyForgotPasswordOtpRequestDto>();
         var normalizedEmail = verifyRequest.Email;
-
-        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_STEP1_REQUEST_NORMALIZED);
 
         // Step 2: Verify and atomically claim the OTP before issuing reset authority.
         var consumeKey = await VerifyOtpAsync(
@@ -47,16 +45,20 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
             normalizedEmail,
             verifyRequest.Otp,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_STEP2_OTP_VERIFIED);
-
+        var passwordResetToken = CodeGenerationHelper.GenerateOpaqueToken();
+        var expiresAtUtc = DateTime.UtcNow.AddMinutes(RESET_SESSION_TTL_MINUTES);
         var resetSessionCreated = false;
 
         try
         {
             // Step 3: Create the short reset session after this request owns the OTP claim.
             await _cachingService.SetAbsoluteAsync(
-                string.Format(RESET_SESSION_KEY_PATTERN, normalizedEmail),
-                new ResetSessionCacheResponseDto { CreatedAt = DateTime.UtcNow },
+                string.Format(RESET_SESSION_KEY_PATTERN, passwordResetToken),
+                new ResetSessionCacheResponseDto
+                {
+                    Email = normalizedEmail,
+                    ExpiresAtUtc = expiresAtUtc
+                },
                 TimeSpan.FromMinutes(RESET_SESSION_TTL_MINUTES),
                 cancellationToken);
 
@@ -81,32 +83,27 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
         }
 
         // Step 4: Remove obsolete OTP state after reset authority exists; the consume marker still blocks replay.
-        try
-        {
-            var otpKey = string.Format(OTP_KEY_PATTERN, FORGOT_PASSWORD_PURPOSE, normalizedEmail);
-            await _cachingService.RemoveAsync(otpKey, cancellationToken);
-            await _atomicCacheService.RemoveAsync(
-                string.Format(OTP_VERIFY_ATTEMPT_KEY_PATTERN, otpKey),
-                cancellationToken);
-        }
-        catch (Exception exception)
-        {
-            _logger.LogWarning(
-                exception,
-                ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_OTP_CLEANUP_FAILED);
-        }
+        var otpKey = string.Format(OTP_KEY_PATTERN, FORGOT_PASSWORD_PURPOSE, normalizedEmail);
+        await _cachingService.RemoveAsync(otpKey, cancellationToken);
+        await _atomicCacheService.RemoveAsync(
+            string.Format(OTP_VERIFY_ATTEMPT_KEY_PATTERN, otpKey),
+            cancellationToken);
 
-        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_STEP3_RESET_SESSION_CREATED);
+        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_COMPLETED);
 
-        return new ResponseDto<OperationStatusResponseDto>(
-            OperationStatusResponseHelper.Success(ApplicationMessageConstants.OtpMessages.OTP_VERIFIED_SUCCESS_MESSAGE));
+        return new ResponseDto<PasswordResetTokenResponseDto>(
+            new PasswordResetTokenResponseDto
+            {
+                PasswordResetToken = passwordResetToken,
+                ExpiresIn = RESET_SESSION_TTL_MINUTES * 60
+            });
     }
 
     /// <summary>
     /// Verifies the supplied OTP and consumes it when valid.
     /// </summary>
     /// <param name="purpose">The OTP purpose code.</param>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="otp">The OTP supplied by the caller.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The atomic consume-marker key owned by the successful request.</returns>
@@ -150,11 +147,7 @@ public class VerifyForgotPasswordOtpCommandHandler : ICommandHandler<VerifyForgo
             {
                 await _cachingService.RemoveAsync(otpKey, cancellationToken);
                 await _atomicCacheService.RemoveAsync(attemptKey, cancellationToken);
-                _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_OTP_LOCKED);
-            }
-            else
-            {
-                _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_OTP_ATTEMPT_RECORDED);
+                _logger.LogWarning(ApplicationLogConstants.ForgotPasswordLogs.VERIFY_FORGOT_PASSWORD_FLOW_OTP_LOCKED);
             }
 
             throw new ApiException(

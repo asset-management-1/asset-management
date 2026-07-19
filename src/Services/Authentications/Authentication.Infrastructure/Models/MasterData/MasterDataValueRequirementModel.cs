@@ -6,7 +6,7 @@ namespace Authentication.Infrastructure.Models.MasterData;
 internal sealed class MasterDataValueRequirementModel
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="MasterDataValueRequirementModel"/> class.
+    /// Initialises a new instance of the <see cref="MasterDataValueRequirementModel"/> class.
     /// </summary>
     /// <param name="type">The master-data type code or name.</param>
     /// <param name="value">The master-data value code or name.</param>

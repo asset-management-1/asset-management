@@ -10,10 +10,10 @@ namespace Be.Haven.Tests.Services.Authentications.Authentication.Infrastructure.
 public sealed class UserPartyRepositoryTests
 {
     /// <summary>
-    /// Ensures each client session preserves its own valid Party selection.
+    /// Ensures each client session preserves its valid Party selection and missing context uses the earliest active Party.
     /// </summary>
     [Fact]
-    public async Task ResolveSessionPartyIdAsync_Should_PreserveIndependentSessionContexts()
+    public async Task ResolveSessionPartyIdAsync_Should_PreserveSelectionsAndFallbackToEarliestActiveParty()
     {
         // Arrange
         await using var dbContext = CreateDbContext();
@@ -37,12 +37,12 @@ public sealed class UserPartyRepositoryTests
         // Act
         var tenantSession = await sut.ResolveSessionPartyIdAsync(100, tenantParty.Id);
         var landlordSession = await sut.ResolveSessionPartyIdAsync(100, landlordParty.Id);
-        var unresolvedSession = await sut.ResolveSessionPartyIdAsync(100, null);
+        var fallbackSession = await sut.ResolveSessionPartyIdAsync(100, null);
 
         // Assert
         tenantSession.Should().Be(tenantParty.Id);
         landlordSession.Should().Be(landlordParty.Id);
-        unresolvedSession.Should().BeNull();
+        fallbackSession.Should().Be(tenantParty.Id);
     }
 
     /// <summary>
@@ -203,7 +203,9 @@ public sealed class UserPartyRepositoryTests
     /// <param name="id">The internal master-data type identifier.</param>
     /// <param name="code">The canonical type code.</param>
     /// <returns>The configured master-data type.</returns>
-    private static MasterDataType CreateMasterDataType(long id, string code) =>
+    private static MasterDataType CreateMasterDataType(
+        long id,
+        string code) =>
         new()
         {
             Id = id,
@@ -263,7 +265,10 @@ public sealed class UserPartyRepositoryTests
     /// <param name="userId">The internal user identifier.</param>
     /// <param name="party">The linked party.</param>
     /// <returns>The configured user-party entity.</returns>
-    private static UserParty CreateUserParty(long id, long userId, Party party) =>
+    private static UserParty CreateUserParty(
+        long id,
+        long userId,
+        Party party) =>
         new()
         {
             Id = id,

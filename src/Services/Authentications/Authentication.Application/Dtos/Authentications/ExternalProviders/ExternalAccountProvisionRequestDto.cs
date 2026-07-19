@@ -26,7 +26,7 @@ public class ExternalAccountProvisionRequestDto
     public string UserName { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized email.
+    /// Gets or sets the normalised email.
     /// </summary>
     public string Email { get; set; }
 
@@ -34,6 +34,11 @@ public class ExternalAccountProvisionRequestDto
     /// Gets or sets the resolved full name.
     /// </summary>
     public string FullName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the user-confirmed phone number.
+    /// </summary>
+    public string PhoneNumber { get; set; }
 
     /// <summary>
     /// Gets or sets a value indicating whether the email is considered confirmed.

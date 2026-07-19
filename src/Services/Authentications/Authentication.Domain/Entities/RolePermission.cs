@@ -1,7 +1,7 @@
 namespace Authentication.Domain.Entities;
 
 /// <summary>
-/// Associates one role with one granted authorization permission.
+/// Associates one role with one granted authorisation permission.
 /// </summary>
 public class RolePermission : BaseEntity
 {

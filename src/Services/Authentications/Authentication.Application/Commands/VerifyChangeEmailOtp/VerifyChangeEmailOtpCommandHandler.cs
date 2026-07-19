@@ -62,16 +62,12 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
             throw new ApiException(ApplicationErrorConstants.ProfileErrors.CHANGE_EMAIL_SESSION_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
         }
 
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP1_SESSION_VALIDATED);
-
         // Step 2: Verify and atomically claim the OTP before changing account data.
         var consumeKey = await VerifyOtpAsync(
             changeEmailSessionKey,
             changeEmailSession,
             verifyRequest.Otp,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP2_OTP_VERIFIED);
-
         OperationStatusResponseDto result;
         var emailUpdated = false;
 
@@ -103,8 +99,6 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
             }
         }
 
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP3_EMAIL_UPDATED);
-
         // Step 4: Remove session, cooldown, and attempt state after persistence succeeds.
         await _cachingService.RemoveAsync(changeEmailSessionKey, cancellationToken);
         await _atomicCacheService.RemoveAsync(
@@ -113,7 +107,6 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
         await _atomicCacheService.RemoveAsync(
             string.Format(OTP_VERIFY_ATTEMPT_KEY_PATTERN, changeEmailSessionKey),
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_STEP4_STATE_CLEANED);
         _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_COMPLETED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(result);
@@ -163,11 +156,7 @@ public class VerifyChangeEmailOtpCommandHandler : ICommandHandler<VerifyChangeEm
             {
                 await _cachingService.RemoveAsync(changeEmailSessionKey, cancellationToken);
                 await _atomicCacheService.RemoveAsync(attemptKey, cancellationToken);
-                _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_OTP_LOCKED);
-            }
-            else
-            {
-                _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_OTP_ATTEMPT_RECORDED);
+                _logger.LogWarning(ApplicationLogConstants.ChangeEmailLogs.VERIFY_CHANGE_EMAIL_FLOW_OTP_LOCKED);
             }
 
             throw new ApiException(ApplicationErrorConstants.OtpErrors.OTP_INVALID_OR_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_OTP_INVALID);

@@ -11,7 +11,7 @@ public class OtpCacheRequestDto
     public string Purpose { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized email address bound to the OTP.
+    /// Gets or sets the normalised email address bound to the OTP.
     /// </summary>
     public string NormalizedEmail { get; set; }
 

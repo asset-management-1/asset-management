@@ -36,7 +36,7 @@ public static class AuthenticationSwaggerExamples
         /// <returns>The registration request example.</returns>
         protected override RegisterCommand BuildExample()
         {
-            // PartyType is an enum in the API contract and is normalized by Application mapping after validation.
+            // PartyType is an enum in the API contract and is normalised by Application mapping after validation.
             return new RegisterCommand
             {
                 UserName = "tenant@example.com",
@@ -102,8 +102,31 @@ public static class AuthenticationSwaggerExamples
             // ExternalToken is masked because it is issued by the provider to the client app.
             return new ExternalLoginCommand
             {
-                Provider = "google",
+                Provider = ApplicationConstants.EXTERNAL_PROVIDER_GOOGLE,
                 ExternalToken = "external_provider_token_masked"
+            };
+        }
+    }
+
+    /// <summary>
+    /// Example request for completing a first-time external registration.
+    /// </summary>
+    public sealed class CompleteExternalRegistrationRequest : SwaggerExampleProvider<CompleteExternalRegistrationCommand>
+    {
+        /// <summary>
+        /// Builds a complete external-registration request example.
+        /// </summary>
+        /// <returns>The complete external-registration request example.</returns>
+        protected override CompleteExternalRegistrationCommand BuildExample()
+        {
+            // Keep the provider credential masked while showing every required completion field.
+            return new CompleteExternalRegistrationCommand
+            {
+                Provider = ApplicationConstants.EXTERNAL_PROVIDER_GOOGLE,
+                ExternalToken = "external_provider_token_masked",
+                FullName = "Nguyen Van A",
+                PhoneNumber = AuthenticationSwaggerExampleConstants.EXAMPLE_PHONE_NUMBER,
+                PartyType = "TENANT"
             };
         }
     }
@@ -161,7 +184,7 @@ public static class AuthenticationSwaggerExamples
             // New password values are fake and only show the API password-change shape.
             return new ChangeForgotPasswordCommand
             {
-                Email = "tenant@example.com",
+                PasswordResetToken = "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF",
                 NewPassword = "N3wP@ssw0rd!"
             };
         }
@@ -340,7 +363,7 @@ public static class AuthenticationSwaggerExamples
             // ExternalToken is a masked provider token; the API validates it server-side.
             return new LinkExternalProviderCommand
             {
-                Provider = "google",
+                Provider = ApplicationConstants.EXTERNAL_PROVIDER_GOOGLE,
                 ExternalToken = "external_provider_token_masked"
             };
         }
@@ -360,7 +383,7 @@ public static class AuthenticationSwaggerExamples
             // The service rejects unlinking the final usable sign-in method.
             return new UnlinkExternalProviderCommand
             {
-                Provider = "google"
+                Provider = ApplicationConstants.EXTERNAL_PROVIDER_GOOGLE
             };
         }
     }
@@ -376,7 +399,7 @@ public static class AuthenticationSwaggerExamples
         /// <returns>The switch-party request example.</returns>
         protected override SwitchPartyCommand BuildExample()
         {
-            // TargetContext is a party context, not an authorization role.
+            // TargetContext is a party context, not an authorisation role.
             return new SwitchPartyCommand
             {
                 TargetContext = PartyTypeEnum.Landlord
@@ -407,23 +430,275 @@ public static class AuthenticationSwaggerExamples
     }
 
     /// <summary>
-    /// Example response for operation-status endpoints.
+    /// Example response returned after forgot-password OTP verification.
     /// </summary>
-    public sealed class OperationResponse : SwaggerSuccessExampleProvider<OperationStatusResponseDto>
+    public sealed class PasswordResetTokenResponse : SwaggerSuccessExampleProvider<PasswordResetTokenResponseDto>
     {
+        /// <summary>
+        /// Builds an opaque password-reset token response example.
+        /// </summary>
+        /// <returns>The password-reset token response example.</returns>
+        protected override PasswordResetTokenResponseDto BuildData()
+        {
+            // Show reset authority and its short lifetime without exposing a real token.
+            return new PasswordResetTokenResponseDto
+            {
+                PasswordResetToken = "opaque_reset_token_masked",
+                ExpiresIn = 300
+            };
+        }
+    }
+
+    /// <summary>
+    /// Example authenticated password-change response.
+    /// </summary>
+    public sealed class ChangePasswordResponse : SwaggerSuccessExampleProvider<ChangePasswordResponseDto>
+    {
+        /// <summary>
+        /// Builds an authenticated password-change response example.
+        /// </summary>
+        /// <returns>The password-change response example.</returns>
+        protected override ChangePasswordResponseDto BuildData()
+        {
+            // Authenticated password changes return confirmation plus the rotated current-session token pair.
+            return new ChangePasswordResponseDto
+            {
+                Message = "Password changed successfully.",
+                Login = BuildLoginData()
+            };
+        }
+    }
+
+    /// <summary>
+    /// Example existing-account external-login response.
+    /// </summary>
+    public sealed class ExternalLoginResponse : SwaggerSuccessExampleProvider<ExternalLoginResponseDto>
+    {
+        /// <summary>
+        /// Builds an existing-account external-login response example.
+        /// </summary>
+        /// <returns>The external-login response example.</returns>
+        protected override ExternalLoginResponseDto BuildData()
+        {
+            // Existing external identities return only the standard login branch.
+            return new ExternalLoginResponseDto
+            {
+                IsNewRegistration = false,
+                Login = BuildLoginData()
+            };
+        }
+    }
+
+    /// <summary>
+    /// Example first-time external-login response that requires local registration fields.
+    /// </summary>
+    public sealed class ExternalRegistrationRequiredResponse : SwaggerSuccessExampleProvider<ExternalLoginResponseDto>
+    {
+        /// <summary>
+        /// Builds a first-time external-login response example.
+        /// </summary>
+        /// <returns>The registration-required external-login response example.</returns>
+        protected override ExternalLoginResponseDto BuildData()
+        {
+            // First-time identities return only provider-derived prefill data and do not issue Haven tokens yet.
+            return new ExternalLoginResponseDto
+            {
+                IsNewRegistration = true,
+                Registration = new ExternalRegistrationPrefillDto
+                {
+                    Email = "tenant@example.com",
+                    FullName = "Nguyen Van A"
+                }
+            };
+        }
+    }
+
+    /// <summary>
+    /// Example duplicate-refresh conflict response.
+    /// </summary>
+    public sealed class RefreshDuplicateResponse : SwaggerExampleProvider<ResponseDto<object>>
+    {
+        /// <summary>
+        /// Builds the duplicate-refresh conflict example.
+        /// </summary>
+        /// <returns>The duplicate-refresh conflict example.</returns>
+        protected override ResponseDto<object> BuildExample()
+        {
+            // Document the stable conflict contract used for an immediate previous refresh hash.
+            return new ResponseDto<object>(
+                "error_auth_refresh_duplicate",
+                "Refresh token request was already processed.",
+                StatusCodes.Status409Conflict);
+        }
+    }
+
+    /// <summary>
+    /// Example response for an invalid external provider credential.
+    /// </summary>
+    public sealed class ExternalUnauthorizedResponse : SwaggerExampleProvider<ResponseDto<object>>
+    {
+        /// <summary>
+        /// Builds the invalid external-credential response example.
+        /// </summary>
+        /// <returns>The external unauthorised response example.</returns>
+        protected override ResponseDto<object> BuildExample()
+        {
+            // Document invalid or expired provider credentials as unauthorised.
+            return new ResponseDto<object>(
+                "error_auth_external_provider_invalid",
+                "Invalid external token.",
+                StatusCodes.Status401Unauthorized);
+        }
+    }
+
+    /// <summary>
+    /// Example response for a conflicting external identity mapping.
+    /// </summary>
+    public sealed class ExternalConflictResponse : SwaggerExampleProvider<ResponseDto<object>>
+    {
+        /// <summary>
+        /// Builds the external identity conflict response example.
+        /// </summary>
+        /// <returns>The external identity conflict response example.</returns>
+        protected override ResponseDto<object> BuildExample()
+        {
+            // Document provider ownership conflicts without exposing linked account details.
+            return new ResponseDto<object>(
+                "error_auth_external_provider_link_conflict",
+                "External provider identity is already linked.",
+                StatusCodes.Status409Conflict);
+        }
+    }
+
+    /// <summary>
+    /// Builds the shared masked login-token payload used by authentication response examples.
+    /// </summary>
+    /// <returns>The masked login-token example.</returns>
+    private static LoginResponseDto BuildLoginData()
+    {
+        // Reuse one safe token shape so related Swagger contracts cannot drift independently.
+        return new LoginResponseDto
+        {
+            AccessToken = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo.signature",
+            ExpiresIn = 900,
+            TokenType = "Bearer",
+            RefreshToken = "refresh_demo_token_masked"
+        };
+    }
+
+    /// <summary>
+    /// Base provider for operation-status examples whose only endpoint-specific value is the success message.
+    /// </summary>
+    public abstract class OperationStatusResponse : SwaggerSuccessExampleProvider<OperationStatusResponseDto>
+    {
+        /// <summary>
+        /// Gets the exact user-facing message returned by the documented workflow.
+        /// </summary>
+        protected abstract string Message { get; }
+
         /// <summary>
         /// Builds an operation-status response example.
         /// </summary>
         /// <returns>The operation-status response example.</returns>
         protected override OperationStatusResponseDto BuildData()
         {
-            // Generic operation responses only carry success state and a user-facing message.
+            // Keep the envelope shape shared while requiring each endpoint to document its real business message.
             return new OperationStatusResponseDto
             {
                 IsSuccess = true,
-                Message = "Operation completed successfully."
+                Message = Message
             };
         }
+    }
+
+    /// <summary>
+    /// Example response for a registration OTP request.
+    /// </summary>
+    public sealed class RegisterResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.OtpMessages.OTP_SENT_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for completed email registration.
+    /// </summary>
+    public sealed class VerifyRegisterEmailResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.AccountMessages.REGISTRATION_COMPLETED_SUCCESS_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for current-session logout.
+    /// </summary>
+    public sealed class LogoutResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.SessionMessages.LOGOUT_SUCCESS_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example enumeration-safe response for a forgot-password request.
+    /// </summary>
+    public sealed class ForgotPasswordResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.OtpMessages.FORGOT_PASSWORD_SUCCESS_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for a completed forgot-password reset.
+    /// </summary>
+    public sealed class ChangeForgotPasswordResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.PasswordMessages.PASSWORD_CHANGED_SUCCESS_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for a current-user profile update.
+    /// </summary>
+    public sealed class UpdateUserInfoResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.ProfileMessages.USER_INFO_UPDATED_SUCCESS_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for a change-email OTP request.
+    /// </summary>
+    public sealed class ChangeEmailResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.ProfileMessages.CHANGE_EMAIL_OTP_SENT_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for a completed email change.
+    /// </summary>
+    public sealed class VerifyChangeEmailOtpResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.ProfileMessages.CHANGE_EMAIL_COMPLETED_SUCCESS_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for linking an external provider.
+    /// </summary>
+    public sealed class LinkExternalProviderResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_LINKED_SUCCESS_MESSAGE;
+    }
+
+    /// <summary>
+    /// Example response for unlinking an external provider.
+    /// </summary>
+    public sealed class UnlinkExternalProviderResponse : OperationStatusResponse
+    {
+        /// <inheritdoc />
+        protected override string Message => ApplicationMessageConstants.ExternalProviderMessages.EXTERNAL_PROVIDER_UNLINKED_SUCCESS_MESSAGE;
     }
 
     /// <summary>
@@ -454,12 +729,12 @@ public static class AuthenticationSwaggerExamples
                 [
                     new ExternalProviderResponseDto
                     {
-                        Provider = "google",
+                        Provider = ApplicationConstants.EXTERNAL_PROVIDER_GOOGLE,
                         IsLinked = true
                     },
                     new ExternalProviderResponseDto
                     {
-                        Provider = "apple",
+                        Provider = ApplicationConstants.EXTERNAL_PROVIDER_FACEBOOK,
                         IsLinked = false
                     }
                 ],

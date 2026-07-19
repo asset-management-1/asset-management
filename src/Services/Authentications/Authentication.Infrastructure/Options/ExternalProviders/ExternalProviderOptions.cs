@@ -39,4 +39,24 @@ public class ExternalProviderOptions
     /// Indicates whether verified email is required from the provider.
     /// </summary>
     public bool RequireVerifiedEmail { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the expected Facebook application identifier.
+    /// </summary>
+    public string AppId { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Facebook application secret supplied by the deployment secret store.
+    /// </summary>
+    public string AppSecret { get; set; }
+
+    /// <summary>
+    /// Gets or sets the Meta Graph API base URL.
+    /// </summary>
+    public string GraphApiBaseUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the configured Meta Graph API version.
+    /// </summary>
+    public string GraphApiVersion { get; set; }
 }

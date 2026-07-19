@@ -69,14 +69,10 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
                 StatusCodes.Status429TooManyRequests);
         }
 
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP1_CURRENT_USER_RESOLVED);
-
-        // UserService validates ownership rules and normalizes the target email for the session cache below.
+        // UserService validates ownership rules and normalises the target email for the session cache below.
         var changeEmail = await _userService.PrepareChangeEmailAsync(
             request.Adapt<ChangeEmailRequestDto>(),
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP2_TARGET_PREPARED);
-
         var otpCode = CodeGenerationHelper.GenerateNumericCode(OTP_LENGTH);
         var otpCacheResponse = new OtpCacheRequestDto
         {
@@ -100,8 +96,6 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
             changeEmailSession,
             otpTtl,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP3_SESSION_CACHED);
-
         // The new email must receive the OTP before cooldown/security notification is recorded.
         var sent = await _authenticationService.SendOtpEmailAsync(
             new OtpEmailRequestDto
@@ -126,13 +120,8 @@ public class ChangeEmailCommandHandler : ICommandHandler<ChangeEmailCommand, Res
                 StatusCodes.Status503ServiceUnavailable);
         }
 
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP4_OTP_SENT);
-
         // Old-email notification is best-effort and must not block ownership verification of the new email.
         await TrySendSecurityNotificationAsync(changeEmail, currentUserPublicId, cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP5_SECURITY_NOTIFICATION_ATTEMPTED);
-
-        _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_STEP6_COOLDOWN_SET);
         _logger.LogInformation(ApplicationLogConstants.ChangeEmailLogs.CHANGE_EMAIL_FLOW_COMPLETED, currentUserPublicId);
 
         return new ResponseDto<OperationStatusResponseDto>(

@@ -647,9 +647,9 @@ public class UserService : IUserService
     }
 
     /// <summary>
-    /// Ensures that a normalized email is not owned by another non-deleted user.
+    /// Ensures that a normalised email is not owned by another non-deleted user.
     /// </summary>
-    /// <param name="normalizedEmail">The normalized email address.</param>
+    /// <param name="normalizedEmail">The normalised email address.</param>
     /// <param name="currentUserId">The current internal user identifier to exclude.</param>
     /// <param name="cancellationToken">The token used to cancel the database operation.</param>
     /// <returns>A task that completes when the email is available.</returns>
@@ -658,7 +658,7 @@ public class UserService : IUserService
         long currentUserId,
         CancellationToken cancellationToken)
     {
-        // Look up by normalized email and ignore the current user's own row.
+        // Look up by normalised email and ignore the current user's own row.
         var existingUser = await _repositories.UserRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
 
         if (existingUser is not null && existingUser.Id != currentUserId)
@@ -1215,9 +1215,8 @@ public class UserService : IUserService
     /// Builds the external-provider response list from configured providers and linked providers.
     /// </summary>
     /// <param name="linkedProviders">The providers currently linked by the user-info query.</param>
-    /// <returns>The normalized provider list with linked state only.</returns>
-    private List<ExternalProviderResponseDto> BuildExternalProviderResponses(
-        IEnumerable<ExternalProviderResponseDto> linkedProviders)
+    /// <returns>The normalised provider list with linked state only.</returns>
+    private List<ExternalProviderResponseDto> BuildExternalProviderResponses(IEnumerable<ExternalProviderResponseDto> linkedProviders)
     {
         // Build a lookup from linked providers so configured providers can be merged with link state.
         var linkedLookup = (linkedProviders ?? [])

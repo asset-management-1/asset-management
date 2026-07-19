@@ -7,22 +7,18 @@ public class LinkExternalProviderCommandHandler : ICommandHandler<LinkExternalPr
 {
     private readonly IExternalAuthenticationService _externalAuthenticationService;
     private readonly IAuthService _authService;
-    private readonly ILogger<LinkExternalProviderCommandHandler> _logger;
 
     /// <summary>
-    /// Creates the external-provider link handler with current-user resolution and flow logging.
+    /// Creates the external-provider link handler with current-user resolution.
     /// </summary>
     /// <param name="externalAuthenticationService">The service that validates and persists external-provider links.</param>
     /// <param name="authService">The service that reads the current authenticated principal.</param>
-    /// <param name="logger">The logger used for provider-link completion tracking.</param>
     public LinkExternalProviderCommandHandler(
         IExternalAuthenticationService externalAuthenticationService,
-        IAuthService authService,
-        ILogger<LinkExternalProviderCommandHandler> logger)
+        IAuthService authService)
     {
         _externalAuthenticationService = externalAuthenticationService;
         _authService = authService;
-        _logger = logger;
     }
 
     /// <summary>
@@ -35,7 +31,7 @@ public class LinkExternalProviderCommandHandler : ICommandHandler<LinkExternalPr
         LinkExternalProviderCommand request,
         CancellationToken cancellationToken)
     {
-        // Provider links are owned by the authenticated account, so identity comes from the normalized token only.
+        // Provider links are owned by the authenticated account, so identity comes from the normalised token only.
         var currentUserPublicId = _authService.UserId()
                                   ?? throw new HttpStatusCodeException(
                                       ApplicationErrorConstants.ContextErrors.UNAUTHORIZED_REQUEST_MESSAGE,
@@ -47,8 +43,6 @@ public class LinkExternalProviderCommandHandler : ICommandHandler<LinkExternalPr
             request.Adapt<LinkExternalProviderRequestDto>(),
             currentUserPublicId,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ExternalProviderLogs.PROVIDER_LINKED, request.Provider, currentUserPublicId);
-
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 }

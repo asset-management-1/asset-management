@@ -30,11 +30,39 @@ public static class ServiceRegistration
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Validate the shared auth handler options at startup so protected endpoints fail fast when config is unsafe.
-        services.AddOptions<AuthenticationTokenValidationOptions>()
-                .Bind(configuration.GetSection(AUTH_SETTINGS))
-                .Validate(IsValidHavenTokenValidationOptions, AUTH_OPTIONS_INVALID)
-                .ValidateOnStart();
+        // Reuse shared binding/startup validation while keeping the JWT security contract local to ApiCommon.
+        services.AddConfiguredOption<AuthenticationTokenValidationOptions>(configuration, AUTH_SETTINGS)
+                .Validate(IsValidHavenTokenValidationOptions, AUTH_OPTIONS_INVALID);
+    }
+
+    /// <summary>
+    /// Binds and validates a strongly typed options object from configuration.
+    /// </summary>
+    /// <typeparam name="TOptions">The options type to bind.</typeparam>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The application configuration.</param>
+    /// <param name="sectionName">The configuration section name.</param>
+    /// <param name="validateDataAnnotations">Indicates whether data-annotation validation should be applied.</param>
+    /// <returns>The options builder so the owning feature can append domain-specific validation.</returns>
+    public static OptionsBuilder<TOptions> AddConfiguredOption<TOptions>(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        string sectionName,
+        bool validateDataAnnotations = false)
+        where TOptions : class
+    {
+        // Bind once through the shared options pipeline so feature-specific validation can extend the same builder.
+        var optionsBuilder = services.AddOptions<TOptions>()
+                                     .Bind(configuration.GetSection(sectionName));
+
+        // Data annotations remain opt-in for option contracts that declare them.
+        if (validateDataAnnotations)
+        {
+            optionsBuilder.ValidateDataAnnotations();
+        }
+
+        // Every configured option fails fast at startup before callers append their own validation rules.
+        return optionsBuilder.ValidateOnStart();
     }
 
     /// <summary>

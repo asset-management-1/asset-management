@@ -11,7 +11,7 @@ public class OtpThrottleRequestDto
     public string Purpose { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized email address.
+    /// Gets or sets the normalised email address.
     /// </summary>
     public string NormalizedEmail { get; set; }
 

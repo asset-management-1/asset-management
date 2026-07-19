@@ -166,6 +166,26 @@ public sealed class SwaggerExampleOperationFilterTests
     }
 
     [Fact]
+    public void Apply_Should_AddNamedResponseExamples_When_StatusHasMultipleValidShapes()
+    {
+        // Arrange
+        var operation = CreateOperation();
+        var method = GetExampleMethod(nameof(OperationWithNamedResponseExamples));
+        var sut = new SwaggerExampleOperationFilter();
+
+        // Act
+        sut.Apply(operation, CreateOperationContext(method));
+
+        // Assert
+        var examples = operation.Responses["200"].Content[TEXT_JSON].Examples;
+        examples.Should().ContainKeys("existingAccount", "registrationRequired");
+        examples["existingAccount"].Value.ToJsonString().Should().Contain("response-name");
+        examples["existingAccount"].Summary.Should().Be("Existing account");
+        examples["registrationRequired"].Value.ToJsonString().Should().Contain("request-name");
+        examples["registrationRequired"].Summary.Should().Be("Registration required");
+    }
+
+    [Fact]
     public void Apply_Should_NotApplyFieldExample_When_RequestSchemaHasNoProperties()
     {
         // Arrange
@@ -231,6 +251,18 @@ public sealed class SwaggerExampleOperationFilterTests
 
     [SwaggerResponseExample<ResponseExampleProvider>(StatusCodes.Status201Created)]
     private static void OperationWithUndocumentedResponseExample()
+    {
+    }
+
+    [SwaggerResponseExample<ResponseExampleProvider>(
+        StatusCodes.Status200OK,
+        Name = "existingAccount",
+        Summary = "Existing account")]
+    [SwaggerResponseExample<RequestExampleProvider>(
+        StatusCodes.Status200OK,
+        Name = "registrationRequired",
+        Summary = "Registration required")]
+    private static void OperationWithNamedResponseExamples()
     {
     }
 

@@ -2,6 +2,14 @@ namespace Be.Haven.Tests.Shared.Be.Haven.Core.Helpers;
 
 public sealed class CodeGenerationHelperTests
 {
+    [Fact]
+    public void GenerateOpaqueToken_Should_ReturnRequestedCryptographicByteLengthAsHex()
+    {
+        var result = CodeGenerationHelper.GenerateOpaqueToken(32);
+
+        result.Should().MatchRegex("^[0-9A-F]{64}$");
+    }
+
     [Theory]
     [InlineData(4)]
     [InlineData(6)]

@@ -7,22 +7,22 @@ public class ChangeForgotPasswordCommandHandler : ICommandHandler<ChangeForgotPa
 {
     private readonly IAuthenticationService _authenticationService;
     private readonly ICachingService _cachingService;
-    private readonly ILogger<ChangeForgotPasswordCommandHandler> _logger;
+    private readonly IAtomicCacheService _atomicCacheService;
 
     /// <summary>
     /// Creates the forgot-password password-change handler with reset-session cache and password update services.
     /// </summary>
     /// <param name="authenticationService">The service that changes the password after reset-session validation.</param>
     /// <param name="cachingService">The cache service used for reset-session state.</param>
-    /// <param name="logger">The logger used for forgot-password change completion tracking.</param>
+    /// <param name="atomicCacheService">The atomic cache service used to consume a reset token once.</param>
     public ChangeForgotPasswordCommandHandler(
         IAuthenticationService authenticationService,
         ICachingService cachingService,
-        ILogger<ChangeForgotPasswordCommandHandler> logger)
+        IAtomicCacheService atomicCacheService)
     {
         _authenticationService = authenticationService;
         _cachingService = cachingService;
-        _logger = logger;
+        _atomicCacheService = atomicCacheService;
     }
 
     /// <summary>
@@ -35,31 +35,41 @@ public class ChangeForgotPasswordCommandHandler : ICommandHandler<ChangeForgotPa
         ChangeForgotPasswordCommand request,
         CancellationToken cancellationToken)
     {
-        // The reset-session cache proves the user already passed forgot-password OTP verification.
-        var changeRequest = request.Adapt<ChangeForgotPasswordRequestDto>();
-        var normalizedEmail = changeRequest.Email;
-        var resetSessionKey = string.Format(RESET_SESSION_KEY_PATTERN, normalizedEmail);
+        // Step 1: Load unexpired reset authority created by successful forgot-password OTP verification.
+        var resetSessionKey = string.Format(RESET_SESSION_KEY_PATTERN, request.PasswordResetToken);
         var resetSession = await _cachingService.GetAsync<ResetSessionCacheResponseDto>(
             resetSessionKey,
             cancellationToken);
-        if (resetSession is null)
+        if (resetSession is null || resetSession.ExpiresAtUtc <= DateTime.UtcNow)
         {
             throw new ApiException(ApplicationErrorConstants.OtpErrors.RESET_SESSION_INVALID_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
         }
 
-        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.CHANGE_FORGOT_PASSWORD_FLOW_STEP1_RESET_SESSION_VALIDATED);
-
-        // Password update and refresh-token revocation are delegated to the auth service transaction boundary.
-        var result = await _authenticationService.ChangeForgotPasswordAsync(
-            changeRequest,
+        // Step 2: Atomically consume the opaque reset token so only one password mutation can proceed.
+        var remainingTtl = resetSession.ExpiresAtUtc - DateTime.UtcNow;
+        var consumed = await _atomicCacheService.TrySetIfAbsentAsync(
+            string.Format(OTP_CONSUME_KEY_PATTERN, resetSessionKey),
+            "1",
+            remainingTtl,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.CHANGE_FORGOT_PASSWORD_FLOW_STEP2_PASSWORD_CHANGED);
+        if (!consumed)
+        {
+            throw new ApiException(
+                ApplicationErrorConstants.OtpErrors.RESET_SESSION_INVALID_MESSAGE,
+                ApplicationErrorConstants.OtpErrorCodes.AUTH_RESET_SESSION_INVALID);
+        }
 
-        // Consume the reset session only after the password has been changed successfully.
+        // Step 3: Remove reset authority before DB mutation; a later failure requires a fresh forgot-password flow.
         await _cachingService.RemoveAsync(resetSessionKey, cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.CHANGE_FORGOT_PASSWORD_FLOW_STEP3_RESET_SESSION_CONSUMED);
-        _logger.LogInformation(ApplicationLogConstants.ForgotPasswordLogs.FORGOT_PASSWORD_CHANGE_COMPLETED);
 
+        // Step 4: Change the password and revoke sessions inside the authentication transaction boundary.
+        var result = await _authenticationService.ChangeForgotPasswordAsync(
+            new ChangeForgotPasswordRequestDto
+            {
+                Email = resetSession.Email,
+                NewPassword = request.NewPassword
+            },
+            cancellationToken);
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 }

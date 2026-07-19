@@ -9,6 +9,42 @@ namespace Be.Haven.Tests.Services.Authentications.Authentication.Application.Com
 /// </summary>
 public sealed class VerifyForgotPasswordOtpCommandHandlerTests
 {
+    [Fact]
+    public async Task Handle_Should_ReturnOpaqueResetTokenWithFiveMinuteLifetime()
+    {
+        var cachingService = new Mock<ICachingService>();
+        cachingService.Setup(x => x.GetAsync<OtpCacheResponseDto>(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new OtpCacheResponseDto
+            {
+                Code = "1234",
+                ExpiresAtUtc = DateTime.UtcNow.AddMinutes(5)
+            });
+        cachingService.Setup(x => x.SetAbsoluteAsync(
+                It.IsAny<string>(),
+                It.IsAny<ResetSessionCacheResponseDto>(),
+                It.IsAny<TimeSpan>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        cachingService.Setup(x => x.RemoveAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var sut = new VerifyForgotPasswordOtpCommandHandler(
+            cachingService.Object,
+            new InMemoryAtomicCacheService(Mock.Of<ILogger<InMemoryAtomicCacheService>>()),
+            Mock.Of<ILogger<VerifyForgotPasswordOtpCommandHandler>>());
+
+        var result = await sut.Handle(
+            new VerifyForgotPasswordOtpCommand { Email = "user@example.com", Otp = "1234" },
+            CancellationToken.None);
+
+        result.Data.ExpiresIn.Should().Be(300);
+        result.Data.PasswordResetToken.Should().MatchRegex("^[0-9A-F]{64}$");
+        cachingService.Verify(x => x.SetAbsoluteAsync(
+            It.Is<string>(key => !key.Contains("user@example.com")),
+            It.Is<ResetSessionCacheResponseDto>(payload => payload.Email == "user@example.com"),
+            TimeSpan.FromMinutes(5),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     /// <summary>
     /// Ensures only one concurrent request can complete with the same valid OTP.
     /// </summary>
@@ -36,6 +72,11 @@ public sealed class VerifyForgotPasswordOtpCommandHandlerTests
                 It.IsAny<string>(),
                 It.IsAny<ResetSessionCacheResponseDto>(),
                 It.IsAny<TimeSpan>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        cachingService
+            .Setup(service => service.RemoveAsync(
+                It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 

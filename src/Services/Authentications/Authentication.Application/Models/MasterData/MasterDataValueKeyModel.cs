@@ -6,7 +6,7 @@ namespace Authentication.Application.Models.MasterData;
 public sealed class MasterDataValueKeyModel : IEquatable<MasterDataValueKeyModel>
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="MasterDataValueKeyModel"/> class.
+    /// Initialises a new instance of the <see cref="MasterDataValueKeyModel"/> class.
     /// </summary>
     /// <param name="type">The master-data type code or name.</param>
     /// <param name="value">The master-data value code or name.</param>
@@ -30,7 +30,7 @@ public sealed class MasterDataValueKeyModel : IEquatable<MasterDataValueKeyModel
     /// Determines whether this key equals another key by type and value.
     /// </summary>
     /// <param name="other">The other key to compare.</param>
-    /// <returns><c>true</c> when both normalized type and value match; otherwise <c>false</c>.</returns>
+    /// <returns><c>true</c> when both normalised type and value match; otherwise <c>false</c>.</returns>
     public bool Equals(MasterDataValueKeyModel other)
     {
         return other is not null

@@ -6,7 +6,7 @@ namespace Authentication.Application.Dtos.Users.Sessions;
 public class LoginResponseDto
 {
     /// <summary>
-    /// The issued bearer token string used for authorization (e.g., JWT or opaque token).
+    /// The issued bearer token string used for authorisation (e.g., JWT or opaque token).
     /// </summary>
     public string AccessToken { get; set; }
 

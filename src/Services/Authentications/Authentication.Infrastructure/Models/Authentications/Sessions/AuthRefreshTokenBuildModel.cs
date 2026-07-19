@@ -16,7 +16,7 @@ internal sealed class AuthRefreshTokenBuildModel
     public long UserId { get; set; }
 
     /// <summary>
-    /// Gets or sets the normalized request device metadata.
+    /// Gets or sets the normalised request device metadata.
     /// </summary>
     public ClientDeviceContextModel DeviceContext { get; set; }
 

@@ -6,19 +6,23 @@ namespace Authentication.Application.Interfaces.Services;
 public interface IExternalAuthenticationService
 {
     /// <summary>
-    /// Returns all configured external provider names.
-    /// </summary>
-    /// <returns>The supported external provider names.</returns>
-    IReadOnlyCollection<string> GetSupportedProviderNames();
-
-    /// <summary>
     /// Authenticates with an external provider.
     /// </summary>
     /// <param name="request">The external-login request payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
-    /// <returns>The issued Haven login token payload.</returns>
-    Task<LoginResponseDto> LoginAsync(
+    /// <returns>The existing-account login payload or first-time registration prefill.</returns>
+    Task<ExternalLoginResponseDto> LoginAsync(
         ExternalLoginRequestDto request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Revalidates provider identity and completes first-time Haven account registration.
+    /// </summary>
+    /// <param name="request">The external-registration details and provider credential.</param>
+    /// <param name="cancellationToken">The token used to cancel the operation.</param>
+    /// <returns>The issued Haven login token payload after registration completes.</returns>
+    Task<LoginResponseDto> CompleteRegistrationAsync(
+        CompleteExternalRegistrationRequestDto request,
         CancellationToken cancellationToken = default);
 
     /// <summary>

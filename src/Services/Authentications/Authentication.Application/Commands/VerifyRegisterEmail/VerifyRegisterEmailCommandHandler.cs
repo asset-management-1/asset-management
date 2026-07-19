@@ -51,16 +51,12 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
             throw new ApiException(ApplicationErrorConstants.OtpErrors.REGISTRATION_SESSION_EXPIRED_MESSAGE, ApplicationErrorConstants.OtpErrorCodes.AUTH_PENDING_REGISTER_NOT_FOUND);
         }
 
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP1_SESSION_LOADED);
-
         // Step 2: Verify and atomically claim the OTP before account creation can start.
         var consumeKey = await VerifyOtpAsync(
             registerSessionKey,
             registerSession,
             verifyRequest.Otp,
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP2_OTP_VERIFIED);
-
         OperationStatusResponseDto result;
         var registrationCompleted = false;
 
@@ -91,16 +87,11 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
             }
         }
 
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP3_ACCOUNT_CREATED);
-
         // Step 4: Remove pending registration state only after the account graph commits.
         await _cachingService.RemoveAsync(registerSessionKey, cancellationToken);
         await _atomicCacheService.RemoveAsync(
             string.Format(OTP_VERIFY_ATTEMPT_KEY_PATTERN, registerSessionKey),
             cancellationToken);
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_STEP4_SESSION_REMOVED);
-        _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_COMPLETED);
-
         return new ResponseDto<OperationStatusResponseDto>(result);
     }
 
@@ -151,12 +142,7 @@ public class VerifyRegisterEmailCommandHandler : ICommandHandler<VerifyRegisterE
             {
                 await _cachingService.RemoveAsync(registerSessionKey, cancellationToken);
                 await _atomicCacheService.RemoveAsync(attemptKey, cancellationToken);
-                _logger.LogInformation(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_OTP_LOCKED);
-            }
-            else
-            {
-                _logger.LogInformation(
-                    ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_OTP_ATTEMPT_RECORDED);
+                _logger.LogWarning(ApplicationLogConstants.RegisterLogs.VERIFY_REGISTER_FLOW_OTP_LOCKED);
             }
 
             throw new ApiException(

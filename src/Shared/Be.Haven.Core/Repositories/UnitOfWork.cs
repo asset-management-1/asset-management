@@ -33,6 +33,11 @@ public class UnitOfWork<TContext> : IUnitOfWork where TContext : DbContext
     public bool HasActiveTransaction => _dbContext.Database.CurrentTransaction is not null;
 
     /// <summary>
+    /// Clears all tracked entities so a recovery query cannot reuse state left by a failed persistence attempt.
+    /// </summary>
+    public void ClearTrackedChanges() => _dbContext.ChangeTracker.Clear();
+
+    /// <summary>
     /// Asynchronously saves all changes made to the context to the database.
     /// </summary>
     /// <param name="ct">A CancellationToken used to observe while waiting for the task to complete.</param>

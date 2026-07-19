@@ -23,6 +23,8 @@ internal static class AuthSessionHelper
         var refreshToken = ApplySessionRefreshToken(refreshTokenBuildRequest);
 
         var jwtBuildRequest = request.Adapt<AuthJwtBuildModel>();
+        // Reuse the trusted tracked identity instead of deep-cloning its cyclic EF navigation graph.
+        jwtBuildRequest.User = request.User;
         jwtBuildRequest.SessionRefreshToken = refreshToken;
         jwtBuildRequest.JwtId = jwtId;
         jwtBuildRequest.IssuedAt = issuedAt;
@@ -67,7 +69,7 @@ internal static class AuthSessionHelper
     /// <returns>The signed JWT.</returns>
     private static JwtSecurityToken BuildJwt(AuthJwtBuildModel request)
     {
-        // Build and sign the Haven token from the normalized user identity.
+        // Build and sign the Haven token from the normalised user identity.
         var claims = BuildBaseClaims(request.User, request.SessionRefreshToken, request.JwtId, request.IssuedAt);
         var credentials = new SigningCredentials(
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(request.AuthOptions.SecretKey)),

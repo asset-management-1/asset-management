@@ -227,6 +227,17 @@ public static class AuthConstants
     public static class ClientDeviceHeaders
     {
         /// <summary>
+        /// Required client-device metadata headers for endpoints that issue authentication tokens.
+        /// </summary>
+        public static readonly IReadOnlyList<string> REQUIRED_HEADERS =
+        [
+            DEVICE_ID,
+            DEVICE_NAME,
+            DEVICE_TYPE,
+            USER_AGENT
+        ];
+
+        /// <summary>
         /// Header carrying a stable client-generated app/browser instance identifier.
         /// </summary>
         public const string DEVICE_ID = "X-Device-Id";

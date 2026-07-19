@@ -54,4 +54,9 @@ public interface IUnitOfWork
     /// <typeparam name="T">The type of the result returned by the executed action.</typeparam>
     /// <returns>A task that represents the asynchronous operation. The task result contains the result of the executed action.</returns>
     Task<T> ExecuteInTransactionAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct = default);
+
+    /// <summary>
+    /// Clears tracked entities after a failed persistence attempt before a safe recovery read.
+    /// </summary>
+    void ClearTrackedChanges();
 }
