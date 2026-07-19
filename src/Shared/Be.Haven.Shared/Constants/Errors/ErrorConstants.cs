@@ -140,8 +140,7 @@ public static class ErrorConstants
         /// <summary>
         /// Message used when the database connection host cannot initialize a connection string.
         /// </summary>
-        public const string ERR_DB_CONN_HOST_FAILED =
-            "DbConnectionHostService failed to initialize DB connection string. ConnectionName={0}.";
+        public const string ERR_DB_CONN_HOST_FAILED = "DbConnectionHostService failed to initialize DB connection string. ConnectionName={0}.";
 
         /// <summary>
         /// Message used when a named connection string is missing from configuration.
@@ -156,8 +155,7 @@ public static class ErrorConstants
         /// <summary>
         /// Message used when a named connection string has not been initialized.
         /// </summary>
-        public const string ERR_CONNECTION_NOT_INITIALIZED =
-            "Connection string '{0}' has not been set. Ensure IConnectionStringProvider.InitializeAsync() is executed during application startup.";
+        public const string ERR_CONNECTION_NOT_INITIALIZED = "Connection string '{0}' has not been set. Ensure IConnectionStringProvider.InitializeAsync() is executed during application startup.";
     }
 
     /// <summary>
@@ -226,8 +224,7 @@ public static class ErrorConstants
         /// <summary>
         /// Message used when rollback cannot remove every newly uploaded object.
         /// </summary>
-        public const string OBJECT_STORAGE_ROLLBACK_INCOMPLETE_MESSAGE =
-            "Object-storage batch upload failed and rollback cleanup was incomplete.";
+        public const string OBJECT_STORAGE_ROLLBACK_INCOMPLETE_MESSAGE = "Object-storage batch upload failed and rollback cleanup was incomplete.";
     }
 
     /// <summary>
@@ -351,20 +348,17 @@ public static class ErrorConstants
         /// <summary>
         /// Message used when a publisher cannot send a message.
         /// </summary>
-        public const string GPSPUBLISHER_SERVICEPUBLISHASYNC_SENDMESSAGE_ERROREXCEPTION =
-            "[GpsPublisherService] - PublishAsync - Send message Error";
+        public const string GPSPUBLISHER_SERVICEPUBLISHASYNC_SENDMESSAGE_ERROREXCEPTION = "[GpsPublisherService] - PublishAsync - Send message Error";
 
         /// <summary>
         /// Message used when publisher topic metadata is missing.
         /// </summary>
-        public const string MISSING_GCP_ATTRIBUTE_SETTING_TOPICID =
-            "Missing GcpAttributeSetting/TopicId for message type '{0}'.";
+        public const string MISSING_GCP_ATTRIBUTE_SETTING_TOPICID = "Missing GcpAttributeSetting/TopicId for message type '{0}'.";
 
         /// <summary>
         /// Message used when subscriber metadata is missing from an event type.
         /// </summary>
-        public const string MISSING_GCP_ATTRIBUTE_SETTING_EXCEPTION =
-            "Missing GcpAttributeSetting on event type '{0}'.";
+        public const string MISSING_GCP_ATTRIBUTE_SETTING_EXCEPTION = "Missing GcpAttributeSetting on event type '{0}'.";
 
         /// <summary>
         /// Message used when an event handler cannot be resolved from dependency injection.
@@ -374,14 +368,12 @@ public static class ErrorConstants
         /// <summary>
         /// Message used when subscriber execution is cancelled.
         /// </summary>
-        public const string EXECUTE_ASYNC_CANCELED_MESSAGE =
-            "GpsSubscriberService execution was canceled. This usually happens during application shutdown. The subscriber stopped gracefully but no further processing can continue.";
+        public const string EXECUTE_ASYNC_CANCELED_MESSAGE = "GpsSubscriberService execution was canceled. This usually happens during application shutdown. The subscriber stopped gracefully but no further processing can continue.";
 
         /// <summary>
         /// Message used when subscriber execution fails unexpectedly.
         /// </summary>
-        public const string EXECUTE_ASYNC_UNHANDLED_EXCEPTION_MESSAGE =
-            "GpsSubscriberService encountered an unhandled exception during message processing. The service cannot continue and has been stopped.";
+        public const string EXECUTE_ASYNC_UNHANDLED_EXCEPTION_MESSAGE = "GpsSubscriberService encountered an unhandled exception during message processing. The service cannot continue and has been stopped.";
 
         /// <summary>
         /// Message used when an event handler is registered more than once.
@@ -423,8 +415,7 @@ public static class ErrorConstants
         /// <summary>
         /// Message used when an embedded Excel resource cannot be found.
         /// </summary>
-        public const string ERR_EMBEDDED_RESOURCE_NOT_FOUND =
-            "Embedded excel resource not found: '{0}'. Available: {1}";
+        public const string ERR_EMBEDDED_RESOURCE_NOT_FOUND = "Embedded excel resource not found: '{0}'. Available: {1}";
     }
 
     /// <summary>

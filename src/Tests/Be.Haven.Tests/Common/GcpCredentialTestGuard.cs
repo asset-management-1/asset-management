@@ -6,8 +6,7 @@ namespace Be.Haven.Tests.Common;
 public static class GcpCredentialTestGuard
 {
     private const string DEFAULT_CREDENTIALS_MISSING_TEXT = "default credentials were not found";
-    private const string DEFAULT_CREDENTIALS_SKIP_REASON =
-        "Skipped because Google Application Default Credentials are unavailable on this machine.";
+    private const string DEFAULT_CREDENTIALS_SKIP_REASON = "Skipped because Google Application Default Credentials are unavailable on this machine.";
 
     /// <summary>
     /// Runs one GCP client assertion and skips only when the Google SDK reports missing default credentials.

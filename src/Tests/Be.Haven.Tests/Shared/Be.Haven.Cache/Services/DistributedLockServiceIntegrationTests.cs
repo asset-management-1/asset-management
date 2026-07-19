@@ -2,8 +2,7 @@ namespace Be.Haven.Tests.Shared.Be.Haven.Cache.Services;
 
 public sealed class DistributedLockServiceIntegrationTests
 {
-    private const string REDIS_INTEGRATION_CONNECTION_ENVIRONMENT_VARIABLE =
-        "HAVEN_REDIS_INTEGRATION_CONNECTION";
+    private const string REDIS_INTEGRATION_CONNECTION_ENVIRONMENT_VARIABLE = "HAVEN_REDIS_INTEGRATION_CONNECTION";
 
     [Fact(Skip = "Requires a real Redis endpoint; set HAVEN_REDIS_INTEGRATION_CONNECTION and remove this skip locally.")]
     [Trait("Category", "RedisIntegration")]

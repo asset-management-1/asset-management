@@ -256,14 +256,12 @@ public static class ObjectStorageConstants
     /// <summary>
     /// Validation message returned when uploaded bytes cannot be decoded as a supported image.
     /// </summary>
-    public const string IMAGE_FILE_INVALID_MESSAGE =
-        "Image file must be a valid JPEG, PNG, WebP, HEIC, HEIF, or AVIF image.";
+    public const string IMAGE_FILE_INVALID_MESSAGE = "Image file must be a valid JPEG, PNG, WebP, HEIC, HEIF, or AVIF image.";
 
     /// <summary>
     /// Validation message returned when an image extension is outside the upload contract.
     /// </summary>
-    public const string IMAGE_FILE_FORMAT_NOT_SUPPORTED_MESSAGE =
-        "Image file extension must be JPG, JPEG, PNG, WebP, HEIC, HEIF, or AVIF.";
+    public const string IMAGE_FILE_FORMAT_NOT_SUPPORTED_MESSAGE = "Image file extension must be JPG, JPEG, PNG, WebP, HEIC, HEIF, or AVIF.";
 
     /// <summary>
     /// Validation message returned when optional evidence has no content.
@@ -278,13 +276,11 @@ public static class ObjectStorageConstants
     /// <summary>
     /// Validation message returned for unsupported evidence metadata.
     /// </summary>
-    public const string EVIDENCE_FILE_FORMAT_NOT_SUPPORTED_MESSAGE =
-        "Evidence file must be a supported image or PDF document.";
+    public const string EVIDENCE_FILE_FORMAT_NOT_SUPPORTED_MESSAGE = "Evidence file must be a supported image or PDF document.";
 
     /// <summary>
     /// Validation message returned when evidence bytes do not match a supported format.
     /// </summary>
-    public const string EVIDENCE_FILE_CONTENT_INVALID_MESSAGE =
-        "Evidence file content must be a valid supported image or PDF document.";
+    public const string EVIDENCE_FILE_CONTENT_INVALID_MESSAGE = "Evidence file content must be a valid supported image or PDF document.";
 
 }

@@ -70,26 +70,22 @@ public static class RedisConstants
         /// <summary>
         /// Logged when a user remains inside the login lock window.
         /// </summary>
-        public const string USER_LOCKED =
-            "User {UserName} is locked due to too many failed login attempts. Remaining lock time: {LockSeconds}s";
+        public const string USER_LOCKED = "User {UserName} is locked due to too many failed login attempts. Remaining lock time: {LockSeconds}s";
 
         /// <summary>
         /// Logged after a failed login attempt that has not yet reached the lock threshold.
         /// </summary>
-        public const string USER_FAILED_ATTEMPT =
-            "User {UserName} failed login attempt {FailedCount}/{MaxFailedAttempts}";
+        public const string USER_FAILED_ATTEMPT = "User {UserName} failed login attempt {FailedCount}/{MaxFailedAttempts}";
 
         /// <summary>
         /// Logged when the failed-attempt threshold creates a temporary account lock.
         /// </summary>
-        public const string USER_LOCK_CREATED =
-            "User {UserName} has been locked for {LockMinutes} minutes after {FailedCount} failed attempts.";
+        public const string USER_LOCK_CREATED = "User {UserName} has been locked for {LockMinutes} minutes after {FailedCount} failed attempts.";
 
         /// <summary>
         /// Logged after a successful login clears failed attempts and lock state.
         /// </summary>
-        public const string USER_RESET =
-            "Login attempts and lock state reset for user {UserName}.";
+        public const string USER_RESET = "Login attempts and lock state reset for user {UserName}.";
     }
 
     /// <summary>
