@@ -6,17 +6,21 @@ namespace Be.Haven.Core.Helpers;
 public static class DapperCommandOptionsHelper
 {
     /// <summary>
-    /// Creates options for a SQL text command with the supplied cancellation token.
+    /// Creates options for a SQL text command with optional cancellation and transaction propagation.
     /// </summary>
     /// <param name="cancellationToken">The token used to cancel the command.</param>
+    /// <param name="transaction">The caller-owned transaction that must execute the command.</param>
     /// <returns>The Dapper command options for text SQL.</returns>
-    public static DapperCommandOptions CreateText(CancellationToken cancellationToken = default)
+    public static DapperCommandOptions CreateText(
+        CancellationToken cancellationToken = default,
+        IDbTransaction transaction = null)
     {
-        // Most repository read models use SQL text and only need cancellation propagated.
+        // SQL text callers may optionally borrow an existing transaction without changing command construction.
         return new DapperCommandOptions
         {
             CommandType = CommandType.Text,
-            CancellationToken = cancellationToken
+            CancellationToken = cancellationToken,
+            Transaction = transaction
         };
     }
 }

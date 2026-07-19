@@ -85,6 +85,12 @@ public static class ErrorConstants
         /// <summary>Message used when a database connection string is not configured.</summary>
         public const string ERROR_CONNECTION_STRING_NOT_CONFIGURED = "Connection string is not configured.";
 
+        /// <summary>Message used when a caller supplies a transaction without an active database connection.</summary>
+        public const string DAPPER_TRANSACTION_CONNECTION_REQUIRED = "A supplied Dapper transaction must own an open database connection.";
+
+        /// <summary>Message used when a row-lock query is invoked without an active database transaction.</summary>
+        public const string ACTIVE_DATABASE_TRANSACTION_REQUIRED = "An active database transaction is required for row locking.";
+
         /// <summary>Message used when the database connection host cannot initialize a connection string.</summary>
         public const string ERR_DB_CONN_HOST_FAILED =
             "DbConnectionHostService failed to initialize DB connection string. ConnectionName={0}.";

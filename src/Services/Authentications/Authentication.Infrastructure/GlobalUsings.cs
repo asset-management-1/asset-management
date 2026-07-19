@@ -1,4 +1,5 @@
 global using System.ComponentModel.DataAnnotations;
+global using System.Data;
 global using System.Globalization;
 global using System.IdentityModel.Tokens.Jwt;
 global using System.Net;
@@ -56,6 +57,7 @@ global using Microsoft.AspNetCore.Http;
 global using Microsoft.AspNetCore.Identity;
 global using Microsoft.EntityFrameworkCore;
 global using Microsoft.EntityFrameworkCore.Metadata.Builders;
+global using Microsoft.EntityFrameworkCore.Storage;
 global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Logging;
@@ -68,6 +70,7 @@ global using static Authentication.Domain.Constants.AuthenticationMasterDataCode
 global using static Authentication.Infrastructure.Constants.InfrastructureConstants;
 global using static Authentication.Infrastructure.Constants.PostgreSqlConfigurationConstants;
 global using static Be.Haven.Shared.Constants.System.AppConstants.SystemMessageCode;
+global using static Be.Haven.Shared.Constants.Errors.ErrorConstants.DatabaseErrors;
 global using static Be.Haven.Shared.Constants.Authentication.AuthConstants;
 global using static Be.Haven.Shared.Constants.Authentication.AuthConstants.SystemMessage;
 global using static Be.Haven.Shared.Constants.Storage.ObjectStorageConstants;

@@ -117,7 +117,7 @@ public class AuthenticationService : IAuthenticationService
     /// <summary>
     /// Builds the pending registration payload after validating uniqueness and hashing the password.
     /// </summary>
-    /// <param name="request">The normalised registration request payload.</param>
+    /// <param name="request">The normalized registration request payload.</param>
     /// <param name="cancellationToken">The token used to cancel the operation.</param>
     /// <returns>The pending registration payload to cache for email verification.</returns>
     public async Task<PendingRegisterCacheRequestDto> BuildPendingRegisterAsync(

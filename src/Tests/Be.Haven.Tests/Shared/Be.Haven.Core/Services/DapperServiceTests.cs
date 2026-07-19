@@ -178,6 +178,80 @@ public sealed class DapperServiceTests
         factory.Requests.Should().ContainSingle().Which.Provider.Should().Be(SqlProvider.SqLite);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_Should_UseBorrowedTransactionConnection_WithoutCallingFactoryOrClosingConnection()
+    {
+        // Arrange
+        await using var database = await CreateDatabaseAsync();
+        var factory = new FakeDbConnectionFactory(database.ConnectionString);
+        var sut = CreateSut(factory);
+        await using var transaction = await database.BeginTransactionAsync();
+
+        // Act
+        var affected = await sut.ExecuteAsync(
+            "INSERT INTO Samples (Name, Quantity) VALUES (@Name, @Quantity)",
+            new
+            {
+                Name = "Borrowed",
+                Quantity = 4
+            },
+            DapperCommandOptionsHelper.CreateText(transaction: transaction));
+
+        // Assert
+        affected.Should().Be(1);
+        factory.Requests.Should().BeEmpty();
+        database.State.Should().Be(ConnectionState.Open);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_Should_ParticipateInBorrowedTransaction_WhenTransactionRollsBack()
+    {
+        // Arrange
+        await using var database = await CreateDatabaseAsync();
+        var factory = new FakeDbConnectionFactory(database.ConnectionString);
+        var sut = CreateSut(factory);
+        await using var transaction = await database.BeginTransactionAsync();
+
+        // Act
+        await sut.ExecuteAsync(
+            "INSERT INTO Samples (Name, Quantity) VALUES (@Name, @Quantity)",
+            new
+            {
+                Name = "Rollback",
+                Quantity = 5
+            },
+            DapperCommandOptionsHelper.CreateText(transaction: transaction));
+        await transaction.RollbackAsync();
+        await using var verificationCommand = database.CreateCommand();
+        verificationCommand.CommandText = "SELECT COUNT(1) FROM Samples WHERE Name = 'Rollback'";
+        var count = Convert.ToInt32(await verificationCommand.ExecuteScalarAsync());
+
+        // Assert
+        count.Should().Be(0);
+        factory.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task QueryAsync_Should_ThrowInvalidOperationException_WhenBorrowedTransactionIsDisposed()
+    {
+        // Arrange
+        await using var database = await CreateDatabaseAsync();
+        var factory = new FakeDbConnectionFactory(database.ConnectionString);
+        var sut = CreateSut(factory);
+        var transaction = await database.BeginTransactionAsync();
+        await transaction.DisposeAsync();
+
+        // Act
+        var action = () => sut.QueryAsync<CoreDapperSampleModel>(
+            "SELECT Name, Quantity FROM Samples",
+            options: DapperCommandOptionsHelper.CreateText(transaction: transaction));
+
+        // Assert
+        await action.Should().ThrowAsync<InvalidOperationException>();
+        factory.Requests.Should().BeEmpty();
+        database.State.Should().Be(ConnectionState.Open);
+    }
+
     private static DapperService CreateSut(
         IDbConnectionFactory factory,
         SqlProvider provider = SqlProvider.PostgreSql)

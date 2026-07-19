@@ -21,4 +21,19 @@ public sealed class DapperCommandOptionsHelperTests
         result.CommandType.Should().Be(CommandType.Text);
         result.CancellationToken.CanBeCanceled.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task CreateText_Should_PropagateTransaction_WhenTransactionIsProvided()
+    {
+        // Arrange
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await using var transaction = await connection.BeginTransactionAsync();
+
+        // Act
+        var result = DapperCommandOptionsHelper.CreateText(transaction: transaction);
+
+        // Assert
+        result.Transaction.Should().BeSameAs(transaction);
+    }
 }

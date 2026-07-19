@@ -7,25 +7,25 @@ namespace Authentication.Infrastructure.Constants;
 public static class InfrastructureQueryConstants
 {
     /// <summary>
-    /// Locking query that finds one refresh session by its current or immediate previous token hash.
+    /// Locking query that finds one refresh-session identifier by its current or immediate previous token hash.
     /// </summary>
-    public const string GET_REFRESH_TOKEN_FOR_UPDATE_QUERY = """
-        SELECT refresh_token.*
+    public const string GET_REFRESH_TOKEN_ID_FOR_UPDATE_QUERY = """
+        SELECT refresh_token."Id"
         FROM "identity"."RefreshTokens" refresh_token
-        WHERE (refresh_token."TokenHash" = {0}
-               OR refresh_token."PreviousTokenHash" = {0})
+        WHERE (refresh_token."TokenHash" = @RefreshTokenHash
+               OR refresh_token."PreviousTokenHash" = @RefreshTokenHash)
           AND refresh_token."IsDeleted" = FALSE
         FOR UPDATE OF refresh_token
         """;
 
     /// <summary>
-    /// Locking query that loads one active refresh session by user and public session identifiers.
+    /// Locking query that loads one active refresh-session identifier by user and public session identifiers.
     /// </summary>
-    public const string GET_ACTIVE_REFRESH_TOKEN_BY_SESSION_FOR_UPDATE_QUERY = """
-        SELECT refresh_token.*
+    public const string GET_ACTIVE_REFRESH_TOKEN_ID_BY_SESSION_FOR_UPDATE_QUERY = """
+        SELECT refresh_token."Id"
         FROM "identity"."RefreshTokens" refresh_token
-        WHERE refresh_token."UserId" = {0}
-          AND refresh_token."SessionPublicId" = {1}
+        WHERE refresh_token."UserId" = @UserId
+          AND refresh_token."SessionPublicId" = @SessionPublicId
           AND refresh_token."IsDeleted" = FALSE
           AND refresh_token."RevokedAt" IS NULL
           AND refresh_token."ExpiresAt" > CURRENT_TIMESTAMP
@@ -33,23 +33,23 @@ public static class InfrastructureQueryConstants
         """;
 
     /// <summary>
-    /// Locking query that loads one non-deleted user by public identifier.
+    /// Locking query that loads one non-deleted user identifier by public identifier.
     /// </summary>
-    public const string GET_USER_BY_PUBLIC_ID_FOR_UPDATE_QUERY = """
-        SELECT user_row.*
+    public const string GET_USER_ID_BY_PUBLIC_ID_FOR_UPDATE_QUERY = """
+        SELECT user_row."Id"
         FROM "identity"."Users" user_row
-        WHERE user_row."PublicId" = {0}
+        WHERE user_row."PublicId" = @UserPublicId
           AND user_row."IsDeleted" = FALSE
         FOR UPDATE OF user_row
         """;
 
     /// <summary>
-    /// Locking query that loads one non-deleted password identity by normalised email.
+    /// Locking query that loads one non-deleted password-identity user identifier by normalised email.
     /// </summary>
-    public const string GET_PASSWORD_IDENTITY_BY_EMAIL_FOR_UPDATE_QUERY = """
-        SELECT user_row.*
+    public const string GET_PASSWORD_IDENTITY_USER_ID_BY_EMAIL_FOR_UPDATE_QUERY = """
+        SELECT user_row."Id"
         FROM "identity"."Users" user_row
-        WHERE user_row."Email" = {0}
+        WHERE user_row."Email" = @NormalizedEmail
           AND user_row."IsDeleted" = FALSE
         FOR UPDATE OF user_row
         """;

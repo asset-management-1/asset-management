@@ -1,10 +1,8 @@
 namespace Be.Haven.Core.Services;
 
 /// <summary>
-/// Concrete Dapper-based data access service.
-/// - Opens a new DbConnection per operation via the factory (ADO.NET pooling remains effective).
-/// - If provider/connectionString are null or empty in options, the factory will fall back to the default configuration.
-/// - Disposes connections promptly with "await using".
+/// Executes Dapper commands through either an owned factory connection or a caller-owned transaction connection.
+/// Factory connections are disposed per operation, while borrowed transaction connections remain owned by the caller.
 /// </summary>
 public sealed class DapperService : IDapperService
 {
@@ -153,30 +151,41 @@ public sealed class DapperService : IDapperService
             });
 
     /// <summary>
-    /// Executes a database command with the provided SQL, parameters, options, and action, using Dapper.
+    /// Executes a Dapper command through a borrowed transaction connection or a newly owned connection.
     /// </summary>
     /// <param name="sql">The SQL query or command to be executed.</param>
     /// <param name="param">The parameters to be passed to the SQL query or command.</param>
-    /// <param name="options">Additional options for customizing the command execution, including transaction, timeout, and cancellation settings.</param>
-    /// <param name="action">The function to be executed, which takes a database connection and a command definition, and returns a task that produces a result.</param>
+    /// <param name="options">Additional options for customising transaction, timeout, and cancellation settings.</param>
+    /// <param name="action">The operation that executes against the selected connection and command definition.</param>
     /// <typeparam name="TResult">The type of the result returned by the executed action.</typeparam>
     /// <returns>A task that represents the asynchronous operation. The task result contains the result of the executed action.</returns>
     private async Task<TResult> WithCommandAsync<TResult>(
         string sql,
         object param,
         DapperCommandOptions options,
-        Func<DbConnection, CommandDefinition, Task<TResult>> action)
+        Func<IDbConnection, CommandDefinition, Task<TResult>> action)
     {
-        // Use defaults if none provided
+        // Step 1: Normalise missing options before selecting connection ownership.
         options ??= new DapperCommandOptions();
 
-        // Open and auto-dispose connection
-        await using var conn = await OpenAsync(options);
+        // Step 2: Borrow the active transaction connection so Dapper participates in the caller's atomic boundary.
+        if (options.Transaction is not null)
+        {
+            var borrowedConnection = options.Transaction.Connection;
+            if (borrowedConnection is null || borrowedConnection.State != ConnectionState.Open)
+            {
+                throw new InvalidOperationException(DAPPER_TRANSACTION_CONNECTION_REQUIRED);
+            }
 
-        // Build the command definition
+            var borrowedDefinition = BuildDefinition(sql, param, options);
+
+            return await action(borrowedConnection, borrowedDefinition);
+        }
+
+        // Step 3: Own and dispose a factory connection when no transaction was supplied by the caller.
+        await using var conn = await OpenAsync(options);
         var def = BuildDefinition(sql, param, options);
 
-        // Execute the command and return the results
         return await action(conn, def);
     }
 

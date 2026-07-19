@@ -81,7 +81,7 @@ public sealed class AuthenticationConcurrencyTests : IAsyncLifetime
         await using var transaction = await dbContext.Database.BeginTransactionAsync();
         var sut = new UserRepository(
             dbContext,
-            Mock.Of<IDapperService>(),
+            CreateDapperService(),
             Mock.Of<IJsonSerializerService>());
 
         // Act
@@ -90,6 +90,38 @@ public sealed class AuthenticationConcurrencyTests : IAsyncLifetime
         // Assert
         result.Should().NotBeNull();
         result.PublicId.Should().Be(_identity.UserPublicId);
+    }
+
+    [Fact]
+    public async Task GetPasswordIdentityByEmailForUpdateAsync_Should_RequireActiveTransaction_WhenCalledForRowLock()
+    {
+        // Arrange
+        await using var dbContext = new AuthenticationDbContext(_dbOptions);
+        var sut = new UserRepository(
+            dbContext,
+            CreateDapperService(),
+            Mock.Of<IJsonSerializerService>());
+
+        // Act
+        var action = () => sut.GetPasswordIdentityByEmailForUpdateAsync("concurrency@example.com");
+
+        // Assert
+        await action.Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Fact]
+    public async Task GetForRefreshForUpdateAsync_Should_RequireActiveTransaction_WhenCalledForRowLock()
+    {
+        // Arrange
+        await using var dbContext = new AuthenticationDbContext(_dbOptions);
+        var sut = new RefreshTokenRepository(dbContext, CreateDapperService());
+
+        // Act
+        var action = () => sut.GetForRefreshForUpdateAsync(
+            AuthSessionHelper.HashRefreshToken(_identity.DeviceAToken));
+
+        // Assert
+        await action.Should().ThrowAsync<InvalidOperationException>();
     }
 
     private async Task<int> RefreshAsync(
@@ -139,10 +171,11 @@ public sealed class AuthenticationConcurrencyTests : IAsyncLifetime
         AuthenticationDbContext dbContext,
         string deviceId)
     {
-        var refreshTokenRepository = new RefreshTokenRepository(dbContext);
+        var dapperService = CreateDapperService();
+        var refreshTokenRepository = new RefreshTokenRepository(dbContext, dapperService);
         var userRepository = new UserRepository(
             dbContext,
-            Mock.Of<IDapperService>(),
+            dapperService,
             Mock.Of<IJsonSerializerService>());
         var userPartyRepository = new Mock<IUserPartyRepository>();
         userPartyRepository.Setup(x => x.ResolveSessionPartyIdAsync(
@@ -195,6 +228,20 @@ public sealed class AuthenticationConcurrencyTests : IAsyncLifetime
             support,
             deviceAccessor.Object,
             Mock.Of<ILogger<AuthenticationService>>());
+    }
+
+    private static IDapperService CreateDapperService()
+    {
+        // Locking queries borrow the EF transaction, so this factory must never be used by the test flow.
+        return new DapperService(
+            Mock.Of<IDbConnectionFactory>(),
+            Options.Create(new GcpOptions
+            {
+                DatabaseSettings = new DatabaseOptions
+                {
+                    Provider = SqlProvider.PostgreSql
+                }
+            }));
     }
 
     private static async Task<SeededIdentity> SeedIdentityAsync(AuthenticationDbContext dbContext)
