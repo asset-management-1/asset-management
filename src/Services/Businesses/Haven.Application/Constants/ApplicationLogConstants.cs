@@ -135,13 +135,19 @@ public static class ApplicationLogConstants
     /// <summary>Contains meter record command and query log templates.</summary>
     public static class MeterLogs
     {
-        /// <summary>Logs completion of a room meter mutation.</summary>
+        /// <summary>
+        /// Logs completion of a room meter mutation.
+        /// </summary>
         public const string MUTATION_COMPLETED = "Meter mutation completed for room {RoomId} on {BillingDate}.";
 
-        /// <summary>Logs completion of a bounded room meter history read.</summary>
+        /// <summary>
+        /// Logs completion of a bounded room meter history read.
+        /// </summary>
         public const string HISTORY_LOADED = "Loaded meter history for room {RoomId} in {Year}.";
 
-        /// <summary>Logs completion of one room meter period read.</summary>
+        /// <summary>
+        /// Logs completion of one room meter period read.
+        /// </summary>
         public const string PERIOD_LOADED = "Loaded meter period for room {RoomId} in {Month}/{Year}.";
     }
 }

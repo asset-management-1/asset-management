@@ -5,49 +5,79 @@ namespace Be.Haven.Shared.Constants.Storage;
 /// </summary>
 public static class ObjectStorageConstants
 {
-    /// <summary>JPEG file extension commonly emitted by cameras and browsers.</summary>
+    /// <summary>
+    /// JPEG file extension commonly emitted by cameras and browsers.
+    /// </summary>
     public const string JPG_IMAGE_FILE_EXTENSION = ".jpg";
 
-    /// <summary>Long-form JPEG file extension.</summary>
+    /// <summary>
+    /// Long-form JPEG file extension.
+    /// </summary>
     public const string JPEG_IMAGE_FILE_EXTENSION = ".jpeg";
 
-    /// <summary>PNG image file extension.</summary>
+    /// <summary>
+    /// PNG image file extension.
+    /// </summary>
     public const string PNG_IMAGE_FILE_EXTENSION = ".png";
 
-    /// <summary>WebP image file extension.</summary>
+    /// <summary>
+    /// WebP image file extension.
+    /// </summary>
     public const string WEBP_IMAGE_FILE_EXTENSION = ".webp";
 
-    /// <summary>HEIC image file extension.</summary>
+    /// <summary>
+    /// HEIC image file extension.
+    /// </summary>
     public const string HEIC_IMAGE_FILE_EXTENSION = ".heic";
 
-    /// <summary>HEIF image file extension.</summary>
+    /// <summary>
+    /// HEIF image file extension.
+    /// </summary>
     public const string HEIF_IMAGE_FILE_EXTENSION = ".heif";
 
-    /// <summary>AVIF image file extension.</summary>
+    /// <summary>
+    /// AVIF image file extension.
+    /// </summary>
     public const string AVIF_IMAGE_FILE_EXTENSION = ".avif";
 
-    /// <summary>PDF document file extension.</summary>
+    /// <summary>
+    /// PDF document file extension.
+    /// </summary>
     public const string PDF_FILE_EXTENSION = ".pdf";
 
-    /// <summary>JPEG image media type.</summary>
+    /// <summary>
+    /// JPEG image media type.
+    /// </summary>
     public const string JPEG_IMAGE_CONTENT_TYPE = "image/jpeg";
 
-    /// <summary>PNG image media type.</summary>
+    /// <summary>
+    /// PNG image media type.
+    /// </summary>
     public const string PNG_IMAGE_CONTENT_TYPE = "image/png";
 
-    /// <summary>WebP image media type.</summary>
+    /// <summary>
+    /// WebP image media type.
+    /// </summary>
     public const string WEBP_IMAGE_CONTENT_TYPE = "image/webp";
 
-    /// <summary>HEIC image media type.</summary>
+    /// <summary>
+    /// HEIC image media type.
+    /// </summary>
     public const string HEIC_IMAGE_CONTENT_TYPE = "image/heic";
 
-    /// <summary>HEIF image media type.</summary>
+    /// <summary>
+    /// HEIF image media type.
+    /// </summary>
     public const string HEIF_IMAGE_CONTENT_TYPE = "image/heif";
 
-    /// <summary>AVIF image media type.</summary>
+    /// <summary>
+    /// AVIF image media type.
+    /// </summary>
     public const string AVIF_IMAGE_CONTENT_TYPE = "image/avif";
 
-    /// <summary>PDF document media type.</summary>
+    /// <summary>
+    /// PDF document media type.
+    /// </summary>
     public const string PDF_CONTENT_TYPE = "application/pdf";
 
     /// <summary>

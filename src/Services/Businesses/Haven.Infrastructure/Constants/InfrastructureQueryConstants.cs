@@ -1890,7 +1890,9 @@ public static class InfrastructureQueryConstants
         GROUP BY unit_package."PublicId";
         """;
 
-    /// <summary>Resolves one room and its property inside the current landlord scope.</summary>
+    /// <summary>
+    /// Resolves one room and its property inside the current landlord scope.
+    /// </summary>
     public const string GET_METER_SCOPE_QUERY = """
         SELECT property."Id" AS "PropertyId", property."PublicId" AS "PropertyPublicId",
                property."PropertyName", unit."Id" AS "UnitId", unit."PublicId" AS "RoomPublicId",
@@ -1913,10 +1915,14 @@ public static class InfrastructureQueryConstants
         LIMIT 1;
         """;
 
-    /// <summary>Resolves and locks one room inside the current landlord scope for meter mutation.</summary>
+    /// <summary>
+    /// Resolves and locks one room inside the current landlord scope for meter mutation.
+    /// </summary>
     public const string GET_METER_MUTATION_SCOPE_QUERY = GET_SCOPED_ROOM_GRAPH_QUERY + "\nFOR UPDATE";
 
-    /// <summary>Loads current and previous meter records for one scoped room.</summary>
+    /// <summary>
+    /// Loads current and previous meter records for one scoped room.
+    /// </summary>
     public const string GET_METER_PERIOD_ROWS_QUERY = """
         SELECT property."PublicId" AS "PropertyPublicId", property."PropertyName",
                unit."PublicId" AS "RoomPublicId", unit."UnitName" AS "RoomName",
@@ -1962,7 +1968,9 @@ public static class InfrastructureQueryConstants
         ORDER BY reading."BillingPeriodFrom" DESC, line_type."Code";
         """;
 
-    /// <summary>Loads at most twelve room meter periods for one calendar year.</summary>
+    /// <summary>
+    /// Loads at most twelve room meter periods for one calendar year.
+    /// </summary>
     public const string GET_METER_HISTORY_ROWS_QUERY = """
         WITH selected_periods AS (
             SELECT reading."BillingPeriodFrom"
@@ -2036,7 +2044,9 @@ public static class InfrastructureQueryConstants
         ORDER BY reading."BillingPeriodFrom" DESC, line_type."Code";
         """;
 
-    /// <summary>Loads evidence metadata for selected meter records.</summary>
+    /// <summary>
+    /// Loads evidence metadata for selected meter records.
+    /// </summary>
     public const string GET_METER_EVIDENCE_QUERY = """
         SELECT document."PublicId" AS "EvidencePublicId", link."EntityId" AS "MeterId",
                document."FileUrl" AS "Url", document."ContentType", link."SortOrder"
@@ -2048,7 +2058,9 @@ public static class InfrastructureQueryConstants
         ORDER BY link."EntityId", link."SortOrder";
         """;
 
-    /// <summary>Loads the next invoice state for one room meter period.</summary>
+    /// <summary>
+    /// Loads the next invoice state for one room meter period.
+    /// </summary>
     public const string GET_METER_INVOICE_IMPACT_QUERY = """
         SELECT
             invoice."PublicId" AS "InvoicePublicId",

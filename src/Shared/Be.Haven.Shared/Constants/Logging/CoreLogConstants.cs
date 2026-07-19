@@ -18,8 +18,7 @@ public static class CoreLogConstants
         /// <summary>
         /// Logged after a zero-wait lock attempt completes without exposing the resource key.
         /// </summary>
-        public const string DISTRIBUTED_LOCK_ACQUISITION_COMPLETED =
-            "Distributed lock acquisition completed. Acquired={Acquired}, LeaseDuration={LeaseDuration}.";
+        public const string DISTRIBUTED_LOCK_ACQUISITION_COMPLETED = "Distributed lock acquisition completed. Acquired={Acquired}, LeaseDuration={LeaseDuration}.";
 
         /// <summary>
         /// Logged when the shared Redis connection was created but is not currently connected.
